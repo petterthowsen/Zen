@@ -21,6 +21,6 @@ public readonly struct Token
     {
         string name = Type.ToString();
 
-        return $"{name}" + Value ?? $"={Value}";
+        return $"{name}" + (Value != "" ? $"(`{Value}`)" : "");
     }
 }

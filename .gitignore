@@ -1,8 +1,9 @@
 # Build results
-src/*/bin/
-src/*/obj/
-tests/*/bin/
-tests/*/obj/
+src/Zen/bin/
+src/Zen/obj/
+tests/Zen.Tests/bin/
+tests/Zen.Tests/obj/
+publish/*
 
 # Visual Studio files
 .vs/

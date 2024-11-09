@@ -31,6 +31,9 @@ dotnet build
 
 # Run the project
 dotnet run --project src/Zen
+
+# to build and run, a helper script 'zen.sh' exists:
+./zen.sh
 ```
 
 ## Testing

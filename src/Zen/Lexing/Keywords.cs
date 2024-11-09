@@ -2,34 +2,33 @@ namespace Zen.Lexing;
 
 public enum Keywords
 {
-    Var,
-    Const,
+    // Variable Declaration
+    Var, Const,
 
-    If,
-    Else,
-    Elif,
+    // Primitive Types
+    Int, Int64, Float, Float64, String, Bool, Char, Any,
+    
+    // Primitive Constants
+    True, False, Null, Void,
 
-    For,
-    In,
-    While,
+    // Control Flow Blocks
+    If, Else, Elif, For, In, While, When,
 
+    // Control Flow Keywords
     Continue,
     Break,
     Yield,
     Return,
 
-    Func,
-    Class,
-    New,
-    Is,
-    As,
+    // Function & Class Keywords
+    Func, Async, Await,
+    
+    // Class Keywords
+    Class, Extends, Implements, Abstract, Public, Private, Super, New, Is, This,
 
-    Try,
-    Catch,
-    Throw,
-    Finally,
+    Namespace, Import, From, As, Alias,
 
-    Async,
-    Await,
+    Try, Catch, Throw, Finally,
+
     Echo,
 }

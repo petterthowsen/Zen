@@ -1,4 +1,4 @@
-namespace Zen.Common;
+namespace Zen.Lexing;
 
 public enum TokenType {
     Illegal,

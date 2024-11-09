@@ -1,0 +1,21 @@
+namespace Zen.Parsing.AST;
+
+public class ProgramNode : Node {
+
+    public List<Stmt> Statements = [];
+
+    public override void Accept(IVisitor visitor)
+    {
+        visitor.Visit(this);
+    }
+
+    public override ReturnType Accept<ReturnType>(IGenericVisitor<ReturnType> visitor)
+    {
+        return visitor.Visit(this);
+    }
+    
+    public override string ToString() {
+        return "Program";
+    }
+
+}

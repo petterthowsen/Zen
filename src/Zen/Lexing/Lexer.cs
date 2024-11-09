@@ -8,7 +8,7 @@ public class Lexer {
 
     public ISourceCode SourceCode => _SourceCode;
 
-    public readonly List<Token> Tokens = [];
+    public List<Token> Tokens = [];
 
     public readonly List<Error> Errors = [];
 
@@ -39,8 +39,9 @@ public class Lexer {
             if (Current == '\n') {
                 _line++;
                 _column = 0;
+            }else {
+                _column++;
             }
-            _column++;
             _position++;
         }
     }
@@ -65,16 +66,16 @@ public class Lexer {
     /// <param name="character">The characters to match</param>
     /// <param name="type">The type of the token to be created</param>
     /// <returns>The created token, or null if no characters match</returns>
-    protected Token? ConsumeAll(List<Char> character, TokenType type) {
-        if ( ! character.Contains(Current)) {
+    protected Token? ConsumeAll(List<Char> characters, TokenType type) {
+        if ( ! characters.Contains(Current)) {
             return null;
         }
 
-        int startColumn = _column;
-        while (character.Contains(Current) && ! EOF) {
+        int start = _position;
+        while (! EOF && characters.Contains(Current)) {
             Advance();
         }
-        return AddToken(type, SourceCode.GetLine(_line)[startColumn.._column]);
+        return AddToken(type, SourceCode.Code[start.._position]);
     }
     
     protected Token? ConsumeAll(char character, TokenType type) {
@@ -134,16 +135,18 @@ public class Lexer {
     /// The comment is considered to continue until a newline is encountered.
     /// The created token is of type TokenType.Comment.
     /// </summary>
-    protected void ScanComment() {
+    protected void ScanComment(bool createCommentTokken = false) {
         if ( Current != '#') {
             throw new Exception("Comment must start with '#'!");
         }
 
         int start = _position;
-        while (Current != '\n' && ! EOF) {
+        while ( ! EOF && Current != '\n') {
             Advance();
         }
-        AddToken(TokenType.Comment, SourceCode.GetLine(_line)[start.._position]);
+        if (createCommentTokken) {
+            AddToken(TokenType.Comment, SourceCode.GetLine(_line)[start.._position]);
+        }
     }
 
     protected void ScanNumber() {
@@ -153,14 +156,14 @@ public class Lexer {
 
         int start = _position;
         
-        while (char.IsDigit(Current)) {
+        while ( ! EOF && char.IsDigit(Current)) {
             Advance();
         }
         
-        if (Current == '.') {
+        if ( ! EOF && Current == '.') {
             // it's a float literal
             Advance();
-            while (char.IsDigit(Current)) {
+            while ( ! EOF && char.IsDigit(Current)) {
                 Advance();
             }
             AddToken(TokenType.FloatLiteral, SourceCode.GetLine(_line)[start.._position]);
@@ -178,13 +181,13 @@ public class Lexer {
         Advance(); // Consume the opening quote
         int start = _position;
 
-        while (true) {
+        while ( true ) {
             //Current != '"' && !EOF && Current != '\n'
             if (EOF) {
-                Error("Unclosed string literal", start);
+                Error("Unclosed string literal", ErrorType.UnclosedStringLiteral, start);
                 return;
             }else if (Current == '\n') {
-                Error("Unexpected newline in string literal", start);
+                Error("Unexpected newline in string literal", ErrorType.UnclosedStringLiteral, start);
                 return;
             }else if (Current == '"') {
                 // Consume the closing quote, unless it's escaped
@@ -199,28 +202,29 @@ public class Lexer {
         }
 
         if ( Current == '\n') {
-            Error("Unterminated string literal", start);
+            Error("Unterminated string literal", ErrorType.UnclosedStringLiteral, start);
             return;
         } else if (Current == '"') {
             Advance(); // Consume the closing quote
         } else {
-            Error("Unterminated string literal", start);
+            Error("Unterminated string literal", ErrorType.UnclosedStringLiteral, start);
             return;
         }
 
-        Advance(); // Consume the closing quote
-        AddToken(TokenType.StringLiteral, SourceCode.GetLine(_line)[start.._position]);
+        int end = _position - 1;
+
+        AddToken(TokenType.StringLiteral, SourceCode.GetLine(_line)[start..end]);
     }
 
     private void ScanIdentifierOrKeyword() {
         int start = _position;
         if (!char.IsLetter(Current)) {
-            throw new Exception("Identifier must start with a letter!");
+            throw new Exception("Implementation Error: Identifier must start with a letter!");
         }
 
         Advance();
 
-        while (char.IsLetterOrDigit(Current) || Current == '_') {
+        while ( ! EOF && (char.IsLetterOrDigit(Current) || Current == '_')) {
             Advance();
         }
 
@@ -250,8 +254,7 @@ public class Lexer {
         _line = 0;
         _column = 0;
         Errors.Clear();
-
-        var tokens = new List<Token>();
+        Tokens = new List<Token>();
 
         while (_position <= SourceCode.Length) {
             if (EOF) {
@@ -269,6 +272,7 @@ public class Lexer {
                 continue;
             } else if (char.IsDigit(Current)) {
                 ScanNumber();
+                continue;
             } else if (Current == ' ' || Current == '\t') {
                 // All consecutive spaces and tabs is a single whitespace token
                 ConsumeAll([' ', '\t'], TokenType.Whitespace);
@@ -311,6 +315,7 @@ public class Lexer {
                 continue;
             } else if (MatchSequence("..")) {
                 ConsumeSequence("..", TokenType.DoubleDot);
+                continue;
             }
             
             // Parse single character tokens
@@ -379,10 +384,10 @@ public class Lexer {
             }
         }
         
-        return tokens;
+        return Tokens;
     }
 
-    protected void Error(string message, int? position) {
+    protected void Error(string message, ErrorType errorType = ErrorType.SyntaxError, int? position = null) {
         int pos = position ?? _position;
 
         int l = 0;
@@ -396,7 +401,7 @@ public class Lexer {
             }
         }
 
-        var err = new SyntaxError(message, SourceCode.MakeLocation(l, c));
+        var err = new SyntaxError(message, errorType, SourceCode.MakeLocation(l, c));
         Errors.Add(err);
     }
 
