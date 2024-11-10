@@ -1,6 +1,9 @@
 ﻿namespace Zen;
 
+using SysEnv = System.Environment;
+
 using Zen.Common;
+using Zen.Execution;
 using Zen.Lexing;
 using Zen.Parsing;
 using Zen.Parsing.AST;
@@ -15,12 +18,13 @@ public class Program
             // Retrieve and display exception details
             if (eventArgs.ExceptionObject is Exception ex)
             {
-                Console.WriteLine("Oops!");
+                Console.WriteLine("Oops! Unhandled Exception!");
                 Console.WriteLine(ex.ToString()); // Print the full exception details
+                Console.WriteLine("This is a problem with the Zen Runtime. Sorry!");
             }
 
             // Perform any additional cleanup if needed
-            Environment.Exit(1); // Exit with a non-zero code to indicate an error
+            SysEnv.Exit(70); // Exit with a non-zero code to indicate an error
         };
 
         // Handle the SIGINT (CTRL+C) signal
@@ -33,7 +37,7 @@ public class Program
             Console.WriteLine("Bye!");
 
             // Exit the application
-            Environment.Exit(0);
+            SysEnv.Exit(0);
         };
 
 
@@ -67,7 +71,7 @@ public class Program
         }
     }
 
-    protected static void Execute(string code) {
+    protected static void Execute(string code, Interpreter? interpreter = null) {
         var lexer = new Lexer();
         var tokens = lexer.Tokenize(code);
 
@@ -81,7 +85,9 @@ public class Program
         var parser = new Parser();
         var program = parser.Parse(tokens);
 
-        PrintAST(program);
+        if (program != null) {
+            PrintAST(program);
+        }
 
         if (parser.Errors.Count > 0) {
             PrintErrors(parser.Errors);
@@ -89,12 +95,20 @@ public class Program
         }
 
         // execute program
+        if (program != null) {
+            interpreter ??= new Interpreter();
+            try {
+                interpreter.Interpret(program);
+            } catch (RuntimeError error) {
+                Console.WriteLine(error);
+            }
+        }
     }
 
     protected static void REPL() {
         Console.WriteLine("Zen REPL v0.1");
-
-        var lexer = new Lexer();
+        
+        Interpreter interpreter = new();
 
         while (true) {
             Console.Write(">> ");
@@ -102,7 +116,13 @@ public class Program
             if (input == null) {
                 break;
             }
-            Execute(input);
+
+            // Wrap the expression in print
+            if ( ! input.StartsWith("print")) {
+                input = "print " + input;
+            }
+
+            Execute(input, interpreter);
         }
     }
 

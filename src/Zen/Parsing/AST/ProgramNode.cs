@@ -1,8 +1,12 @@
+using Zen.Common;
+
 namespace Zen.Parsing.AST;
 
 public class ProgramNode : Node {
 
     public List<Stmt> Statements = [];
+
+    public override SourceLocation Location => Statements[0].Location;
 
     public override void Accept(IVisitor visitor)
     {
@@ -13,7 +17,7 @@ public class ProgramNode : Node {
     {
         return visitor.Visit(this);
     }
-    
+
     public override string ToString() {
         return "Program";
     }

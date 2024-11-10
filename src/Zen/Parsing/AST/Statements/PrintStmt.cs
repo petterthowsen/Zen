@@ -1,13 +1,19 @@
 using Zen.Common;
+using Zen.Lexing;
 
 namespace Zen.Parsing.AST.Statements;
 
-public class IfStmt : Stmt
-{
-    public required Expr Condition { get; set; }
-    public required Stmt Then { get; set; }
+public class PrintStmt : Stmt
+{   
+    public Token Token;
+    public Expr Expression;
 
-    public override SourceLocation Location => Condition.Location;
+    public override SourceLocation Location => Token.Location;
+
+    public PrintStmt(Token token, Expr expression) {
+        Token = token;
+        Expression = expression;
+    }
 
     public override void Accept(IVisitor visitor)
     {
@@ -21,6 +27,6 @@ public class IfStmt : Stmt
 
     public override string ToString()
     {
-        return "IfStmt";
+        return "PrintStmt";
     }
 }

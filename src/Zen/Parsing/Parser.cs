@@ -4,6 +4,7 @@ using Zen.Common;
 using Zen.Lexing;
 using Zen.Parsing.AST;
 using Zen.Parsing.AST.Expressions;
+using Zen.Parsing.AST.Statements;
 
 public class Parser
 {
@@ -25,15 +26,23 @@ public class Parser
 
 	protected bool IsAtEnd => Current.Type == TokenType.EOF;
 
-	public Node? Parse(List<Token> tokens)
+	public ProgramNode? Parse(List<Token> tokens)
 	{
 		Tokens = tokens;
 		_index = 0;
 		Errors.Clear();
+		ProgramNode program = new();
+
 
 		try {
-			return Expression();
-		} catch (Error parseError) {
+			while ( ! IsAtEnd) {
+				program.Statements.Add(Statement());
+			}
+
+			return program;
+		} catch (Error _err) {
+			//Synchronize();
+			//return Parse();
 			return null;
 		}
 	}
@@ -96,7 +105,7 @@ public class Parser
 	/// <param name="type">The type of token to consume</param>
 	/// <param name="multiple">If true, consumes all sequential tokens of the given type</param>
 	/// <returns>The number of consumed tokens, or 0 if the token did not match</returns>
-	private int OptionalConsume(TokenType type, bool multiple = false)
+	private int Maybe(TokenType type, bool multiple = false)
 	{
 		int count = 0;
 		while (Check(type))
@@ -112,6 +121,16 @@ public class Parser
 		return count;
 	}
 
+	private int MaybeSome(TokenType type) {
+		return Maybe(type, true);
+	}
+
+	private void AtleastOne(TokenType type) {
+		if (MaybeSome(type) == 0) {
+			throw Error($"Expected at least one {type}");
+		}
+	}
+
 	private bool MatchKeyword(string keyword)
 	{
 		if (Current.Type == TokenType.Keyword && Current.Value == keyword)
@@ -120,6 +139,26 @@ public class Parser
 			return true;
 		}
 		return false;
+	}
+
+	private Stmt Statement() {
+		if (MatchKeyword("print")) return PrintStatement();
+		
+		return ExpressionStatement();
+	}
+
+	private PrintStmt PrintStatement() {
+		Token token = Previous;
+		
+		AtleastOne(TokenType.Whitespace);
+
+		Expr expr = Expression();
+		return new PrintStmt(token, expr);
+  	}
+
+	private ExpressionStmt ExpressionStatement() {
+		Expr expr = Expression();
+		return new ExpressionStmt(expr);
 	}
 
 	private Expr Expression()
@@ -131,9 +170,14 @@ public class Parser
 	{
 		Expr expr = Comparison();
 
+		MaybeSome(TokenType.Whitespace);
+
 		while (Match(TokenType.NotEqual, TokenType.Equal))
 		{
 			Token op = Previous;
+
+			MaybeSome(TokenType.Whitespace);
+
 			Expr right = Comparison();
 			expr = new Binary(expr, op, right);
 		}
@@ -145,9 +189,14 @@ public class Parser
 	{
 		Expr expr = Term();
 
+		MaybeSome(TokenType.Whitespace);
+
 		while (Match(TokenType.GreaterThan, TokenType.GreaterThanOrEqual, TokenType.LessThan, TokenType.LessThanOrEqual))
 		{
 			Token op = Previous;
+
+			MaybeSome(TokenType.Whitespace);
+
 			Expr right = Term();
 			expr = new Binary(expr, op, right);
 		}
@@ -159,9 +208,14 @@ public class Parser
 	{
 		Expr expr = Factor();
 
+		MaybeSome(TokenType.Whitespace);
+
 		while (Match(TokenType.Minus, TokenType.Plus))
 		{
 			Token op = Previous;
+
+			MaybeSome(TokenType.Whitespace);
+
 			Expr right = Factor();
 			expr = new Binary(expr, op, right);
 		}
@@ -173,9 +227,14 @@ public class Parser
 	{
 		Expr expr = Unary();
 
+		MaybeSome(TokenType.Whitespace);
+
 		while (Match(TokenType.Slash, TokenType.Star))
 		{
 			Token op = Previous;
+
+			MaybeSome(TokenType.Whitespace);
+
 			Expr right = Unary();
 			expr = new Binary(expr, op, right);
 		}
@@ -188,6 +247,9 @@ public class Parser
 		if (Match(TokenType.Minus) || MatchKeyword("not"))
 		{
 			Token op = Previous;
+
+			MaybeSome(TokenType.Whitespace);
+
 			Expr right = Unary();
 			return new Unary(op, right);
 		}
@@ -197,29 +259,33 @@ public class Parser
 
 	private Expr Primary()
 	{
-		if (MatchKeyword("false")) return new Literal(Literal.Kind.Bool, false, Previous);
-		if (MatchKeyword("true")) return new Literal(Literal.Kind.Bool, true, Previous);
-		if (MatchKeyword("null")) return new Literal(Literal.Kind.Null, null, Previous);
+		MaybeSome(TokenType.Whitespace);
 
-		// we store number literals as strings since we don't know if they should be 32-bit or 64-bit
-		// it's up to the interpreter to decide based on the context.
+		if (MatchKeyword("false")) return new Literal(Literal.LiteralKind.Bool, false, Previous);
+		if (MatchKeyword("true")) return new Literal(Literal.LiteralKind.Bool, true, Previous);
+		if (MatchKeyword("null")) return new Literal(Literal.LiteralKind.Null, null, Previous);
+
 		if (Match(TokenType.IntLiteral)) {
-			return new Literal(Literal.Kind.Int, Previous.Value, Previous);
+			return new Literal(Literal.LiteralKind.Int, Previous.Value, Previous);
 		}
 
 		if (Match(TokenType.FloatLiteral)) {
-			return new Literal(Literal.Kind.Float, Previous.Value, Previous);
+			return new Literal(Literal.LiteralKind.Float, Previous.Value, Previous);
 		}
 
 		if (Match(TokenType.StringLiteral))
 		{
-			return new Literal(Literal.Kind.String, Previous.Value, Previous);
+			return new Literal(Literal.LiteralKind.String, Previous.Value, Previous);
 		}
 
 		if (Match(TokenType.OpenParen))
 		{
+			MaybeSome(TokenType.Whitespace);
 			Expr expr = Expression();
+			MaybeSome(TokenType.Whitespace);
+
 			Consume(TokenType.CloseParen, "Expected a ')' after expression.");
+			
 			return new Grouping(expr);
 		}
 

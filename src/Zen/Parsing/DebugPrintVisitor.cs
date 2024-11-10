@@ -75,4 +75,26 @@ public class DebugPrintVisitor : IVisitor {
     {
         _sb.Add(literal.ToString());
     }
+
+    public void Visit(PrintStmt printStmt)
+    {
+        _sb.Add(printStmt.ToString());
+        
+        _sb.Indent++;
+        
+        printStmt.Expression.Accept(this);
+        
+        _sb.Indent--;
+    }
+
+    public void Visit(ExpressionStmt expressionStmt)
+    {
+        _sb.Add(expressionStmt.ToString());
+        
+        _sb.Indent++;
+        
+        expressionStmt.Expression.Accept(this);
+        
+        _sb.Indent--;
+    }
 }

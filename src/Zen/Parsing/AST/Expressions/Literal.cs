@@ -1,11 +1,12 @@
 using Zen.Common;
 using Zen.Lexing;
+using Zen.Typing;
 
 namespace Zen.Parsing.AST.Expressions;
 
-public class Literal(Literal.Kind kind, object? value, Token token) : Expr {
+public class Literal : Expr {
 
-    public enum Kind {
+    public enum LiteralKind {
         String,
         Int,
         Float,
@@ -13,13 +14,38 @@ public class Literal(Literal.Kind kind, object? value, Token token) : Expr {
         Null,
     }
 
-    public Token Token = token;
+    public Token Token;
 
-    public Kind Type => kind;
+    public LiteralKind Kind;
 
-    public object? Value => value;
+    private dynamic? _value;
+
+    public dynamic? Value => _value;
 
     public override SourceLocation Location => Token.Location;
+
+    public Literal(LiteralKind kind, dynamic? value, Token token) {
+        Kind = kind;
+        Token = token;
+
+        switch (Kind) {
+            case LiteralKind.String:
+                _value = new ZenValue(ZenType.String, value ?? "");
+                break;
+            case LiteralKind.Int:
+                _value = new ZenValue(ZenType.Integer64, long.Parse(value));
+                break;
+            case LiteralKind.Float:
+                _value = new ZenValue(ZenType.Float64, double.Parse(value));
+                break;
+            case LiteralKind.Bool:
+                _value = new ZenValue(ZenType.Boolean, bool.Parse(value));
+                break;
+            case LiteralKind.Null:
+                _value = new ZenValue(ZenType.Null, null);
+                break;
+        }
+    }
 
     public override void Accept(IVisitor visitor)
     {

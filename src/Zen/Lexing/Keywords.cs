@@ -30,5 +30,5 @@ public enum Keywords
 
     Try, Catch, Throw, Finally,
 
-    Echo,
+    Print, Include
 }

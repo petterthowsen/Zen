@@ -4,6 +4,7 @@ using Zen.Lexing;
 using Zen.Parsing.AST;
 using Zen.Parsing.AST.Expressions;
 using Zen.Parsing.AST.Statements;
+using Zen.Typing;
 
 namespace Zen.Execution;
 
@@ -13,6 +14,8 @@ public class Interpreter : IGenericVisitor<object?> {
 	{
 		return new RuntimeError(message, errorType, location);
 	}
+
+    public Environment environment = new();
 
     /// <summary>
     /// Determines if a given object is truthy.
@@ -27,7 +30,7 @@ public class Interpreter : IGenericVisitor<object?> {
     ///     <item>non-zero doubles</item>
     /// </list>
     /// </remarks>
-    public static bool IsTruthy(object? value) {
+    public static bool IsTruthy(dynamic? value) {
         return value switch {
             null => false,
             bool b => b,
@@ -39,8 +42,10 @@ public class Interpreter : IGenericVisitor<object?> {
         };
     }
 
-    public static bool IsNumber(object? value) {
-        return value is int || value is float || value is long || value is double;
+    public static bool IsNumber(dynamic? value) {
+        if (value is null) return false;
+        if (value is ZenValue) return value.IsNumber();
+        return false;
     }
 
     public static bool IsArithmeticOperator(TokenType type) {
@@ -51,31 +56,39 @@ public class Interpreter : IGenericVisitor<object?> {
         return type == TokenType.Equal || type == TokenType.NotEqual || type == TokenType.LessThan || type == TokenType.LessThanOrEqual || type == TokenType.GreaterThan || type == TokenType.GreaterThanOrEqual;
     }
 
-    public static bool IsEqual(object? a, object? b) {
+    public static bool IsEqual(dynamic? a, dynamic? b) {
         if (a is null && b is null) return true;
         if (a is null || b is null) return false;
 
         return a.Equals(b);
     }
 
-    private object? Evaluate(Expr expr) {
+    public void Interpret(Node node) {
+        node.Accept(this);
+    }
+
+    private dynamic? Evaluate(Expr expr) {
         return expr.Accept(this);
     }
 
-    public object? Visit(ProgramNode programNode)
+    public dynamic? Visit(ProgramNode programNode)
     {
-        return "";
+        foreach (var statement in programNode.Statements) {
+            statement.Accept(this);
+        }
+
+        return null;
     }
 
-    public object? Visit(IfStmt ifStmt)
+    public dynamic? Visit(IfStmt ifStmt)
     {
         throw new NotImplementedException();
     }
 
-    public object? Visit(Binary binary)
+    public dynamic? Visit(Binary binary)
     {
-        object? left = Evaluate(binary.Left);
-        object? right = Evaluate(binary.Right);
+        dynamic? left = Evaluate(binary.Left);
+        dynamic? right = Evaluate(binary.Right);
 
         if (IsArithmeticOperator(binary.Operator.Type)) {
             // For now, we only support numbers (int, long, float, double)
@@ -84,68 +97,86 @@ public class Interpreter : IGenericVisitor<object?> {
             } else if ( ! IsNumber(right)) {
                 throw Error($"Cannot use operator `{binary.Operator.Type}` on non-numeric value `{right}`", binary.Location);
             }
+            
+            var leftNumber = left!.Underlying;
+            var rightNumber = right!.Underlying;
 
             // Promote the operands as necessary
-            if (left is int) {
-                if (right is long) {
-                    left = (long)left;
-                } else if (right is float) {
-                    left = (float)left;
-                } else if (right is double) {
-                    left = (double)left;
+            if (leftNumber is int) {
+                if (rightNumber is long) {
+                    leftNumber = (long)leftNumber;
+                } else if (rightNumber is float) {
+                    leftNumber = (float)leftNumber;
+                } else if (rightNumber is double) {
+                    leftNumber = (double)leftNumber;
                 }
-            } else if (left is long) {
-                if (right is float) {
-                    left = (float)left;
-                } else if (right is double) {
-                    left = (double)left;
+            } else if (leftNumber is long) {
+                if (rightNumber is float) {
+                    leftNumber = (float)leftNumber;
+                } else if (rightNumber is double) {
+                    double doubleLeft = (long)leftNumber;
+                    leftNumber = doubleLeft;
                 }
-            } else if (left is float) {
-                if (right is double) {
-                    left = (double)left;
+            } else if (leftNumber is float) {
+                if (rightNumber is double) {
+                    leftNumber = (double)leftNumber;
                 }
             }
 
-            if (right is int) {
-                if (left is long) {
-                    right = (long)right;
+            if (rightNumber is int) {
+                if (leftNumber is long) {
+                    rightNumber = (long)rightNumber;
                 } else if (left is float) {
-                    right = (float)right;
+                    rightNumber = (float)rightNumber;
                 } else if (left is double) {
-                    right = (double)right;
+                    rightNumber = (double)rightNumber;
                 }
-            } else if (right is long) {
-                if (left is float) {
-                    right = (float)right;
-                } else if (left is double) {
-                    right = (double)right;
+            } else if (rightNumber is long) {
+                if (leftNumber is float) {
+                    rightNumber = (float)rightNumber;
+                } else if (leftNumber is double) {
+                    rightNumber = (double)rightNumber;
                 }
-            } else if (right is float) {
-                if (left is double) {
-                    right = (double)right;
+            } else if (rightNumber is float) {
+                if (leftNumber is double) {
+                    rightNumber = (double)rightNumber;
                 }
             }
+            
+            // Perform the operation
+            switch (binary.Operator.Type) {
+                case TokenType.Plus:
+                    return new ZenValue(ZenType.Integer64, leftNumber + rightNumber);
+                case TokenType.Minus:
+                    return new ZenValue(ZenType.Integer64, leftNumber - rightNumber);
+                case TokenType.Star:
+                    return new ZenValue(ZenType.Integer64, leftNumber * rightNumber);
+                case TokenType.Slash:
+                    if (rightNumber == 0) {
+                        throw Error($"Cannot divide `{leftNumber}` by zero", binary.Location);
+                    }
+                    return new ZenValue(ZenType.Integer64, leftNumber / rightNumber);
+                case TokenType.Percent:
+                    // Ensure both operands are integers for modulus
+                    if (!(leftNumber is long || leftNumber is int)) {
+                        throw Error($"Modulus operator requires both operands to be integers", binary.Location);
+                    }
+                    if (!(rightNumber is long || rightNumber is int)) {
+                        throw Error($"Modulus operator requires both operands to be integers", binary.Location);
+                    }
+                    // Check for division by zero
+                    if (rightNumber == 0) {
+                        throw Error($"Cannot compute modulus with divisor zero", binary.Location);
+                    }
+                    return new ZenValue(ZenType.Integer64, leftNumber % rightNumber);
+            }
 
-            // Handle arithmetic and comparison operations
-            return binary.Operator.Type switch
-            {
-                TokenType.Plus => PerformArithmetic(left, right, (x, y) => x + y),
-                TokenType.Minus => PerformArithmetic(left, right, (x, y) => x - y),
-                TokenType.Star => PerformArithmetic(left, right, (x, y) => x * y),
-                TokenType.Slash => PerformArithmetic(left, right, (x, y) => x / y),
-                TokenType.Percent => PerformArithmetic(left, right, (x, y) => x % y),
-                _ => throw Error($"Unsupported operator {binary.Operator}", binary.Location)
-            };
+            return null;
         }else if (IsComparisonOperator(binary.Operator.Type)) {
             return PerformComparison(left, right, binary.Operator);
         } else {
             throw Error($"Unsupported binary operator {binary.Operator}", binary.Location);
         }
-    }
-
-    private static dynamic PerformArithmetic(object left, object right, Func<dynamic, dynamic, dynamic> operation)
-    {
-        return operation(left, right);
     }
 
     private static bool PerformComparison(object left, object right, Token operatorToken)
@@ -161,14 +192,14 @@ public class Interpreter : IGenericVisitor<object?> {
         };
     }
 
-    public object? Visit(Grouping grouping)
+    public dynamic? Visit(Grouping grouping)
     {
         return Evaluate(grouping.Expression);
     }
 
-    public object? Visit(Unary unary)
+    public dynamic? Visit(Unary unary)
     {
-        object? value = Evaluate(unary.Right);
+        dynamic? value = Evaluate(unary.Right);
 
         if (unary.IsNot())
         {
@@ -198,8 +229,26 @@ public class Interpreter : IGenericVisitor<object?> {
     }
 
 
-    public object? Visit(Literal literal)
+    public dynamic? Visit(Literal literal)
     {
         return literal.Value;
+    }
+
+    public dynamic? Visit(PrintStmt printStmt) {
+        dynamic? value = Evaluate(printStmt.Expression);
+
+        // print the value
+        if (value is ZenValue) {
+            value = value.Underlying;
+        }
+        
+        Console.WriteLine(value);
+
+        return null;
+    }
+
+    public dynamic? Visit(ExpressionStmt expressionStmt)
+    {
+        return Evaluate(expressionStmt.Expression);
     }
 }
