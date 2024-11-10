@@ -7,5 +7,6 @@ public interface ISourceCode{
     public string GetLine(int lineNumber);
     public char GetCharAt(int line, int column);
     public char GetChar(int index);
+    public string Substring(Range range);
     public SourceLocation MakeLocation(int line, int column);
 }

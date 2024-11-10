@@ -9,6 +9,14 @@ using Zen.Parsing.AST.Statements;
 public class Parser
 {
 
+	public enum ParsingContext {
+		Default,
+		Class,
+		Function,
+	}
+
+	private ParsingContext Context = ParsingContext.Default;
+
 	private List<Token> Tokens = [];
 
 	public readonly List<Error> Errors = [];
@@ -26,11 +34,12 @@ public class Parser
 
 	protected bool IsAtEnd => Current.Type == TokenType.EOF;
 
-	public ProgramNode? Parse(List<Token> tokens)
+	public ProgramNode Parse(List<Token> tokens)
 	{
 		Tokens = tokens;
 		_index = 0;
 		Errors.Clear();
+		Context = ParsingContext.Default;
 		ProgramNode program = new();
 
 
@@ -43,7 +52,7 @@ public class Parser
 		} catch (Error _err) {
 			//Synchronize();
 			//return Parse();
-			return null;
+			return program;
 		}
 	}
 
@@ -105,10 +114,10 @@ public class Parser
 	/// <param name="type">The type of token to consume</param>
 	/// <param name="multiple">If true, consumes all sequential tokens of the given type</param>
 	/// <returns>The number of consumed tokens, or 0 if the token did not match</returns>
-	private int Maybe(TokenType type, bool multiple = false)
+	private int MaybeOneOrMore(TokenType[] types, bool multiple = false)
 	{
 		int count = 0;
-		while (Check(type))
+		while (Check(types))
 		{
 			Advance();
 			count += 1;
@@ -121,14 +130,73 @@ public class Parser
 		return count;
 	}
 
-	private int MaybeSome(TokenType type) {
-		return Maybe(type, true);
+	private int MaybeSome(params TokenType[] types) {
+		return MaybeOneOrMore(types, true);
+	}
+
+	private void Maybe(params TokenType[] types) {
+		MaybeOneOrMore(types, false);
 	}
 
 	private void AtleastOne(TokenType type) {
 		if (MaybeSome(type) == 0) {
 			throw Error($"Expected at least one {type}");
 		}
+	}
+
+	private bool CheckSequence(bool ignoreWhiteSpace = false, params TokenType[] types) {
+		int offset = 0;
+
+		foreach (var type in types) {
+			// Skip any whitespace tokens if ignoreWhiteSpace is true
+			while (ignoreWhiteSpace && Peek(offset).Type == TokenType.Whitespace) {
+				offset += 1;
+			}
+
+			// Check if the current token matches the expected type
+			if (Peek(offset).Type == type) {
+				offset += 1;
+			} else {
+				return false;
+			}
+		}
+		
+		return true;
+	}
+
+	private bool CheckKeywordSequence(params string[] keywords) {
+		int offset = 0;
+		foreach (var keyword in keywords) {
+			if (Peek(offset).Type != TokenType.Keyword || Peek(offset).Value != keyword) {
+				return false;
+			}
+			offset += 1;
+			while (Peek(offset).Type == TokenType.Whitespace) {
+				offset += 1;
+			}
+		}
+		return true;
+	}
+
+	/// <summary>
+	/// Matches a sequence of keywords from the current position in the token stream.
+	/// Whitespaces between the keywords are consumed, but not before or after the sequence.
+	/// </summary>
+	/// <param name="keywords">An array of keyword strings to be matched in sequence.</param>
+	/// <returns>True if the sequence of keywords matches; otherwise, false.</returns>
+	private bool MatchKeywordSequence(params string[] keywords) {
+		int index = _index;
+		foreach (var keyword in keywords) {
+			if (Current.Type != TokenType.Keyword || Current.Value != keyword) {
+				_index = index;
+				return false;
+			}
+			Advance();
+			while (keywords.Last() != keyword && Current.Type == TokenType.Whitespace) {
+				Advance();
+			}
+		}
+		return true;
 	}
 
 	private bool MatchKeyword(string keyword)
@@ -143,7 +211,7 @@ public class Parser
 
 	private Stmt Statement() {
 		if (MatchKeyword("print")) return PrintStatement();
-		
+		if (MatchKeyword("if")) return IfStatement();
 		return ExpressionStatement();
 	}
 
@@ -156,7 +224,86 @@ public class Parser
 		return new PrintStmt(token, expr);
   	}
 
-	private ExpressionStmt ExpressionStatement() {
+	private Block Block() {
+		Token openBrace = Previous;
+
+		MaybeSome(TokenType.Whitespace, TokenType.Newline);
+
+		List<Stmt> statements = [];
+		while ( ! Check(TokenType.CloseBrace) && !IsAtEnd) {
+			MaybeSome(TokenType.Whitespace, TokenType.Newline);
+			statements.Add(Statement());
+			MaybeSome(TokenType.Whitespace, TokenType.Newline);
+		}
+
+		return new Block(openBrace, [.. statements]);
+	}
+
+	private IfStmt IfStatement() {
+		Token token = Previous; // if
+		
+		AtleastOne(TokenType.Whitespace); // spaces
+
+		Expr condition = Expression(); // condition
+
+		MaybeSome(TokenType.Whitespace, TokenType.Newline); // any spaces/newlines
+
+		Consume(TokenType.OpenBrace, "Expected '{' after 'if'"); // {
+
+		Block thenBranch = Block();
+
+		Consume(TokenType.CloseBrace, "Expected '}' after block"); // }
+		
+		MaybeSome(TokenType.Whitespace, TokenType.Newline); // spaces/newlines
+
+		IfStmt ifStmt = new IfStmt(token, condition, thenBranch);
+
+		List<IfStmt> elseIfs = [];
+
+		// else if blocks
+		while (MatchKeywordSequence("else", "if")) {
+			AtleastOne(TokenType.Whitespace);
+
+			// condition
+			Expr elseIfCondition = Expression();
+
+			// spaces or newlines
+			MaybeSome(TokenType.Whitespace, TokenType.Newline);
+
+			// {
+			Consume(TokenType.OpenBrace, "Expected '{' after 'else if'");
+			
+			// parse block...
+			Block elseIfBlock = Block();
+
+			// consume }
+			elseIfBlock.CloseBrace = Consume(TokenType.CloseBrace, "Expected '}' after block");
+
+			// spaces or newlines
+			MaybeSome(TokenType.Whitespace, TokenType.Newline);
+
+			IfStmt elseIf = new IfStmt(Previous, elseIfCondition, elseIfBlock);
+			elseIfs.Add(elseIf);
+		}
+
+		ifStmt.ElseIfs = [.. elseIfs];
+
+		// else block?
+
+		if (MatchKeyword("else")) {
+			AtleastOne(TokenType.Whitespace);
+			MaybeSome(TokenType.Whitespace, TokenType.Newline);
+
+			Consume(TokenType.OpenBrace, "Expected '{' after 'else'");
+			Block elseBlock = Block();
+			elseBlock.CloseBrace = Consume(TokenType.CloseBrace, "Expected '}' after block");
+			ifStmt.Else = elseBlock;
+		}
+
+		return ifStmt;
+	}
+
+	protected ExpressionStmt ExpressionStatement() {
 		Expr expr = Expression();
 		return new ExpressionStmt(expr);
 	}
@@ -259,8 +406,6 @@ public class Parser
 
 	private Expr Primary()
 	{
-		MaybeSome(TokenType.Whitespace);
-
 		if (MatchKeyword("false")) return new Literal(Literal.LiteralKind.Bool, false, Previous);
 		if (MatchKeyword("true")) return new Literal(Literal.LiteralKind.Bool, true, Previous);
 		if (MatchKeyword("null")) return new Literal(Literal.LiteralKind.Null, null, Previous);
@@ -284,7 +429,7 @@ public class Parser
 			Expr expr = Expression();
 			MaybeSome(TokenType.Whitespace);
 
-			Consume(TokenType.CloseParen, "Expected a ')' after expression.");
+			Consume(TokenType.CloseParen, "Expected a matching ')' after expression.");
 			
 			return new Grouping(expr);
 		}

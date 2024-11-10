@@ -97,4 +97,17 @@ public class DebugPrintVisitor : IVisitor {
         
         _sb.Indent--;
     }
+
+    public void Visit(Block block)
+    {
+        _sb.Add(block.ToString());
+
+        _sb.Indent++;
+        
+        foreach (var stmt in block.Body) {
+            stmt.Accept(this);
+        }
+        
+        _sb.Indent--;
+    }
 }

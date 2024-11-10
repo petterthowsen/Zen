@@ -39,7 +39,7 @@ public class Literal : Expr {
                 _value = new ZenValue(ZenType.Float64, double.Parse(value));
                 break;
             case LiteralKind.Bool:
-                _value = new ZenValue(ZenType.Boolean, bool.Parse(value));
+                _value = new ZenValue(ZenType.Boolean, bool.Parse(value == true ? "true" : "false"));
                 break;
             case LiteralKind.Null:
                 _value = new ZenValue(ZenType.Null, null);

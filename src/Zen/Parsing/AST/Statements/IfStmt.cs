@@ -1,11 +1,17 @@
 using Zen.Common;
+using Zen.Lexing;
 
 namespace Zen.Parsing.AST.Statements;
 
-public class IfStmt : Stmt
+public class IfStmt(Token token, Expr condition, Block then) : Stmt
 {
-    public required Expr Condition { get; set; }
-    public required Stmt Then { get; set; }
+    public Token Token = token;
+    public Expr Condition = condition;
+    public Block Then = then;
+
+    public IfStmt[] ElseIfs = [];
+
+    public Block? Else = null;
 
     public override SourceLocation Location => Condition.Location;
 

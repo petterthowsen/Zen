@@ -21,6 +21,12 @@ public readonly struct Token
     {
         string name = Type.ToString();
 
-        return $"{name}" + (Value != "" ? $"(`{Value}`)" : "");
+        string escapedValue = Value;
+        escapedValue = escapedValue.Replace("\n", "\\n");
+        escapedValue = escapedValue.Replace("\r", "\\r");
+        escapedValue = escapedValue.Replace("\t", "\\t");
+        escapedValue = escapedValue.Replace("\"", "\\\"");
+
+        return $"{name}" + (Value != "" ? $"(`{escapedValue}`)" : "");
     }
 }

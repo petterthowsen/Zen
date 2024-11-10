@@ -9,6 +9,7 @@ public interface IVisitor
     void Visit(ProgramNode programNode);
 
     // Statements
+    void Visit(Block block);
     void Visit(IfStmt ifStmt);
     void Visit(ExpressionStmt expressionStmt);
     void Visit(PrintStmt printStmt);

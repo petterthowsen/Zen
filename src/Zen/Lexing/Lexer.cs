@@ -145,7 +145,7 @@ public class Lexer {
             Advance();
         }
         if (createCommentTokken) {
-            AddToken(TokenType.Comment, SourceCode.GetLine(_line)[start.._position]);
+            AddToken(TokenType.Comment, SourceCode.Substring(start.._position));
         }
     }
 
@@ -166,10 +166,10 @@ public class Lexer {
             while ( ! EOF && char.IsDigit(Current)) {
                 Advance();
             }
-            AddToken(TokenType.FloatLiteral, SourceCode.GetLine(_line)[start.._position]);
+            AddToken(TokenType.FloatLiteral, SourceCode.Substring(start.._position));
         } else {
             // it's an int literal
-            AddToken(TokenType.IntLiteral, SourceCode.GetLine(_line)[start.._position]);
+            AddToken(TokenType.IntLiteral, SourceCode.Substring(start.._position));
         }
     }
 
@@ -213,7 +213,7 @@ public class Lexer {
 
         int end = _position - 1;
 
-        AddToken(TokenType.StringLiteral, SourceCode.GetLine(_line)[start..end]);
+        AddToken(TokenType.StringLiteral, SourceCode.Substring(start..end));
     }
 
     private void ScanIdentifierOrKeyword() {
@@ -228,7 +228,7 @@ public class Lexer {
             Advance();
         }
 
-        string literal = _SourceCode.GetLine(_line)[start.._position];
+        string literal = _SourceCode.Substring(start.._position);
 
         bool isKeyword = Enum.TryParse<Keywords>(literal, true, out _);
 

@@ -22,6 +22,8 @@ public abstract class AbstractSourceCode : ISourceCode {
 
     public char GetCharAt(int line, int column) => GetLine(line)[column];
 
+    public string Substring(Range range) => Code[range];
+
     public SourceLocation MakeLocation(int line, int column) {
         return new SourceLocation {
             Code = this,

@@ -9,6 +9,7 @@ public interface IGenericVisitor<T>
     T Visit(ProgramNode programNode);
 
     // Statements
+    T Visit(Block block);
     T Visit(IfStmt ifStmt);
     T Visit(ExpressionStmt expressionStmt);
     T Visit(PrintStmt printStmt);

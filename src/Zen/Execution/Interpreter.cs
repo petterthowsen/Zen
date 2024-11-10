@@ -80,6 +80,14 @@ public class Interpreter : IGenericVisitor<object?> {
         return null;
     }
 
+    public dynamic? Visit(Block block) {
+        foreach (var statement in block.Body) {
+            statement.Accept(this);
+        }
+
+        return null;
+    }
+
     public dynamic? Visit(IfStmt ifStmt)
     {
         throw new NotImplementedException();
@@ -241,7 +249,7 @@ public class Interpreter : IGenericVisitor<object?> {
         if (value is ZenValue) {
             value = value.Underlying;
         }
-        
+
         Console.WriteLine(value);
 
         return null;

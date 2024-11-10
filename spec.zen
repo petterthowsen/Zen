@@ -522,6 +522,32 @@ with person.occupation {
 }
 print(skill_level) // error: undefined variable because this is outside the scope of the with block above.
 
+
+
+//---------------//
+// Asserts & Testing
+//---------------//
+// Zen has testing facilities built in to the language with the assert statement
+// which is in the form: assert [condition(s)], "fail message"
+assert 5 + 5 == 10, "should equal 10"
+
+// if we imagine this assertion failing, it will throw a AssertionFailedException
+// This Exception is handled automatically when running tests.
+// For running tests, the zen executable can be used to run all functions that begin with 'Test' provided they take no arguments.
+class MyTestClass {
+    func TestSomething() {
+        assert 5 + 5 == 10, "should equal 10"
+    }
+}
+
+// To execute all tests in a file, run 'zen -tests MyTestClass.zen'
+// To run a single test function, add a colon and specify the method or function
+// `zun -tests MyTestClass.zen:TestSomething`
+// whether the test file defines functions or a class doesn't matter - Zen will automatically instantiate any class with any Test* functions that don't take constructor arguments.
+// the output of the test run is by default a pretty-printed result, but you can get the result as JSON by passing the -json option.
+// This can be useful for integration with IDEs.
+
+
 //---------------//
 // Functions
 //---------------//
