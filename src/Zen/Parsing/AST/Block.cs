@@ -3,11 +3,11 @@ using Zen.Lexing;
 
 namespace Zen.Parsing.AST;
 
-public class Block(Token openBrace, Stmt[] body, Token? closeBrace = null) : Node
+public class Block(Token openBrace, Stmt[] statements, Token? closeBrace = null) : Node
 {
     public Token OpenBrace = openBrace;
 
-    public Stmt[] Body = body;
+    public Stmt[] Statements = statements;
 
     public Token? CloseBrace = closeBrace;
 

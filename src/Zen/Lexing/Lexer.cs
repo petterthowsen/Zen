@@ -1,3 +1,4 @@
+using System.Text;
 using Zen.Common;
 
 namespace Zen.Lexing;
@@ -180,40 +181,55 @@ public class Lexer {
 
         Advance(); // Consume the opening quote
         int start = _position;
+        var stringBuilder = new StringBuilder();
 
-        while ( true ) {
-            //Current != '"' && !EOF && Current != '\n'
+        while (true) {
             if (EOF) {
                 Error("Unclosed string literal", ErrorType.UnclosedStringLiteral, start);
                 return;
-            }else if (Current == '\n') {
+            } else if (Current == '\n') {
                 Error("Unexpected newline in string literal", ErrorType.UnclosedStringLiteral, start);
                 return;
-            }else if (Current == '"') {
-                // Consume the closing quote, unless it's escaped
-                if (Previous == '\\') {
-                    Advance();
-                }else {
-                    break;
+            } else if (Current == '"') {
+                break; // End of string literal
+            } else if (Current == '\\') {
+                Advance(); // Consume the backslash
+
+                // Handle escape sequences
+                if (EOF) {
+                    Error("Unclosed string literal after escape character", ErrorType.UnclosedStringLiteral, start);
+                    return;
                 }
-            }else {
-                Advance();
+
+                switch (Current) {
+                    case 'n':
+                        stringBuilder.Append('\n');
+                        break;
+                    case 'r':
+                        stringBuilder.Append('\r');
+                        break;
+                    case 't':
+                        stringBuilder.Append('\t');
+                        break;
+                    case '\\':
+                        stringBuilder.Append('\\');
+                        break;
+                    case '"':
+                        stringBuilder.Append('"');
+                        break;
+                    default:
+                        Error($"Unknown escape sequence: \\{Current}", ErrorType.InvalidEscapeSequence, _position);
+                        return;
+                }
+            } else {
+                stringBuilder.Append(Current);
             }
+
+            Advance();
         }
 
-        if ( Current == '\n') {
-            Error("Unterminated string literal", ErrorType.UnclosedStringLiteral, start);
-            return;
-        } else if (Current == '"') {
-            Advance(); // Consume the closing quote
-        } else {
-            Error("Unterminated string literal", ErrorType.UnclosedStringLiteral, start);
-            return;
-        }
-
-        int end = _position - 1;
-
-        AddToken(TokenType.StringLiteral, SourceCode.Substring(start..end));
+        Advance(); // Consume the closing quote
+        AddToken(TokenType.StringLiteral, stringBuilder.ToString());
     }
 
     private void ScanIdentifierOrKeyword() {

@@ -118,9 +118,9 @@ public class Program
             }
 
             // Wrap the expression in print
-            if ( ! input.StartsWith("print")) {
-                input = "print " + input;
-            }
+            // if ( ! input.StartsWith("print")) {
+            //     input = "print " + input;
+            // }
 
             Execute(input, interpreter);
         }

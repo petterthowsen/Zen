@@ -18,31 +18,30 @@ public class Literal : Expr {
 
     public LiteralKind Kind;
 
-    private dynamic? _value;
-
-    public dynamic? Value => _value;
+    // is literal always a ZenValue?
+    public ZenValue Value;
 
     public override SourceLocation Location => Token.Location;
 
-    public Literal(LiteralKind kind, dynamic? value, Token token) {
+    public Literal(LiteralKind kind, dynamic? underlying, Token token) {
         Kind = kind;
         Token = token;
 
         switch (Kind) {
             case LiteralKind.String:
-                _value = new ZenValue(ZenType.String, value ?? "");
+                Value = new ZenValue(ZenType.String, underlying ?? "");
                 break;
             case LiteralKind.Int:
-                _value = new ZenValue(ZenType.Integer64, long.Parse(value));
+                Value = new ZenValue(ZenType.Integer64, long.Parse(underlying));
                 break;
             case LiteralKind.Float:
-                _value = new ZenValue(ZenType.Float64, double.Parse(value));
+                Value = new ZenValue(ZenType.Float64, double.Parse(underlying));
                 break;
             case LiteralKind.Bool:
-                _value = new ZenValue(ZenType.Boolean, bool.Parse(value == true ? "true" : "false"));
+                Value = new ZenValue(ZenType.Boolean, bool.Parse(underlying == true ? "true" : "false"));
                 break;
             case LiteralKind.Null:
-                _value = new ZenValue(ZenType.Null, null);
+                Value = new ZenValue(ZenType.Null, null);
                 break;
         }
     }
@@ -59,7 +58,14 @@ public class Literal : Expr {
 
     public override string ToString()
     {
-        return $"Literal: `{Value}`";
+
+        // string escapedValue = Value.ToString();
+        // escapedValue = escapedValue.Replace("\n", "\\n");
+        // escapedValue = escapedValue.Replace("\r", "\\r");
+        // escapedValue = escapedValue.Replace("\t", "\\t");
+        // escapedValue = escapedValue.Replace("\"", "\\\"");
+
+        return $"Literal {Kind}, token: {Token}";
     }
 
 }

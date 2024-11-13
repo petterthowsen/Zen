@@ -46,6 +46,7 @@ public class Parser
 		try {
 			while ( ! IsAtEnd) {
 				program.Statements.Add(Statement());
+				MaybeSome(TokenType.Whitespace, TokenType.Newline);
 			}
 
 			return program;
@@ -96,8 +97,8 @@ public class Parser
 	/// </summary>
 	/// <param name="type">The type of token to consume</param>
 	/// <param name="message">The error message to throw if the token does not match</param>
-	/// <returns>The consumed token, or null if the token did not match</returns>
-	private Token? Consume(TokenType type, string message)
+	/// <returns>The consumed token</returns>
+	private Token Consume(TokenType type, string message)
 	{
 		if (Current.Type == type)
 		{
@@ -210,9 +211,82 @@ public class Parser
 	}
 
 	private Stmt Statement() {
+		if (MatchKeyword("var") || MatchKeyword("const")) return VarStatement();
 		if (MatchKeyword("print")) return PrintStatement();
 		if (MatchKeyword("if")) return IfStatement();
+		if (MatchKeyword("while")) return WhileStatement();
+		if (MatchKeyword("for")) return ForStatement();
 		return ExpressionStatement();
+	}
+
+	private VarStmt VarStatement(Token? startingToken = null) {
+		Token token = startingToken ?? Previous;
+
+		AtleastOne(TokenType.Whitespace); // spaces
+
+		Token identifier = Consume(TokenType.Identifier, $"Expected some identifier after '{token.Value}' declaration"); // identifier
+		MaybeSome(TokenType.Whitespace); // any spaces
+
+		// if we find a : then we have a TypeHint
+		TypeHint? typeHint = null;
+		if (Match(TokenType.Colon)) {
+			MaybeSome(TokenType.Whitespace);
+			typeHint = TypeHint();
+		}
+		MaybeSome(TokenType.Whitespace);
+
+		// if we find a =, then we have an initializer expression
+		Expr? initializer = null;
+		
+		if (Match(TokenType.Assign)) {
+			AtleastOne(TokenType.Whitespace);
+			initializer = Expression();
+		}
+
+		return new VarStmt(token, identifier, typeHint, initializer);
+	}
+
+	private TypeHint TypeHint() {
+		if ( ! Match(TokenType.Identifier, TokenType.Keyword)) {
+			throw Error($"Expected type name (identifier or keyword) for type hint", ErrorType.SyntaxError);
+		}
+
+		Token token = Previous;
+
+		List<TypeHint> parameters = [];
+
+		// generic?
+		if (Match(TokenType.LessThan)) {
+			// parameters
+			MaybeSome(TokenType.Whitespace);
+
+
+			// make sure we have at least one parameter
+			if ( ! Check(TokenType.Identifier, TokenType.Keyword)) {
+				throw Error($"Expected at least one identifier or keyword after '<'", ErrorType.SyntaxError);
+			}
+
+			parameters.Add(TypeHint());
+
+			MaybeSome(TokenType.Whitespace);
+
+			// parse more parameters separated by comma
+			while ( Match(TokenType.Comma) ) {
+				MaybeSome(TokenType.Whitespace);
+
+				if ( ! Check(TokenType.Identifier, TokenType.Keyword)) {
+					throw Error($"Expected at least one identifier or keyword after ','", ErrorType.SyntaxError);
+				}
+
+				parameters.Add(TypeHint());
+
+				MaybeSome(TokenType.Whitespace);
+			}
+
+			Consume(TokenType.GreaterThan, "Expected '>' after generic type parameters");
+		}
+
+		return new TypeHint(token, [.. parameters]);
 	}
 
 	private PrintStmt PrintStatement() {
@@ -303,6 +377,216 @@ public class Parser
 		return ifStmt;
 	}
 
+	private WhileStmt WhileStatement() {
+		// "while" keyword token
+		Token token = Previous;
+
+		// spaces
+		AtleastOne(TokenType.Whitespace);
+
+		// condition
+		Expr condition = Expression();
+
+		// spaces or newlines
+		MaybeSome(TokenType.Whitespace, TokenType.Newline);
+
+		// {
+		Consume(TokenType.OpenBrace, "Expected '{' after 'while' condition");
+
+		// parse block...
+		Block block = Block();
+
+		// consume }
+		block.CloseBrace = Consume(TokenType.CloseBrace, "Expected '}' after block");
+
+		// spaces or newlines
+		MaybeSome(TokenType.Whitespace, TokenType.Newline);
+
+		return new WhileStmt(token, condition, block);
+	}
+
+	/// <summary>
+	/// Parses a traditional for loop with initializer, condition and incrementor.
+	/// The "var" keyword is optional in the initializer.
+	/// </summary>
+	/// <returns>
+	/// Either a ForStmt or a ForInStmt depending on the type of loop.
+	/// </returns>
+	protected Stmt ForStatement() {
+		// traditional for loop:
+		// for [var]? [identifier] = [expression]; [condition expr]; [incrementor expr] [block]
+		//
+		// for in loop:
+		// for [var]? [identifier][, identifier]? in [expression] [block]
+
+		// try traditional for loop first
+		int saved_index = _index;
+		Error[] saved_errors = Errors.ToArray();
+		try {
+			ForStmt forStmt = TraditionalForLoop();
+			return forStmt;
+		} catch {
+			// restore index
+			_index = saved_index;
+
+			// restore errors
+			Errors.Clear();
+			Errors.AddRange(saved_errors);
+
+			// try for in loop
+			return ForInLoop();
+		}
+	}
+
+	protected ForStmt TraditionalForLoop() {
+		// "for" keyword token
+		Token forToken = Previous;
+
+		AtleastOne(TokenType.Whitespace);
+
+		// var keyword is optional
+		if (MatchKeyword("var")) {
+			MaybeSome(TokenType.Whitespace);
+		}else if (MatchKeyword("const")) {
+			// error
+			throw Error("`const` cannot be used as a loop variable", ErrorType.SyntaxError);
+		}
+
+		// loopIdentifier
+		Token loopIdentifier = Consume(TokenType.Identifier, "Expected identifier after 'for' keyword");
+		MaybeSome(TokenType.Whitespace);
+		
+		TypeHint? typeHint = null;
+		
+		// TypeHint is optional
+		if (Match(TokenType.Colon)) {
+			MaybeSome(TokenType.Whitespace);
+			typeHint = TypeHint();
+			MaybeSome(TokenType.Whitespace);
+		}
+
+		// =
+		Consume(TokenType.Assign, "Expected '=' after loop variable identifier");
+		MaybeSome(TokenType.Whitespace);
+
+		// expression
+		Expr initializer = Expression();
+		MaybeSome(TokenType.Whitespace);
+
+		// ;
+		Consume(TokenType.Semicolon, "Expected ';' after loop variable initializer");
+		MaybeSome(TokenType.Whitespace);
+
+		// condition
+		Expr condition = Expression();
+		MaybeSome(TokenType.Whitespace);
+
+		// ;
+		Consume(TokenType.Semicolon, "Expected ';' after loop condition");
+		MaybeSome(TokenType.Whitespace);
+
+		// incrementor
+		Expr incrementor = Expression();
+		MaybeSome(TokenType.Whitespace, TokenType.Newline);
+
+		// {
+		Consume(TokenType.OpenBrace, "Expected '{' after loop condition");
+
+		// parse block...
+		Block block = Block();
+
+		// consume }
+		block.CloseBrace = Consume(TokenType.CloseBrace, "Expected '}' after block");
+
+		if (typeHint == null) {
+			return new ForStmt(forToken, loopIdentifier, initializer, condition, incrementor, block);
+		}else {
+			return new ForStmt(forToken, loopIdentifier, typeHint, initializer, condition, incrementor, block);
+		}
+	}
+
+	protected ForInStmt ForInLoop() {
+		// for in loop:
+		// for [var]? [identifier][, identifier]? in [expression] [block]
+
+		// "for" keyword token
+		Token token = Previous;
+		AtleastOne(TokenType.Whitespace);
+		
+		// var keyword is optional
+		if (MatchKeyword("var")) {
+			MaybeSome(TokenType.Whitespace);
+		}else if (MatchKeyword("const")) {
+			// error
+			throw Error("`const` cannot be used as a loop variable", ErrorType.SyntaxError);
+		}
+
+		// valueIdentifier
+		Token valueIdentifier;
+		TypeHint? valueTypeHint = null;
+
+		Token? keyIdentifier = null;
+		TypeHint? keyTypeHint = null;
+
+		valueIdentifier = Consume(TokenType.Identifier, "Expected identifier after 'for' keyword");
+		MaybeSome(TokenType.Whitespace);
+
+		// typehint?
+		if (Match(TokenType.Colon)) {
+			MaybeSome(TokenType.Whitespace);
+			valueTypeHint = TypeHint();
+			MaybeSome(TokenType.Whitespace);
+		}
+
+
+		// comma? if so we are looping over a key, value pair
+		if (Match(TokenType.Comma)) {
+			// the first identifier is the key in this case
+			keyIdentifier = valueIdentifier;
+			keyTypeHint = valueTypeHint;
+
+			MaybeSome(TokenType.Whitespace);
+			valueIdentifier = Consume(TokenType.Identifier, "Expected identifier after ','");
+			MaybeSome(TokenType.Whitespace);
+
+			// typehint?
+			if (Match(TokenType.Colon)) {
+				MaybeSome(TokenType.Whitespace);
+				valueTypeHint = TypeHint();
+				MaybeSome(TokenType.Whitespace);
+			}
+		}
+
+
+		// "in" keyword
+		if (!MatchKeyword("in")) {
+			// error
+			throw Error("Expected 'in' after loop variable identifier", ErrorType.SyntaxError);
+		}
+
+		MaybeSome(TokenType.Whitespace);
+
+		// expression
+		Expr expression = Expression();
+		MaybeSome(TokenType.Whitespace, TokenType.Newline);
+
+		// {
+		Consume(TokenType.OpenBrace, "Expected '{' after loop condition");
+
+		// parse block...
+		Block block = Block();
+
+		// consume }
+		block.CloseBrace = Consume(TokenType.CloseBrace, "Expected '}' after block");
+
+		// key, value pair?
+		if (keyIdentifier != null) {
+			return new ForInStmt(token, keyIdentifier, keyTypeHint, valueIdentifier, valueTypeHint, expression, block);
+		}else {
+			return new ForInStmt(token, valueIdentifier, valueTypeHint, expression, block);
+		}
+	}
+
 	protected ExpressionStmt ExpressionStatement() {
 		Expr expr = Expression();
 		return new ExpressionStmt(expr);
@@ -310,7 +594,30 @@ public class Parser
 
 	private Expr Expression()
 	{
-		return Equality();
+		return Assignment();
+	}
+
+	private Expr Assignment() {
+		Expr expr = Equality();
+
+		MaybeSome(TokenType.Whitespace);
+
+		if (Match(TokenType.Assign, TokenType.PlusAssign, TokenType.MinusAssign, TokenType.StarAssign, TokenType.SlashAssign)) {
+			Token op = Previous;
+
+			MaybeSome(TokenType.Whitespace);
+
+			Expr valueExpression = Assignment();
+
+			if (expr is Identifier identifier) {
+				return new Assignment(op, identifier, valueExpression);
+			}
+
+			// error, but we don't throw it because the parser isn't in a confused state
+			Error("Invalid assignment target.", ErrorType.RuntimeError);
+		}
+
+		return expr;
 	}
 
 	private Expr Equality()
@@ -409,6 +716,11 @@ public class Parser
 		if (MatchKeyword("false")) return new Literal(Literal.LiteralKind.Bool, false, Previous);
 		if (MatchKeyword("true")) return new Literal(Literal.LiteralKind.Bool, true, Previous);
 		if (MatchKeyword("null")) return new Literal(Literal.LiteralKind.Null, null, Previous);
+
+		if (Match(TokenType.Identifier))
+		{
+			return new Identifier(Previous);
+		}
 
 		if (Match(TokenType.IntLiteral)) {
 			return new Literal(Literal.LiteralKind.Int, Previous.Value, Previous);

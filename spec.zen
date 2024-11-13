@@ -46,11 +46,11 @@
 // Variables and Primitive Types
 //---------------//
 
-// mutable variables can be declared (and assigned an initial value) using 'var' and the assignment operator (=):
+// mutable (can change) variables can be declared (and assigned an initial value) using 'var' and the assignment operator (=):
 var name = "zen"
 
 
-// immutable variables can be declared using 'const':
+// immutable (cannot change) variables can be declared using 'const':
 const awesome = true
 
 // zen is strictly typed: all variables and constants must have a defined type.
@@ -76,17 +76,15 @@ var something:any? // this is like any old care-free scripting language now, an 
 something = "and now it has a value" // it's now a string
 something = 5
 
-// note that, even though untyped variables can exist, you can't do this:
-something += 10 // since it's any, Zen will complain about this
-
+// you can check the type of something using the appropriately named "is" keyword:
 if something is int {
     something += 10 // this is OK
 }
 
 // Here's a float type
-var price = 0.5 // creates a float (an unsigned 32 bit decimal number)
+var price = 0.5 // creates a float (an signed 32 bit decimal number)
 
-var coins = 10 // creates an integer (an unsigned 32 bit integer number)
+var coins = 10 // creates an integer (an signed 32 bit integer number)
 
 // to create 64 bit floats or integers, float64 and int64 can be used:
 var distance:float64 = 12345678.9
@@ -127,6 +125,13 @@ if coins < 5 or not hungry {
     print("not buying food")
 }
 
+// unary operator is also available:
+pritn(-coins) // equivalent to: coins = couns * -1
+
+// + and - operators also work on certain other objects, like strings (+ for concatenation)
+// Zen will take care of casting "coins" to a string. For objects, you'll also by default get a string representation of the object.
+print("You have " + coins)
+
 
 //---------------//
 // Collections
@@ -138,7 +143,7 @@ if coins < 5 or not hungry {
 // Under the hood, they are generics:
 class Map<KeyType, ValueType> {}
 
-// The map requires two generic type parameters: a "key" type and a "value" type. The type can be any primitive or a class.
+// The map requires two generic type parameters: a "key" type and a "value" type. The type can be any value type (not null and void because they are constant types)
 // Additionally, they implement the BracketAccess interface which lets one use brackets to access values within the map:
 
 interface BracketGet<K, V> {

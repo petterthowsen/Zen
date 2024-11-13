@@ -104,10 +104,94 @@ public class DebugPrintVisitor : IVisitor {
 
         _sb.Indent++;
         
-        foreach (var stmt in block.Body) {
+        foreach (var stmt in block.Statements) {
             stmt.Accept(this);
         }
         
         _sb.Indent--;
     }
+
+    public void Visit(WhileStmt whileStmt)
+    {
+        _sb.Add(whileStmt.ToString());
+
+        _sb.Indent++;
+        
+        whileStmt.Condition.Accept(this);
+        whileStmt.Body.Accept(this);
+        
+        _sb.Indent--;
+    }
+
+    public void Visit(VarStmt varStmt)
+    {
+        _sb.Add(varStmt.ToString());
+        
+        _sb.Indent++;
+        
+        _sb.Add(varStmt.Identifier.ToString());
+
+        if (varStmt.Initializer != null) {
+            varStmt.Initializer.Accept(this);
+        }
+
+        _sb.Indent--;
+    }
+
+    public void Visit(ForStmt forStmt)
+    {
+        _sb.Add(forStmt.ToString());
+
+        _sb.Indent++;
+
+        if (forStmt.Initializer != null)
+        {
+            forStmt.Initializer.Accept(this);
+        }
+        
+        forStmt.Condition.Accept(this);
+
+        if (forStmt.Incrementor != null)
+        {
+            forStmt.Incrementor.Accept(this);
+        }
+
+        foreach (var stmt in forStmt.Body.Statements)
+        {
+            stmt.Accept(this);
+        }
+
+        _sb.Indent--;
+    }
+
+    public void Visit(ForInStmt forInStmt) {
+        _sb.Add(forInStmt.ToString());
+
+        _sb.Indent++;
+
+        forInStmt.Expression.Accept(this);
+        forInStmt.Block.Accept(this);
+
+        _sb.Indent--;
+    }
+
+    public void Visit(TypeHint typeHint) {
+        _sb.Add(typeHint.ToString());
+    }
+
+    public void Visit(Identifier identifier) {
+        _sb.Add(identifier.ToString());
+    }
+
+    public void Visit(Assignment assignment) {
+        _sb.Add(assignment.ToString());
+
+        _sb.Indent++;
+
+        assignment.Identifier.Accept(this);
+        assignment.Expression.Accept(this);
+
+        _sb.Indent--;
+    }
+
 }

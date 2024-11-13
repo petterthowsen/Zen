@@ -18,26 +18,26 @@ public class Helper {
         return str;
     }
 
-    public static void PrintTokens(List<Token> tokens) {
+    public static string PrintTokens(List<Token> tokens) {
         if (tokens.Count == 0) {
-            Console.WriteLine("0 Tokens.");
+            return "0 Tokens.";
         }
-        Console.WriteLine("\n# Tokens: #\n");
+        string str = "\n# Tokens: #\n";
         foreach (var token in tokens) {
-            Console.Write(token);
+            str += token;
             if (token.Type != TokenType.EOF) {
-                Console.Write(", ");
+                str += ", ";
             }else {
-                Console.Write("\n");
+                str += "\n";
             }
         }
+        return str;
     }
 
-    public static void PrintAST(Node node) {
+    public static string PrintAST(Node node) {
         DebugPrintVisitor debugPrinter = new();
         node.Accept(debugPrinter);
-        Console.WriteLine("\n# AST: #\n");
-        Console.WriteLine(debugPrinter.ToString());
+        return "\n# AST: #\n" + debugPrinter.ToString();
     }
 
 }
