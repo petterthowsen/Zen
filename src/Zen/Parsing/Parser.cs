@@ -636,6 +636,7 @@ public class Parser
 
 			Expr right = Comparison();
 			expr = new Binary(expr, op, right);
+			MaybeSome(TokenType.Whitespace);
 		}
 
 		return expr;
@@ -655,6 +656,7 @@ public class Parser
 
 			Expr right = Term();
 			expr = new Binary(expr, op, right);
+			MaybeSome(TokenType.Whitespace);
 		}
 
 		return expr;
@@ -674,6 +676,7 @@ public class Parser
 
 			Expr right = Factor();
 			expr = new Binary(expr, op, right);
+			MaybeSome(TokenType.Whitespace);
 		}
 
 		return expr;
@@ -693,6 +696,7 @@ public class Parser
 
 			Expr right = Unary();
 			expr = new Binary(expr, op, right);
+			MaybeSome(TokenType.Whitespace);
 		}
 
 		return expr;
