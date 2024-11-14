@@ -62,6 +62,10 @@ public class Variable
         return Value ?? ZenValue.Null;
     }
 
+    public ZenObject GetZenObject() {
+        return ObjectReference ?? ZenObject.Empty;
+    }
+
     public bool IsTruthy() {
         if (Value != null) {
             return Value.Value.IsTruthy();

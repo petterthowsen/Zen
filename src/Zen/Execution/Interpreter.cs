@@ -9,7 +9,7 @@ using Zen.Typing;
 
 namespace Zen.Execution;
 
-public class Interpreter : IGenericVisitor<object?> {
+public class Interpreter : IGenericVisitor<IEvaluationResult> {
 
     public static RuntimeError Error(string message, SourceLocation? location = null, ErrorType errorType = ErrorType.RuntimeError)
 	{
@@ -49,9 +49,40 @@ public class Interpreter : IGenericVisitor<object?> {
     public static bool IsArithmeticOperator(TokenType type) {
         return type == TokenType.Plus || type == TokenType.Minus || type == TokenType.Star || type == TokenType.Slash;
     }
+    
+    public static bool IsArithmeticAssignmentOperator(TokenType type) {
+        return type == TokenType.PlusAssign || type == TokenType.MinusAssign || type == TokenType.StarAssign || type == TokenType.SlashAssign;
+    }
 
     public static bool IsComparisonOperator(TokenType type) {
         return type == TokenType.Equal || type == TokenType.NotEqual || type == TokenType.LessThan || type == TokenType.LessThanOrEqual || type == TokenType.GreaterThan || type == TokenType.GreaterThanOrEqual;
+    }
+
+    public static ZenType DetermineResultType(TokenType op, ZenType left, ZenType right) {
+        if ((IsArithmeticOperator(op) || IsArithmeticAssignmentOperator(op)) && left.IsNumeric && right.IsNumeric) {
+            return GetNumericPromotionType(left, right);
+        }else if (left == ZenType.String || right == ZenType.String) {
+            return ZenType.String;
+        }
+
+        throw Error($"Invalid operation {op} between types {left} and {right}", null, ErrorType.TypeError);
+
+        // return op switch {
+        //     IsArithmeticOperator() when left.IsNumeric && right.IsNumeric 
+        //         => GetNumericPromotionType(left, right),
+        //     TokenType.Plus or TokenType.PlusAssign when left == ZenType.String || right == ZenType.String 
+        //         => ZenType.String,
+        //     TokenType.Minus or TokenType.MinusAssign or TokenType.Star or TokenType.Slash or TokenType.StarAssign when left.IsNumeric && right.IsNumeric 
+        //         => GetNumericPromotionType(left, right),
+        //     _ => throw Error($"Invalid operation {op} between types {left} and {right}", null, ErrorType.TypeError)
+        // };
+    }
+
+    private static ZenType GetNumericPromotionType(ZenType a, ZenType b) {
+        if (a == ZenType.Float64 || b == ZenType.Float64) return ZenType.Float64;
+        if (a == ZenType.Float || b == ZenType.Float) return ZenType.Float;
+        if (a == ZenType.Integer64 || b == ZenType.Integer64) return ZenType.Integer64;
+        return ZenType.Integer;
     }
 
     public static bool IsEqual(dynamic? a, dynamic? b) {
@@ -65,30 +96,30 @@ public class Interpreter : IGenericVisitor<object?> {
         node.Accept(this);
     }
 
-    private dynamic Evaluate(Expr expr) {
+    private IEvaluationResult Evaluate(Expr expr) {
         return expr.Accept(this) !;
     }
 
-    public dynamic? Visit(ProgramNode programNode)
+    public IEvaluationResult Visit(ProgramNode programNode)
     {
         foreach (var statement in programNode.Statements) {
             statement.Accept(this);
         }
 
-        return ZenValue.Void;
+        return VoidResult.Instance;
     }
 
-    public dynamic? Visit(Block block) {
+    public IEvaluationResult Visit(Block block) {
         foreach (var statement in block.Statements) {
             statement.Accept(this);
         }
 
-        return ZenValue.Void;
+        return VoidResult.Instance;
     }
 
-    public dynamic? Visit(IfStmt ifStmt)
+    public IEvaluationResult Visit(IfStmt ifStmt)
     {
-        if (IsTruthy(Evaluate(ifStmt.Condition))) {
+        if (Evaluate(ifStmt.Condition).IsTruthy()) {
             ifStmt.Then.Accept(this);
         } else if (ifStmt.ElseIfs != null) {
             foreach (var elseIf in ifStmt.ElseIfs) {
@@ -101,101 +132,60 @@ public class Interpreter : IGenericVisitor<object?> {
             ifStmt.Else.Accept(this);
         }
         
-        return ZenValue.Void;
+        return VoidResult.Instance;
     }
 
-    public dynamic? Visit(Binary binary)
+    public IEvaluationResult Visit(Binary binary)
     {
-        dynamic? left = Evaluate(binary.Left);
-        dynamic? right = Evaluate(binary.Right);
+        ValueResult leftRes = (ValueResult) Evaluate(binary.Left);
+        ValueResult rightRes = (ValueResult) Evaluate(binary.Right);
 
-        if (left is null || right is null) {
-            throw Error($"Cannot use operator `{binary.Operator.Type}` on null value", binary.Location);
-        }
-        
-        if (left is Variable leftVariable) {
-            left = leftVariable.Value;
-        }
-
-        if (right is Variable rightVariable) {
-            right = rightVariable.Value;
-        }
+        ZenValue left = leftRes.Value;;
+        ZenValue right = rightRes.Value;
         
         if (IsArithmeticOperator(binary.Operator.Type)) {
             // For now, we only support numbers (int, long, float, double)
-            if ( ! IsNumber(left)) {
+            if ( ! left.IsNumber()) {
                 throw Error($"Cannot use operator `{binary.Operator.Type}` on non-numeric value `{left}`", binary.Location);
-            } else if ( ! IsNumber(right)) {
+            } else if ( ! right.IsNumber()) {
                 throw Error($"Cannot use operator `{binary.Operator.Type}` on non-numeric value `{right}`", binary.Location);
             }
-            
-            var leftNumber = left!.Underlying;
-            var rightNumber = right!.Underlying;
 
-            return PerformArithmetic(binary.Operator.Type, leftNumber, rightNumber);
+            // Check operation validity and get result type
+            ZenType resultType = DetermineResultType(binary.Operator.Type, left.Type, right.Type);
+
+            if (left.Type != resultType) {
+                left = TypeConverter.Convert(left, resultType);
+            }
+            if (right.Type != resultType) {
+                right = TypeConverter.Convert(right, resultType);
+            }
+
+            // Perform operation
+            ZenValue result = PerformArithmetic(binary.Operator.Type, resultType, left.Underlying, right.Underlying);
+            
+            return (ValueResult) result;
         }else if (IsComparisonOperator(binary.Operator.Type)) {
-            return PerformComparison(left, right, binary.Operator);
+            return (ValueResult) PerformComparison(left, right, binary.Operator);
         } else {
             throw Error($"Unsupported binary operator {binary.Operator}", binary.Location);
         }
     }
 
-    private static ZenValue PerformArithmetic(TokenType tokenType, dynamic leftNumber, dynamic rightNumber) {
-        // Promote the operands as necessary
-        if (leftNumber is int) {
-            if (rightNumber is long) {
-                leftNumber = (long)leftNumber;
-            } else if (rightNumber is float) {
-                leftNumber = (float)leftNumber;
-            } else if (rightNumber is double) {
-                leftNumber = (double)leftNumber;
-            }
-        } else if (leftNumber is long) {
-            if (rightNumber is float) {
-                leftNumber = (float)leftNumber;
-            } else if (rightNumber is double) {
-                double doubleLeft = (long)leftNumber;
-                leftNumber = doubleLeft;
-            }
-        } else if (leftNumber is float) {
-            if (rightNumber is double) {
-                leftNumber = (double)leftNumber;
-            }
-        }
-
-        if (rightNumber is int) {
-            if (leftNumber is long) {
-                rightNumber = (long)rightNumber;
-            } else if (leftNumber is float) {
-                rightNumber = (float)rightNumber;
-            } else if (leftNumber is double) {
-                rightNumber = (double)rightNumber;
-            }
-        } else if (rightNumber is long) {
-            if (leftNumber is float) {
-                rightNumber = (float)rightNumber;
-            } else if (leftNumber is double) {
-                rightNumber = (double)rightNumber;
-            }
-        } else if (rightNumber is float) {
-            if (leftNumber is double) {
-                rightNumber = (double)rightNumber;
-            }
-        }
-        
+    private static ZenValue PerformArithmetic(TokenType tokenType, ZenType type, dynamic leftNumber, dynamic rightNumber) {
         // Perform the operation
         switch (tokenType) {
-            case TokenType.PlusAssign:
-                return new ZenValue(ZenType.Integer64, leftNumber + rightNumber);
-            case TokenType.MinusAssign:
-                return new ZenValue(ZenType.Integer64, leftNumber - rightNumber);
-            case TokenType.StarAssign:
-                return new ZenValue(ZenType.Integer64, leftNumber * rightNumber);
-            case TokenType.SlashAssign:
+            case TokenType.Plus or TokenType.PlusAssign:
+                return new ZenValue(type, leftNumber + rightNumber);
+            case TokenType.MinusAssign or TokenType.Minus:
+                return new ZenValue(type, leftNumber - rightNumber);
+            case TokenType.StarAssign or TokenType.Star:
+                return new ZenValue(type, leftNumber * rightNumber);
+            case TokenType.SlashAssign or TokenType.Slash:
                 if (rightNumber == 0) {
                     throw Error($"Cannot divide `{leftNumber}` by zero");
                 }
-                return new ZenValue(ZenType.Integer64, leftNumber / rightNumber);
+                return new ZenValue(type, leftNumber / rightNumber);
             case TokenType.Percent:
                 // Ensure both operands are integers for modulus
                 if (!(leftNumber is long || leftNumber is int)) {
@@ -208,7 +198,7 @@ public class Interpreter : IGenericVisitor<object?> {
                 if (rightNumber == 0) {
                     throw Error($"Cannot compute modulus with divisor zero");
                 }
-                return new ZenValue(ZenType.Integer64, leftNumber % rightNumber);
+                return new ZenValue(type, leftNumber % rightNumber);
         }
 
         return ZenValue.Null;
@@ -233,12 +223,12 @@ public class Interpreter : IGenericVisitor<object?> {
         }
     }
 
-    public dynamic? Visit(Grouping grouping)
+    public IEvaluationResult Visit(Grouping grouping)
     {
         return Evaluate(grouping.Expression);
     }
 
-    public dynamic? Visit(Unary unary)
+    public IEvaluationResult Visit(Unary unary)
     {
         dynamic? eval = Evaluate(unary.Right);
 
@@ -247,9 +237,9 @@ public class Interpreter : IGenericVisitor<object?> {
             // Negate the truthiness of the value
             var result = !IsTruthy(eval);
             if (result) {
-                return ZenValue.True;
+                return (ValueResult) ZenValue.True;
             }else {
-                return ZenValue.False;
+                return (ValueResult) ZenValue.False;
             }
         }
         else if (unary.IsMinus())
@@ -269,13 +259,13 @@ public class Interpreter : IGenericVisitor<object?> {
 
             // Negate the numeric value
             if (zenValue.Type == ZenType.Integer) {
-                return new ZenValue(ZenType.Integer, -zenValue.Underlying);
+                return (ValueResult) new ZenValue(ZenType.Integer, -zenValue.Underlying);
             }else if (zenValue.Type == ZenType.Float) {
-                return new ZenValue(ZenType.Float, -zenValue.Underlying);
+                return (ValueResult) new ZenValue(ZenType.Float, -zenValue.Underlying);
             } else if (zenValue.Type == ZenType.Integer64) {
-                return new ZenValue(ZenType.Integer64, -zenValue.Underlying);
+                return (ValueResult) new ZenValue(ZenType.Integer64, -zenValue.Underlying);
             } else if (zenValue.Type == ZenType.Float64) {
-                return new ZenValue(ZenType.Float64, -zenValue.Underlying);
+                return (ValueResult) new ZenValue(ZenType.Float64, -zenValue.Underlying);
             }
         }
 
@@ -283,12 +273,12 @@ public class Interpreter : IGenericVisitor<object?> {
     }
 
 
-    public dynamic? Visit(Literal literal)
+    public IEvaluationResult Visit(Literal literal)
     {
-        return literal.Value;
+        return (ValueResult) literal.Value;
     }
 
-    public dynamic? Visit(Identifier identifier)
+    public IEvaluationResult Visit(Identifier identifier)
     {
         string name = identifier.Name;
 
@@ -297,53 +287,45 @@ public class Interpreter : IGenericVisitor<object?> {
             throw Error($"Undefined variable '{name}'", identifier.Location, ErrorType.UndefinedVariable);
         }
 
-        return environment.GetVariable(identifier.Name);
+        return (VariableResult) environment.GetVariable(identifier.Name);
     }
 
-    public dynamic? Visit(PrintStmt printStmt) {
-        dynamic? value = Evaluate(printStmt.Expression);
+    public IEvaluationResult Visit(PrintStmt printStmt) {
+        IEvaluationResult expResult = Evaluate(printStmt.Expression);
 
-        // if a variable reference, get the value
-        if (value is Variable variable) {
-            value = variable.Value;
-        }
-
-        // get the underlying value
-        if (value is ZenValue) {
-            value = value.Underlying;
-        }
+        ZenValue value = expResult.Value; // might be a from a variable - might not.
 
         // todo: might need to handle some types differently
 
         if (GlobalOutputBufferingEnabled) {
-            GlobalOutputBuffer.Append(value);
+            GlobalOutputBuffer.Append(value.Stringify());
         }else {
-            Console.WriteLine(value);
+            Console.WriteLine(value.Stringify());
         }
 
-        return ZenValue.Void;
+        return (ValueResult) ZenValue.Void;
     }
 
-    public dynamic Visit(ExpressionStmt expressionStmt)
+    public IEvaluationResult Visit(ExpressionStmt expressionStmt)
     {
         return Evaluate(expressionStmt.Expression);
     }
 
     // DRAFT, not sure if it works
-    public object? Visit(WhileStmt whileStmt)
+    public IEvaluationResult Visit(WhileStmt whileStmt)
     {
-        dynamic? condition = Evaluate(whileStmt.Condition);
+        IEvaluationResult conditionResult = Evaluate(whileStmt.Condition);
 
-        while (IsTruthy(condition))
+        while (conditionResult.IsTruthy())
         {
             Visit(whileStmt.Body);
-            condition = Evaluate(whileStmt.Condition);
+            conditionResult = Evaluate(whileStmt.Condition);
         }
 
-        return ZenValue.Void;
+        return (ValueResult) ZenValue.Void;
     }
 
-    public object? Visit(VarStmt varStmt)
+    public IEvaluationResult Visit(VarStmt varStmt)
     {
         // TODO: Check for duplicate variable names
         // TODO: Check for invalid variable names
@@ -370,17 +352,13 @@ public class Interpreter : IGenericVisitor<object?> {
 
         if (varStmt.TypeHint != null) {
             // type = varStmt.TypeHint.GetBaseType();
-            type = Evaluate(varStmt.TypeHint);
+            type = Evaluate(varStmt.TypeHint).Type;
             nullable = varStmt.TypeHint.Nullable;
         }
 
         // assign?
         if (varStmt.Initializer != null) {
-            dynamic? value = Evaluate(varStmt.Initializer);
-
-            if (value is ZenValue == false) {
-                throw Error($"Implementation Error?: Trying to assign non-ZenValue to variable '{name}'", varStmt.Identifier.Location, ErrorType.RuntimeError);
-            }
+            IEvaluationResult value = Evaluate(varStmt.Initializer);
 
             // infer type?
             if (varStmt.TypeHint == null) {
@@ -388,88 +366,79 @@ public class Interpreter : IGenericVisitor<object?> {
             }
 
             environment.Define(constant, name, type!, nullable);
-            environment.Assign(name, value);
+            environment.Assign(name, value.Value);
         }else {
             // declare only
             environment.Define(constant, name, type!, nullable);
         }
 
-        return ZenValue.Void;
+        return (ValueResult) ZenValue.Void;
     }
 
 
-    public dynamic? Visit(Assignment assignment) {
-        dynamic? left = Evaluate(assignment.Identifier) ! ;
+    public IEvaluationResult Visit(Assignment assignment) {
+        VariableResult left = (VariableResult) Evaluate(assignment.Identifier) ! ;
 
-        if (left is not Variable) {
+        if (left.Variable is null) {
             throw Error($"Cannot assign to non-variable '{assignment.Identifier.Name}'", assignment.Identifier.Location, ErrorType.RuntimeError);
         }
 
-        Variable leftVariable = (Variable) left;
+        Variable leftVariable = left.Variable;
 
         if (leftVariable.Constant) {
             throw Error($"Cannot assign to constant '{assignment.Identifier.Name}'", assignment.Identifier.Location, ErrorType.RuntimeError);
         }
 
-        dynamic? right = Evaluate(assignment.Expression);
-        dynamic? rightValue;
+        IEvaluationResult right =  Evaluate(assignment.Expression);
 
-        // if a variable reference, get the value
-        if (right is Variable rightVariable) {
-            rightValue = rightVariable.Value;
-        }else {
-            rightValue = right;
-        }
-        
-        if (assignment.Operator.Type == TokenType.Assign) {
-            PerformAssignment(assignment.Operator, leftVariable, rightValue);
-        }else {
-            PerformAssignment(assignment.Operator, leftVariable, rightValue);
-        }
+        // perform the assignment operation
+        PerformAssignment(assignment.Operator, leftVariable, right.Value);
 
-        // // is the type of the value the same as the type of the variable?
-        // if (rightValue.Type != leftVariable.Type) {
-        //     throw Error($"Cannot assign value of type '{rightValue.Type}' to variable of type '{leftVariable.Type}'", assignment.Identifier.Location, ErrorType.TypeError);
-        // }
-
-        // environment.Assign(assignment.Identifier.Name, rightValue);
-
-        return ZenValue.Void;
+        return (ValueResult) ZenValue.Void;
     }
 
     private static void PerformAssignment(Token op, Variable target, ZenValue right) {
-        ZenValue left = (ZenValue) target.GetZenValue()!;
+        ZenValue left = target.GetZenValue()!;
         ZenValue result;
 
         if (op.Type == TokenType.Assign) {
+            // type check
+            if ( ! TypeChecker.IsCompatible(left.Type, right.Type)) {
+                throw Error($"Cannot assign value of type '{right.Type}' to variable of type '{left.Type}'", op.Location, ErrorType.TypeError);
+            }
             result = right;
         }else {
-
-            if ( ! IsNumber(left)) {
+            if ( ! left.IsNumber()) {
                 throw Error($"Cannot use operator `{op.Type}` on non-numeric value `{left}`", op.Location);
-            } else if ( ! IsNumber(right)) {
+            } else if ( ! right.IsNumber()) {
                 throw Error($"Cannot use operator `{op.Type}` on non-numeric value `{right}`", op.Location);
             }
 
-            result = PerformArithmetic(op.Type, left.Underlying, right.Underlying);
+            if ( ! TypeChecker.IsCompatible(source: right.Type, target: left.Type)) {
+                throw Error($"Cannot use operator `{op.Type}` on values of different types `{left.Type}` and `{right.Type}`", op.Location, ErrorType.TypeError);
+            }
+
+            ZenType returnType = DetermineResultType(op.Type, left.Type, right.Type);
+
+            result = PerformArithmetic(op.Type, returnType, left.Underlying, right.Underlying);
         }
 
         target.Assign(result);
     }
 
-    public dynamic? Visit(ForStmt forStmt)
+    public IEvaluationResult Visit(ForStmt forStmt)
     {   
         throw new NotImplementedException();
     }
 
-    public dynamic? Visit(ForInStmt forInStmt)
+    public IEvaluationResult Visit(ForInStmt forInStmt)
     {
         throw new NotImplementedException();
     }
 
-    public dynamic? Visit(TypeHint typeHint)
+    public IEvaluationResult Visit(TypeHint typeHint)
     {
         // For now, we just return the base type
-        return typeHint.GetBaseZenType();
+        return (TypeResult) typeHint.GetBaseZenType();
     }
 }

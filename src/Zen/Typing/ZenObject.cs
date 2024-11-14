@@ -2,9 +2,9 @@ namespace Zen.Typing;
 
 public class ZenObject {
 
-    public ZenType Type;
+    public static ZenObject Empty => new();
 
-    public ZenObject(ZenType type) {
-        Type = type;
+    public ZenObject() {
+        
     }
 }

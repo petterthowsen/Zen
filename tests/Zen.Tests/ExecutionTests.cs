@@ -103,23 +103,74 @@ public class ExecutionTests {
     public void TestVariablePlusAsignment() {
         RestartInterpreter();
 
-        Execute("var i = 0");
+        Execute("var i = 1");
         Variable variable = Interpreter.environment.GetVariable("i");
         ZenValue value = (ZenValue) variable.Value!;
-        Assert.Equal(0, value.Underlying);
+        Assert.Equal(1, value.Underlying);
 
         Execute("i += 1");
         value = (ZenValue) variable.Value!;
-        Assert.Equal(1, value.Underlying);
+        Assert.Equal(2, value.Underlying);
     }
 
+    [Fact]
+    public void TestVariableMinusAsignment() {
+        RestartInterpreter();
+
+        Execute("var i = 1");
+        Variable variable = Interpreter.environment.GetVariable("i");
+        ZenValue value = (ZenValue) variable.Value!;
+        Assert.Equal(1, value.Underlying);
+
+        Execute("i -= 1");
+        value = (ZenValue) variable.Value!;
+        Assert.Equal(0, value.Underlying);
+    }
+
+    [Fact]
+    public void TestVariableMultiplyAsignment() {
+        RestartInterpreter();
+
+        Execute("var i = 5");
+        Variable variable = Interpreter.environment.GetVariable("i");
+        ZenValue value = (ZenValue) variable.Value!;
+        Assert.Equal(5, value.Underlying);
+
+        Execute("i *= 2");
+        value = (ZenValue) variable.Value!;
+        Assert.Equal(10, value.Underlying);
+    }
+
+    [Fact]
+    public void TestVariableDivideAsignment() {
+        RestartInterpreter();
+
+        Execute("var i = 10");
+        Variable variable = Interpreter.environment.GetVariable("i");
+        ZenValue value = (ZenValue) variable.Value!;
+        Assert.Equal(10, value.Underlying);
+
+        Execute("i /= 2");
+        value = (ZenValue) variable.Value!;
+        Assert.Equal(5, value.Underlying);
+    }
+
+    [Fact]
+    public void TestFloat() {
+        RestartInterpreter();
+
+        Execute("var pi = 3.0");
+        Variable pi = Interpreter.environment.GetVariable("pi");
+        ZenValue value = (ZenValue) pi.Value!;
+        Assert.Equal(3.0, value.Underlying);
+    }
     
     [Fact]
     public void TestForLoop() {
         RestartInterpreter();
 
         string? result = Execute("for i = 0; i < 2; i++ { print i }");
-        Assert.Equal("0\n1\n", result);
+        Assert.Equal("01", result);
     }
 
 }
