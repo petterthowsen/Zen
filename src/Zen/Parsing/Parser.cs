@@ -429,12 +429,14 @@ public class Parser
 			// restore index
 			_index = saved_index;
 
+			// try for in loop
+			ForInStmt forInStmt = ForInLoop();
+
 			// restore errors
 			Errors.Clear();
 			Errors.AddRange(saved_errors);
 
-			// try for in loop
-			return ForInLoop();
+			return forInStmt;
 		}
 	}
 

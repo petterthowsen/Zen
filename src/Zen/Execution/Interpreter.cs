@@ -137,8 +137,8 @@ public class Interpreter : IGenericVisitor<IEvaluationResult> {
 
     public IEvaluationResult Visit(Binary binary)
     {
-        ValueResult leftRes = (ValueResult) Evaluate(binary.Left);
-        ValueResult rightRes = (ValueResult) Evaluate(binary.Right);
+        IEvaluationResult leftRes = Evaluate(binary.Left);
+        IEvaluationResult rightRes = Evaluate(binary.Right);
 
         ZenValue left = leftRes.Value;;
         ZenValue right = rightRes.Value;
@@ -204,15 +204,15 @@ public class Interpreter : IGenericVisitor<IEvaluationResult> {
         return ZenValue.Null;
     }
 
-    private static ZenValue PerformComparison(object left, object right, Token operatorToken)
+    private static ZenValue PerformComparison(ZenValue left, ZenValue right, Token operatorToken)
     {
         bool result = operatorToken.Type switch {
             TokenType.Equal => IsEqual(left, right),
             TokenType.NotEqual => ! IsEqual(left, right),
-            TokenType.LessThan => (dynamic)left < (dynamic)right,
-            TokenType.LessThanOrEqual => (dynamic)left <= (dynamic)right,
-            TokenType.GreaterThan => (dynamic)left > (dynamic)right,
-            TokenType.GreaterThanOrEqual => (dynamic)left >= (dynamic)right,
+            TokenType.LessThan => left.Underlying < right.Underlying,
+            TokenType.LessThanOrEqual => left.Underlying <= right.Underlying,
+            TokenType.GreaterThan => left.Underlying > right.Underlying,
+            TokenType.GreaterThanOrEqual => left.Underlying >= right.Underlying,
             _ => throw Error($"Unsupported operator {operatorToken.Type}", operatorToken.Location)
         };
 
@@ -230,7 +230,7 @@ public class Interpreter : IGenericVisitor<IEvaluationResult> {
 
     public IEvaluationResult Visit(Unary unary)
     {
-        dynamic? eval = Evaluate(unary.Right);
+        IEvaluationResult eval = Evaluate(unary.Right);
 
         if (unary.IsNot())
         {
@@ -245,10 +245,10 @@ public class Interpreter : IGenericVisitor<IEvaluationResult> {
         else if (unary.IsMinus())
         {
             ZenValue zenValue = ZenValue.Null;
-            if (eval is Variable variable) {
-                zenValue = variable.GetZenValue();
-            }else if (eval is ZenValue value) {
-                zenValue = value;
+            if (eval is VariableResult variableResult) {
+                zenValue = variableResult.Value;
+            }else if (eval is ValueResult valueResult) {
+                zenValue = valueResult.Value;
             }
 
             // Check if the value is a number
@@ -428,7 +428,31 @@ public class Interpreter : IGenericVisitor<IEvaluationResult> {
 
     public IEvaluationResult Visit(ForStmt forStmt)
     {   
-        throw new NotImplementedException();
+        Environment previousEnvironment = environment;
+        environment = new Environment(previousEnvironment);
+
+        try {
+            Token loopIdentifier = forStmt.LoopIdentifier;
+            ValueResult loopValue = (ValueResult) Evaluate(forStmt.Initializer);
+
+            environment.Define(false, loopIdentifier.Value, loopValue.Type, false);
+            environment.Assign(loopIdentifier.Value, loopValue.Value);
+
+            Expr condition = forStmt.Condition;
+            Expr incrementor = forStmt.Incrementor;
+
+            while (Evaluate(condition).Value.IsTruthy()) {
+                // execute body
+                forStmt.Body.Accept(this);
+
+                // increment loop variable
+                Evaluate(incrementor);
+            }
+        } finally {
+            environment = previousEnvironment;
+        }
+        
+        return (ValueResult) ZenValue.Void;
     }
 
     public IEvaluationResult Visit(ForInStmt forInStmt)

@@ -231,7 +231,9 @@ public class ParserTests {
         // verify initializer, condition, and incrementor
         ForStmt forStmt = (ForStmt)program.Statements[0];
 
-        Assert.IsType<Assignment>(forStmt.Initializer);
+        Assert.IsType<Token>(forStmt.LoopIdentifier);
+
+        Assert.IsType<Literal>(forStmt.Initializer);
         Assert.IsType<Binary>(forStmt.Condition);
         Assert.IsType<Assignment>(forStmt.Incrementor);
 

@@ -156,10 +156,13 @@ public class DebugPrintVisitor : IVisitor {
             forStmt.Incrementor.Accept(this);
         }
 
+        _sb.Add("Body:");
+        _sb.Indent++;
         foreach (var stmt in forStmt.Body.Statements)
         {
             stmt.Accept(this);
         }
+        _sb.Indent--;
 
         _sb.Indent--;
     }
