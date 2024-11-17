@@ -32,10 +32,10 @@ public class Literal : Expr {
                 Value = new ZenValue(ZenType.String, underlying ?? "");
                 break;
             case LiteralKind.Int:
-                Value = new ZenValue(ZenType.Integer64, long.Parse(underlying));
+                Value = new ZenValue(ZenType.Integer, int.Parse(underlying));
                 break;
             case LiteralKind.Float:
-                Value = new ZenValue(ZenType.Float64, double.Parse(underlying));
+                Value = new ZenValue(ZenType.Float, float.Parse(underlying));
                 break;
             case LiteralKind.Bool:
                 Value = underlying == true ? ZenValue.True : ZenValue.False;

@@ -4,7 +4,7 @@ public class ZenType {
     public static ZenType Keyword = new("keyword");
     public static ZenType Any = new("any");
     public static ZenType Object = new("object");
-    public static ZenType Function = new("function");
+    public static ZenType Function = new("func");
     public static ZenType Integer = new("int");
     public static ZenType Float = new("float");
     public static ZenType Integer64 = new("int64");
@@ -20,6 +20,7 @@ public class ZenType {
         return name switch {
             "any" => Any,
             "object" => Object,
+            "func" => Function,
             "int" => Integer,
             "float" => Float,
             "int64" => Integer64,

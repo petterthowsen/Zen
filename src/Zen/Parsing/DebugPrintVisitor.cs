@@ -263,4 +263,17 @@ public class DebugPrintVisitor : IVisitor {
         
         _sb.Indent--;
     }
+
+    public void Visit(ReturnStmt returnStmt)
+    {
+        _sb.Add(returnStmt.ToString());
+
+        _sb.Indent++;
+
+        if (returnStmt.Expression != null) {
+            returnStmt.Expression.Accept(this);
+        }
+        
+        _sb.Indent--;
+    }
 }

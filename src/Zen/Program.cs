@@ -97,9 +97,18 @@ public class Program
         // execute program
         if (program != null) {
             interpreter ??= new Interpreter();
+            Resolver resolver = new(interpreter);
+            
             try {
+                resolver.Resolve(program);
+
+                if (resolver.Errors.Count > 0) {                    
+                    PrintErrors(resolver.Errors);
+                    return;
+                }
+
                 interpreter.Interpret(program);
-            } catch (RuntimeError error) {
+            } catch (Exception error) {
                 Console.WriteLine(error);
             }
         }

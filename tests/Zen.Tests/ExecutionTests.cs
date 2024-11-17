@@ -17,6 +17,7 @@ public class ExecutionTests {
     public Lexer Lexer = new Lexer();
     public Parser Parser = new Parser();
     public Interpreter Interpreter = new Interpreter();
+    public Resolver Resolver;
 
     public ExecutionTests(ITestOutputHelper output)
     {
@@ -26,6 +27,7 @@ public class ExecutionTests {
     private void RestartInterpreter() {
         Interpreter = new();
         Interpreter.GlobalOutputBufferingEnabled = true;
+        Resolver = new(Interpreter);
     }
 
     private string? Execute(string code) {
@@ -42,8 +44,14 @@ public class ExecutionTests {
             return null;
         }
 
-        Interpreter.GlobalOutputBufferingEnabled = true;
+        Resolver.Resolve(node);
 
+        if (Resolver.Errors.Count > 0) {
+            _output.WriteLine(Helper.GetErrors(Resolver.Errors));
+            return null;
+        }
+
+        Interpreter.GlobalOutputBufferingEnabled = true;
         Interpreter.Interpret(node);
         return Interpreter.GlobalOutputBuffer.ToString();
     }
@@ -253,5 +261,24 @@ public class ExecutionTests {
         string? result = Execute("hello()");
 
         Assert.Equal("hello!", result);
+    }
+
+    [Fact]
+    public void TestScope() {
+        RestartInterpreter();
+
+        Execute("func makeCounter() : func { var i = 0\n func increment():int { i += 1\n return i }\n return increment }");
+
+        string? result = Execute("var counter = makeCounter()\nprint counter()");
+        Assert.Equal("1", result);
+    }
+
+    [Fact]
+    public void TestUndefinedVariable() {
+        RestartInterpreter();
+
+        RuntimeError error = Assert.Throws<RuntimeError>(() => Execute("number = 1"));
+
+        Assert.Equal(Common.ErrorType.UndefinedVariable, error.Type);
     }
 }

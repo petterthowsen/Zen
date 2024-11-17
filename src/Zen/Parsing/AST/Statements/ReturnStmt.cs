@@ -5,10 +5,10 @@ namespace Zen.Parsing.AST.Statements;
 
 public class ReturnStmt : Stmt
 {
-    public override SourceLocation Location => throw new NotImplementedException();
-
     public Token Token;
     public Expr? Expression;
+
+    public override SourceLocation Location => Token.Location;
 
     public ReturnStmt(Token token, Expr? expression = null) {
         Token = token;

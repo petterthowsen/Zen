@@ -17,6 +17,6 @@ public class ZenUserFunction : ZenFunction {
     }
 
     public override string ToString() {
-        return $"HostFunction";
+        return $"UserFunction";
     }
 }

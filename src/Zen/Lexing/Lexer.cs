@@ -270,7 +270,7 @@ public class Lexer {
         _line = 0;
         _column = 0;
         Errors.Clear();
-        Tokens = new List<Token>();
+        Tokens = [];
 
         while (_position <= SourceCode.Length) {
             if (EOF) {
