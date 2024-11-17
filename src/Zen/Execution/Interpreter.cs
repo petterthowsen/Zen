@@ -30,7 +30,7 @@ public class Interpreter : IGenericVisitor<IEvaluationResult>
         environment = globalEnvironment;
 
         // 'int' converts a number to a Integer.
-        RegisterHostFunction("to_int", ZenType.Integer, [new ZenFunction.Parameter("val", ZenType.Any)], (ZenValue[] args) =>
+        RegisterHostFunction("int", ZenType.Integer, [new ZenFunction.Parameter("val", ZenType.Any)], (ZenValue[] args) =>
         {
             return TypeConverter.Convert(args[0], ZenType.Integer);
         });
@@ -549,31 +549,6 @@ public class Interpreter : IGenericVisitor<IEvaluationResult>
         return (VariableResult) leftVariable;
     }
 
-    // public IEvaluationResult Visit(Assignment assignment)
-    // {
-    //     // evaluate the expression on the right hand side
-    //     IEvaluationResult right = Evaluate(assignment.Expression);
-
-
-    //     VariableResult left = (VariableResult) Evaluate(assignment.Identifier)!;
-
-    //     if (left.Variable is null)
-    //     {
-    //         throw Error($"Cannot assign to non-variable '{assignment.Identifier.Name}'", assignment.Identifier.Location, ErrorType.RuntimeError);
-    //     }
-
-    //     Variable leftVariable = left.Variable;
-
-    //     if (leftVariable.Constant)
-    //     {
-    //         throw Error($"Cannot assign to constant '{assignment.Identifier.Name}'", assignment.Identifier.Location, ErrorType.RuntimeError);
-    //     }
-
-    //     // perform the assignment operation
-    //     PerformAssignment(assignment.Operator, leftVariable, right.Value);
-
-    //     return (VariableResult) leftVariable;
-    // }
 
     private static void PerformAssignment(Token op, Variable target, ZenValue right)
     {
@@ -739,7 +714,7 @@ public class Interpreter : IGenericVisitor<IEvaluationResult>
                 ZenFunction.Parameter parameter = function.Parameters[i];
                 ZenValue argument = argumentValues[i];
 
-                if (!TypeChecker.IsCompatible(parameter.Type, argument.Type))
+                if (!TypeChecker.IsCompatible(argument.Type, parameter.Type))
                 {
                     throw Error($"Cannot pass argument of type '{argument.Type}' to parameter of type '{parameter.Type}'", call.Arguments[i].Location, ErrorType.TypeError);
                 }

@@ -199,12 +199,14 @@ public class Parser
 		return true;
 	}
 
-	private bool MatchKeyword(string keyword)
+	private bool MatchKeyword(params string[] keywords)
 	{
-		if (Current.Type == TokenType.Keyword && Current.Value == keyword)
-		{
-			Advance();
-			return true;
+		foreach (var keyword in keywords) {
+			if (Current.Type == TokenType.Keyword && Current.Value == keyword)
+			{
+				Advance();
+				return true;
+			}
 		}
 		return false;
 	}
@@ -226,7 +228,11 @@ public class Parser
 
 		AtleastOne(TokenType.Whitespace); // spaces
 
-		Token identifier = Consume(TokenType.Identifier, $"Expected some identifier after '{token.Value}' declaration"); // identifier
+		if ( ! Match(TokenType.Identifier, TokenType.Keyword)) {
+			throw Error($"Expected some identifier after '{token.Value}' declaration", ErrorType.SyntaxError);
+		}
+		Token identifier = Previous; // identifier
+		
 		MaybeSome(TokenType.Whitespace); // any spaces
 
 		// if we find a : then we have a TypeHint
@@ -896,6 +902,10 @@ public class Parser
 
 		if (Match(TokenType.Identifier))
 		{
+			return new Identifier(Previous);
+		}
+
+		if (Match(TokenType.Keyword)) {
 			return new Identifier(Previous);
 		}
 

@@ -13,8 +13,8 @@ public class ZenHostFunction : ZenFunction {
 
     public override ZenValue Call(Interpreter interpreter, ZenValue[] arguments)
     {
-        if (arguments.Length != 0) {
-            throw new Exception($"Function called with {arguments.Length} arguments, but expected {0}");
+        if (arguments.Length < Arity) {
+            throw new Exception($"Function called with {arguments.Length} arguments, but expected {Arity}");
         }
 
         return Func(arguments);
