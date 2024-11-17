@@ -3,9 +3,9 @@ using Zen.Execution;
 namespace Zen.Typing;
 
 public static class TypeConverter {
-    public static ZenValue Convert(ZenValue value, ZenType targetType) {
+    public static ZenValue Convert(ZenValue value, ZenType targetType, bool TypeCheck = false) {
         if (value.Type == targetType) return value;
-        if ( ! TypeChecker.IsCompatible(value.Type, targetType)) {
+        if (TypeCheck && ! TypeChecker.IsCompatible(value.Type, targetType)) {
             throw new RuntimeError($"Cannot convert from {value.Type} to {targetType}", Common.ErrorType.TypeError, null);
         }
 

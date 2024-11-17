@@ -20,6 +20,9 @@ public enum Keywords
     Yield,
     Return,
 
+    // Logical Operators
+    And, Or, Not,
+
     // Function & Class Keywords
     Func, Async, Await,
     

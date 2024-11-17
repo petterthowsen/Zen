@@ -1,3 +1,6 @@
+using Zen.Common;
+using Zen.Execution;
+
 namespace Zen.Typing;
 
 
@@ -31,6 +34,26 @@ public readonly struct ZenValue(ZenType type, dynamic? underlying = null)
 
     public readonly bool IsNull() {
         return Type == ZenType.Null;
+    }
+
+    public readonly bool IsCallable() {
+        return Type == ZenType.Function;
+    }
+    
+    public readonly bool IsHostFunction() {
+        return Underlying is ZenHostFunction;
+    }
+
+    public readonly bool IsUserFunction() {
+        return Underlying is ZenUserFunction;
+    }
+
+    public ZenValue Call(Interpreter interpreter, params ZenValue[] arguments) {
+        if (IsHostFunction()) {
+            return ((ZenHostFunction)Underlying!).Call(interpreter, arguments);
+        }
+
+        throw new Exception($"Cannot call {Underlying} as a function - it is not a callable function.");
     }
 
     public bool IsTruthy() {

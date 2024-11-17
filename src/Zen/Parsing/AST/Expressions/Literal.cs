@@ -12,13 +12,13 @@ public class Literal : Expr {
         Float,
         Bool,
         Null,
+        Keyword,
     }
 
     public Token Token;
 
     public LiteralKind Kind;
 
-    // is literal always a ZenValue?
     public ZenValue Value;
 
     public override SourceLocation Location => Token.Location;
@@ -38,10 +38,13 @@ public class Literal : Expr {
                 Value = new ZenValue(ZenType.Float64, double.Parse(underlying));
                 break;
             case LiteralKind.Bool:
-                Value = new ZenValue(ZenType.Boolean, bool.Parse(underlying == true ? "true" : "false"));
+                Value = underlying == true ? ZenValue.True : ZenValue.False;
                 break;
             case LiteralKind.Null:
-                Value = new ZenValue(ZenType.Null, null);
+                Value = ZenValue.Null;
+                break;
+            case LiteralKind.Keyword:
+                Value = new ZenValue(ZenType.Keyword, underlying);
                 break;
         }
     }

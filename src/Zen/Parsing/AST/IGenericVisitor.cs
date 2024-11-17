@@ -17,6 +17,8 @@ public interface IGenericVisitor<T>
     T Visit(ForInStmt forInStmt);
     T Visit(ExpressionStmt expressionStmt);
     T Visit(PrintStmt printStmt);
+    T Visit(FuncStmt funcStmt);
+    T Visit(ReturnStmt returnStmt);
 
     // Expressions
     T Visit(Binary binary);
@@ -26,5 +28,8 @@ public interface IGenericVisitor<T>
     T Visit(TypeHint typeHint);
     T Visit(Identifier identifier);
     T Visit(Assignment assignment);
+    T Visit(Logical logical);
+    T Visit(Call call);
+    T Visit(FuncParameter funcParameter);
 
 }

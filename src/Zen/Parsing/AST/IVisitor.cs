@@ -17,6 +17,8 @@ public interface IVisitor
     void Visit(ForInStmt forInStmt);
     void Visit(ExpressionStmt expressionStmt);
     void Visit(PrintStmt printStmt);
+    void Visit(FuncStmt funcStmt);
+    void Visit(ReturnStmt returnStmt);
 
     // Expressions
     void Visit(Binary binary);
@@ -26,4 +28,7 @@ public interface IVisitor
     void Visit(TypeHint typeHint);
     void Visit(Identifier identifier);
     void Visit(Assignment assignment);
+    void Visit(Logical logical);
+    void Visit(Call call);
+    void Visit(FuncParameter funcParameter);
 }

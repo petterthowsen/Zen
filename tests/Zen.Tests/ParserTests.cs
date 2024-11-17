@@ -53,6 +53,42 @@ public class ParserTests {
     }
 
     [Fact]
+    public void TestComplexExpression() {
+        ProgramNode program = Parse("10 + 2 * 10 - 3");
+        Assert.Single(program.Statements);
+
+        Assert.IsType<ExpressionStmt>(program.Statements[0]);
+
+        ExpressionStmt exprStmt = (ExpressionStmt)program.Statements[0];
+        Binary binaryExpr = Assert.IsType<Binary>(exprStmt.Expression);
+        Assert.IsType<Binary>(binaryExpr.Left);
+        Binary leftExpr = (Binary)binaryExpr.Left;
+
+        Literal leftLiteral = Assert.IsType<Literal>(leftExpr.Left);
+        Assert.Equal(TokenType.IntLiteral, leftLiteral.Token.Type);
+        Assert.Equal("10", leftLiteral.Token.Value);
+
+        Assert.Equal(TokenType.Plus, leftExpr.Operator.Type);
+
+        Binary rightExprLeft = Assert.IsType<Binary>(leftExpr.Right);
+        Literal rightExprLeftLiteral = Assert.IsType<Literal>(rightExprLeft.Left);
+        Assert.Equal(TokenType.IntLiteral, rightExprLeftLiteral.Token.Type);
+        Assert.Equal("2", rightExprLeftLiteral.Token.Value);
+
+        Assert.Equal(TokenType.Star, rightExprLeft.Operator.Type);
+
+        Literal rightExprRightLiteral = Assert.IsType<Literal>(rightExprLeft.Right);
+        Assert.Equal(TokenType.IntLiteral, rightExprRightLiteral.Token.Type);
+        Assert.Equal("10", rightExprRightLiteral.Token.Value);
+
+        Assert.Equal(TokenType.Minus, binaryExpr.Operator.Type);
+
+        Literal rightLiteral = Assert.IsType<Literal>(binaryExpr.Right);
+        Assert.Equal(TokenType.IntLiteral, rightLiteral.Token.Type);
+        Assert.Equal("3", rightLiteral.Token.Value);
+    }
+
+    [Fact]
     public void TestVariableDeclaration() {
         ProgramNode program = Parse("var name = \"john\"");
         Assert.Single(program.Statements);
@@ -144,6 +180,35 @@ public class ParserTests {
         Assert.IsType<PrintStmt>(block.Statements[0]);
     }
 
+    [Fact]
+    public void TestIfStatementWithAndCondition() {
+        ProgramNode program = Parse("if true and false {}");
+
+        Assert.Single(program.Statements);
+        Assert.IsType<IfStmt>(program.Statements[0]);
+
+        // verify condition and block
+        IfStmt ifStmt = (IfStmt)program.Statements[0];
+
+        // Check that the condition is a binary expression with 'and' operator
+        Logical logical = Assert.IsType<Logical>(ifStmt.Condition);
+
+        Assert.Equal(TokenType.Keyword, logical.Token.Type);
+        Assert.Equal("and", logical.Token.Value);
+
+        // Verify that the left expression is a literal
+        Assert.IsType<Literal>(logical.Left);
+        Literal leftLiteral = (Literal) logical.Left;
+        Assert.Equal(ZenValue.True, leftLiteral.Value);
+
+        // Verify that the right expression is a literal
+        Assert.IsType<Literal>(logical.Right);
+        Literal rightLiteral = (Literal) logical.Right;
+        Assert.Equal(ZenValue.False, rightLiteral.Value);
+
+        // Verify that the block is present
+        Assert.IsType<Block>(ifStmt.Then);
+    }
     
     [Fact]
     public void TestIfStatementWithElse() {
@@ -245,4 +310,136 @@ public class ParserTests {
         Assert.Single(block.Statements);
         Assert.IsType<PrintStmt>(block.Statements[0]);
     }
+
+    
+    [Fact]
+    public void TestCall() {
+        ProgramNode program = Parse("test()");
+
+        Assert.Single(program.Statements);
+        Assert.IsType<ExpressionStmt>(program.Statements[0]);
+
+        // verify that the expression is a Call expression
+        ExpressionStmt exprStmt = (ExpressionStmt)program.Statements[0];
+        Assert.IsType<Call>(exprStmt.Expression);
+
+        // verify that the callee is a identifier
+        Call call = (Call)exprStmt.Expression;
+        Assert.IsType<Identifier>(call.Callee);
+
+        Assert.Empty(call.Arguments);
+    }
+
+    
+    [Fact]
+    public void TestCallWithArgument() {
+        ProgramNode program = Parse("test(5)");
+
+        Assert.Single(program.Statements);
+        Assert.IsType<ExpressionStmt>(program.Statements[0]);
+
+        // verify that the expression is a Call expression
+        ExpressionStmt exprStmt = (ExpressionStmt)program.Statements[0];
+        Assert.IsType<Call>(exprStmt.Expression);
+
+        // verify that the callee is a identifier
+        Call call = (Call)exprStmt.Expression;
+        Assert.IsType<Identifier>(call.Callee);
+
+        Assert.Single(call.Arguments);
+        Assert.IsType<Literal>(call.Arguments[0]);
+    }
+
+    
+    [Fact]
+    public void TestCallWithTwoArguments() {
+        ProgramNode program = Parse("test(one, 5)");
+
+        Assert.Single(program.Statements);
+        Assert.IsType<ExpressionStmt>(program.Statements[0]);
+
+        // verify that the expression is a Call expression
+        ExpressionStmt exprStmt = (ExpressionStmt)program.Statements[0];
+        Assert.IsType<Call>(exprStmt.Expression);
+
+        // verify that the callee is a identifier
+        Call call = (Call)exprStmt.Expression;
+        Assert.IsType<Identifier>(call.Callee);
+
+        Assert.Equal(2, call.Arguments.Length);
+        Assert.IsType<Identifier>(call.Arguments[0]);
+        Assert.IsType<Literal>(call.Arguments[1]);
+    }
+
+    [Fact]
+    public void TestFuncStmt() {
+        ProgramNode program = Parse("func test() { }");
+        Assert.Single(program.Statements);
+        Assert.IsType<FuncStmt>(program.Statements[0]);
+
+        FuncStmt funcStmt = (FuncStmt)program.Statements[0];
+        Assert.Equal(TokenType.Identifier, funcStmt.Identifier.Type);
+        Assert.Equal("test", funcStmt.Identifier.Value);
+
+        Assert.Empty(funcStmt.Parameters);
+        Assert.IsType<Block>(funcStmt.Block);
+        Assert.IsType<TypeHint>(funcStmt.ReturnType);
+    }
+
+    
+    [Fact]
+    public void TestFuncStmtWithExplicitVoidReturnType() {
+        ProgramNode program = Parse("func test() : void { }");
+        Assert.Single(program.Statements);
+        Assert.IsType<FuncStmt>(program.Statements[0]);
+
+        FuncStmt funcStmt = (FuncStmt)program.Statements[0];
+        Assert.Equal(TokenType.Identifier, funcStmt.Identifier.Type);
+        Assert.Equal("test", funcStmt.Identifier.Value);
+
+        Assert.Empty(funcStmt.Parameters);
+        Assert.IsType<Block>(funcStmt.Block);
+        Assert.IsType<TypeHint>(funcStmt.ReturnType);
+        var typeHint = (TypeHint)funcStmt.ReturnType;
+        
+        Assert.Equal(ZenType.Void, typeHint.GetZenType());
+    }
+
+    [Fact]
+    public void TestFuncStmtWithOneArgument() {
+        ProgramNode program = Parse("func test(arg) { }");
+        Assert.Single(program.Statements);
+        Assert.IsType<FuncStmt>(program.Statements[0]);
+
+        FuncStmt funcStmt = (FuncStmt)program.Statements[0];
+        Assert.Equal(TokenType.Identifier, funcStmt.Identifier.Type);
+        Assert.Equal("test", funcStmt.Identifier.Value);
+
+        Assert.Single(funcStmt.Parameters);
+        Assert.Equal("arg", funcStmt.Parameters[0].Identifier.Value);
+        Assert.IsType<Block>(funcStmt.Block);
+        Assert.IsType<TypeHint>(funcStmt.ReturnType);
+    }
+
+    [Fact]
+    public void TestFuncStmtWithStringArgument() {
+        ProgramNode program = Parse("func test(arg:string) { }");
+        Assert.Single(program.Statements);
+        Assert.IsType<FuncStmt>(program.Statements[0]);
+
+        FuncStmt funcStmt = (FuncStmt)program.Statements[0];
+        Assert.Equal(TokenType.Identifier, funcStmt.Identifier.Type);
+        Assert.Equal("test", funcStmt.Identifier.Value);
+
+        Assert.Single(funcStmt.Parameters);
+        Assert.Equal("arg", funcStmt.Parameters[0].Identifier.Value);
+        Assert.IsType<TypeHint>(funcStmt.Parameters[0].TypeHint);
+
+        var paramTypeHint = (TypeHint)funcStmt.Parameters[0].TypeHint!;
+        Assert.Equal(ZenType.String, paramTypeHint.GetZenType());
+        
+        Assert.IsType<Block>(funcStmt.Block);
+        Assert.IsType<TypeHint>(funcStmt.ReturnType);
+    }
+    
 }

@@ -1,6 +1,35 @@
-# Zen Language
+# Zen
 
-A programming language implementation in C#.
+Zen is a high level programming language implemented in C#.
+
+The back end implementation is currently a tree walk interpreter and as such, is relatively slow compared to alternatives. However, Zen is more than fast enough fo many tasks, including web apps, 2D game development and other projects.
+
+# About Zen
+
+Zen is a high-level programming language inspired by modern languages such as C#, Java, Go, Python, Ruby, PHP, Node JS and others.
+
+It's aim is to be:
+
+- Simple yet powerful
+- Supports both very strict typing and looser/dynamic typing
+- Targeted towards general-purpose use cases, but with some special attention to Web Development
+- Fully cross platform across Windows, Mac and Linux
+
+Syntactically, Zen aims to strike a balance between ease of use and verboseness; between readability and customizability; between simplicity and complexity.
+
+The Zen Runtime runs in an event loop on a single thread - similar to Node JS, and supports 'async' and 'await' for asynchronous programming.
+
+Features include:
+- OOP: classes, interfaces, objects, inheritence
+- Concurrency: await/async for asynchronous programming
+- Anonymous functions and callbacks
+- Event system as a language feature
+- Testing system as a langauge feature with assert statements
+
+
+## Installing
+
+Binaries for windows, mac & linux will be made available when Zen is more mature or upon request. It's pretty easy to build it yourself - all you need is dotnet with SDK 8.0 or later.
 
 ## Prerequisites
 
@@ -32,7 +61,7 @@ dotnet build
 # Run the project
 dotnet run --project src/Zen
 
-# to build and run, a helper script 'zen.sh' exists:
+# to build and run, a helper script 'zen.sh' exists which will drop you in a Zen REPL.
 ./zen.sh
 ```
 

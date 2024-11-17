@@ -22,6 +22,11 @@ public class TypeHint : Expr
         Nullable = nullable;
     }
 
+    public TypeHint(Token token, bool nullable = false) {
+        Token = token;
+        Nullable = nullable;
+    }
+
     public ZenType GetBaseZenType() {
         return ZenType.FromString(Name);
     }

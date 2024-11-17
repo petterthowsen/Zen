@@ -5,24 +5,24 @@ using Zen.Lexing;
 using Zen.Parsing.AST;
 using Zen.Parsing.AST.Expressions;
 using Zen.Parsing.AST.Statements;
+using Zen.Typing;
 
 public class Parser
 {
 
-	public enum ParsingContext {
-		Default,
-		Class,
-		Function,
-	}
+	// public enum ParsingContext {
+	// 	Default,
+	// 	Class,
+	// 	Function,
+	// }
 
-	private ParsingContext Context = ParsingContext.Default;
+	// private ParsingContext Context = ParsingContext.Default;
 
 	private List<Token> Tokens = [];
 
 	public readonly List<Error> Errors = [];
 
 	private int _index = 0;
-
 
 	protected Token Current => Tokens[_index];
 
@@ -39,9 +39,8 @@ public class Parser
 		Tokens = tokens;
 		_index = 0;
 		Errors.Clear();
-		Context = ParsingContext.Default;
+		// Context = ParsingContext.Default;
 		ProgramNode program = new();
-
 
 		try {
 			while ( ! IsAtEnd) {
@@ -216,6 +215,9 @@ public class Parser
 		if (MatchKeyword("if")) return IfStatement();
 		if (MatchKeyword("while")) return WhileStatement();
 		if (MatchKeyword("for")) return ForStatement();
+		if (MatchKeywordSequence("async func")) return FuncStatement(true);
+		if (MatchKeyword("func")) return FuncStatement(false);
+		if (MatchKeyword("return")) return ReturnStatement();
 		return ExpressionStatement();
 	}
 
@@ -589,6 +591,100 @@ public class Parser
 		}
 	}
 
+	protected FuncStmt FuncStatement(bool async) {
+		// "func" keyword token
+		Token token = Previous;
+		AtleastOne(TokenType.Whitespace);
+
+		// identifier
+		Token identifier = Consume(TokenType.Identifier, "Expected identifier after 'func' keyword");
+		
+		// open paren
+		Token openParen = Consume(TokenType.OpenParen, "Expected '(' after function identifier");
+		MaybeSome(TokenType.Whitespace);
+
+		// parameters
+		FuncParameter[] parameters = FuncParameters();
+
+		// close paren
+		Token closeParen = Consume(TokenType.CloseParen, "Expected ')' after function parameters");
+		MaybeSome(TokenType.Whitespace);
+
+		// return type?
+		TypeHint? returnTypeTypeHint = null;
+
+		if (Match(TokenType.Colon)) {
+			MaybeSome(TokenType.Whitespace);
+			returnTypeTypeHint = TypeHint();
+			MaybeSome(TokenType.Whitespace);
+		}
+
+		// block
+		Consume(TokenType.OpenBrace, "Expected '{' after function parameters");
+		Block block = Block();
+		Consume(TokenType.CloseBrace, "Expected '}' after block");
+
+		if (returnTypeTypeHint != null) {
+			return new FuncStmt(async, identifier, returnTypeTypeHint, parameters, block);
+		}else {
+			return new FuncStmt(async, identifier, ZenType.Void, parameters, block);
+		}
+	}
+
+	protected FuncParameter[] FuncParameters() {
+		List<FuncParameter> parameters = new List<FuncParameter>();
+		
+		while (!Check(TokenType.CloseParen)) {
+			MaybeSome(TokenType.Whitespace);
+
+			parameters.Add(FuncParameter());
+
+			MaybeSome(TokenType.Whitespace);
+		}
+
+		return [..parameters];
+	}
+
+	protected ReturnStmt ReturnStatement() {
+		// "return" keyword token
+		Token token = Previous;
+		AtleastOne(TokenType.Whitespace);
+
+		// expression?
+		Expr? expr = null;
+		if ( ! Check(TokenType.Semicolon, TokenType.Newline)) {
+			expr = Expression();
+		}
+
+		return new ReturnStmt(token, expr?? null);
+	}
+
+	protected FuncParameter FuncParameter() {
+		// identifier [:typehint]? [ = defaultValue]?
+
+		// identifier
+		Token identifier = Consume(TokenType.Identifier, "Expected identifier after 'func' keyword");
+		MaybeSome(TokenType.Whitespace);
+
+		// typehint?
+		TypeHint? typeHint = null;
+		if (Match(TokenType.Colon)) {
+			MaybeSome(TokenType.Whitespace);
+			typeHint = TypeHint();
+			MaybeSome(TokenType.Whitespace);
+		}
+
+		// defaultValue?
+		Expr? defaultValue = null;
+		if (Match(TokenType.Assign)) {
+			MaybeSome(TokenType.Whitespace);
+			defaultValue = Expression();
+			MaybeSome(TokenType.Whitespace);
+		}
+
+		return new FuncParameter(identifier, typeHint, defaultValue);
+	}
+
 	protected ExpressionStmt ExpressionStatement() {
 		Expr expr = Expression();
 		return new ExpressionStmt(expr);
@@ -600,7 +696,7 @@ public class Parser
 	}
 
 	private Expr Assignment() {
-		Expr expr = Equality();
+		Expr expr = Or();
 
 		MaybeSome(TokenType.Whitespace);
 
@@ -617,6 +713,41 @@ public class Parser
 
 			// error, but we don't throw it because the parser isn't in a confused state
 			Error("Invalid assignment target.", ErrorType.RuntimeError);
+		}
+
+		return expr;
+	}
+
+	private Expr Or() {
+		Expr expr = And();
+
+		MaybeSome(TokenType.Whitespace);
+
+		while (MatchKeyword("or")) {
+			Token op = Previous;
+
+			MaybeSome(TokenType.Whitespace);
+
+			Expr right = And();
+			expr = new Logical(expr, op, right);
+			MaybeSome(TokenType.Whitespace);
+		}
+
+		return expr;
+	}
+
+	private Expr And() {
+		Expr expr = Equality();
+
+		MaybeSome(TokenType.Whitespace);
+
+		while (MatchKeyword("and")) {
+			Token op = Previous;
+			MaybeSome(TokenType.Whitespace);
+
+			Expr right = Equality();
+			expr = new Logical(expr, op, right);
+			MaybeSome(TokenType.Whitespace);
 		}
 
 		return expr;
@@ -714,7 +845,47 @@ public class Parser
 			return new Unary(op, right);
 		}
 
-		return Primary();
+		return Call();
+	}
+
+	private Expr Call() {
+		Expr expr = Primary();
+
+		while (true) {
+
+			MaybeSome(TokenType.Whitespace);
+
+			if (Match(TokenType.OpenParen)) {
+				expr = FinishCall(expr);
+			}
+			else {
+				break;
+			}
+		}
+
+		return expr;
+	}
+
+	private Call FinishCall(Expr callee) {
+		List<Expr> arguments = [];
+
+		MaybeSome(TokenType.Whitespace);
+
+		if ( ! Check(TokenType.CloseParen)) {
+
+			do {
+				MaybeSome(TokenType.Whitespace);
+				arguments.Add(Expression());
+				MaybeSome(TokenType.Whitespace);
+
+			} while (Match(TokenType.Comma));
+		}
+
+		MaybeSome(TokenType.Whitespace);
+		
+		Token paren = Consume(TokenType.CloseParen, "Expectd ')' after function arguments");
+
+		return new Call(paren, callee, [.. arguments]);
 	}
 
 	private Expr Primary()

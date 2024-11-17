@@ -197,4 +197,70 @@ public class DebugPrintVisitor : IVisitor {
         _sb.Indent--;
     }
 
+    public void Visit(Logical logical)
+    {
+        _sb.Add(logical.ToString());
+
+        _sb.Indent++;
+        
+        logical.Left.Accept(this);
+        _sb.Add(logical.Token.Value);
+        logical.Right.Accept(this);
+        
+        _sb.Indent--;
+    }
+
+    public void Visit(Call call) {
+        _sb.Add(call.ToString());
+
+        _sb.Indent++;
+
+        call.Callee.Accept(this);
+
+        _sb.Add("Arguments:");
+        _sb.Indent++;
+
+        foreach (var arg in call.Arguments) {
+            arg.Accept(this);
+        }
+
+        _sb.Indent--;
+
+        _sb.Indent--;
+    }
+
+    public void Visit(FuncStmt funcStmt)
+    {
+        _sb.Add(funcStmt.ToString());
+        _sb.Indent++;
+        
+        _sb.Add("Async: " + funcStmt.Async);
+        _sb.Add("Identifier: " + funcStmt.Identifier.ToString());
+        _sb.Add("Return Type: " + funcStmt.ReturnType.ToString());
+
+        _sb.Add("Parameters:");
+        _sb.Indent++;
+        foreach (var param in funcStmt.Parameters) {
+            param.Accept(this);
+        }
+        _sb.Indent--;
+
+        _sb.Indent++;
+    }
+
+    public void Visit(FuncParameter funcParameter)
+    {
+        _sb.Add(funcParameter.ToString());
+        _sb.Indent++;
+        
+        _sb.Add("Identifier: " + funcParameter.Identifier.ToString());
+        if (funcParameter.TypeHint != null) {
+            _sb.Add("Type Hint: " + funcParameter.TypeHint.ToString());
+        }
+        if (funcParameter.DefaultValue != null) {
+            _sb.Add("Default Value: " + funcParameter.DefaultValue.ToString());
+        }
+        
+        _sb.Indent--;
+    }
 }

@@ -3,6 +3,7 @@ using Zen.Execution;
 using Zen.Lexing;
 using Zen.Parsing;
 using Zen.Parsing.AST;
+using Zen.Parsing.AST.Statements;
 using Zen.Typing;
 
 namespace Zen.Tests;
@@ -173,4 +174,84 @@ public class ExecutionTests {
         Assert.Equal("01", result);
     }
 
+    
+    [Fact]
+    public void TestMath() {
+        RestartInterpreter();
+
+        string? result = Execute("print 2 * 2 + 1");
+        Assert.Equal("5", result);
+    }
+
+    
+    [Fact]
+    public void TestMath2() {
+        RestartInterpreter();
+
+        string? result = Execute("print 2 * (2 + 1)");
+        Assert.Equal("6", result);
+    }
+
+    [Fact]
+    public void TestFuncDeclaration() {
+        RestartInterpreter();
+        Execute("func hello() {}");
+
+        Assert.True(Interpreter.environment.Exists("hello"));
+        
+        // get the value
+        ZenValue hello = Interpreter.environment.GetValue("hello");
+
+        // make sure its callable
+        Assert.True(hello.IsCallable());
+
+        // is of type ZenUserFunction
+        Assert.IsType<ZenUserFunction>(hello.Underlying);
+
+        // get the ZenFunction
+        ZenUserFunction function = (ZenUserFunction) hello.Underlying!;
+
+        // takes 0 arguments
+        Assert.Equal(0, function.Arity);
+
+        // returns void
+        Assert.Equal(ZenType.Void, function.ReturnType);
+    }
+
+    
+    [Fact]
+    public void TestFuncDeclarationWithIntReturnType() {
+        RestartInterpreter();
+        Execute("func hello(): int {}");
+
+        Assert.True(Interpreter.environment.Exists("hello"));
+        
+        // get the value
+        ZenValue hello = Interpreter.environment.GetValue("hello");
+
+        // make sure its callable
+        Assert.True(hello.IsCallable());
+
+        // is of type ZenUserFunction
+        Assert.IsType<ZenUserFunction>(hello.Underlying);
+
+        // get the ZenFunction
+        ZenUserFunction function = (ZenUserFunction) hello.Underlying!;
+
+        // takes 0 arguments
+        Assert.Equal(0, function.Arity);
+
+        // returns int
+        Assert.Equal(ZenType.Integer, function.ReturnType);
+    }
+
+    [Fact]
+    public void TestFuncExecution() {
+        RestartInterpreter();
+        Execute("func hello() { print \"hello!\" }");
+
+        string? result = Execute("hello()");
+
+        Assert.Equal("hello!", result);
+    }
 }

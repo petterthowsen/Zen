@@ -16,11 +16,60 @@ public class Interpreter : IGenericVisitor<IEvaluationResult> {
 		return new RuntimeError(message, errorType, location);
 	}
 
-    public Environment environment = new();
+    public Environment globalEnvironment = new();
+    public Environment environment;
 
     // Global Output Buffering - useful for testing
     public bool GlobalOutputBufferingEnabled = false;
     public readonly StringBuilder GlobalOutputBuffer = new();
+
+    public Interpreter() {
+        environment = globalEnvironment;
+
+        // 'int' converts a number to a Integer.
+        RegisterHostFunction("to_int", ZenType.Integer, [new ZenFunction.Parameter("val", ZenType.Any)], (ZenValue[] args) => {
+            return TypeConverter.Convert(args[0], ZenType.Integer);
+        });
+
+        // 'int64' converts a number to a Integer64.
+        RegisterHostFunction("to_int64", ZenType.Integer64, [new ZenFunction.Parameter("val", ZenType.Any)], (ZenValue[] args) => {
+            return TypeConverter.Convert(args[0], ZenType.Integer64);
+        });
+
+        // 'float' converts a number to a Float.
+        RegisterHostFunction("to_float", ZenType.Float, [new ZenFunction.Parameter("val", ZenType.Any)], (ZenValue[] args) => {
+            return TypeConverter.Convert(args[0], ZenType.Float);
+        });
+
+        // 'float64' converts a number to a Float64.    
+        RegisterHostFunction("to_float64", ZenType.Float64, [new ZenFunction.Parameter("val", ZenType.Any)], (ZenValue[] args) => {
+            return TypeConverter.Convert(args[0], ZenType.Float64);
+        });
+
+        // 'time' returns the current time in milliseconds.
+        RegisterHostFunction("time", ZenType.Integer64, [], (ZenValue[] args) => {
+            long milliseconds = DateTimeOffset.Now.ToUnixTimeMilliseconds();
+            return new ZenValue(ZenType.Integer64, milliseconds);
+        });
+
+        // 'type' returns the string representation of a type.
+        RegisterHostFunction("type", ZenType.String, [new ZenFunction.Parameter("val", ZenType.Any)], (ZenValue[] args) => {
+            return new ZenValue(ZenType.String, args[0].Type.ToString());
+        });
+    }
+
+    public void RegisterHostFunction(string name, ZenType returnType, ZenFunction.Parameter[] parameters, Func<ZenValue[], ZenValue> func) {
+        var hostFunc = new ZenHostFunction(returnType, parameters, func, globalEnvironment);
+        globalEnvironment.Define(true, name, ZenType.Function, false);
+        globalEnvironment.Assign(name, new ZenValue(ZenType.Function, hostFunc));
+    }
+
+    // TODO: need to store named map of parameters and their type and default value
+    public void RegisterFunction(string name, ZenType returnType, ZenUserFunction.Parameter[] parameters, Block block, Environment? closure = null) {
+        var userFunc = new ZenUserFunction(returnType, parameters, block, closure ?? globalEnvironment);
+        globalEnvironment.Define(true, name, ZenType.Function, false);
+        globalEnvironment.Assign(name, new ZenValue(ZenType.Function, userFunc));
+    }
 
     /// <summary>
     /// Determines if a given object is truthy.
@@ -311,20 +360,6 @@ public class Interpreter : IGenericVisitor<IEvaluationResult> {
         return Evaluate(expressionStmt.Expression);
     }
 
-    // DRAFT, not sure if it works
-    public IEvaluationResult Visit(WhileStmt whileStmt)
-    {
-        IEvaluationResult conditionResult = Evaluate(whileStmt.Condition);
-
-        while (conditionResult.IsTruthy())
-        {
-            Visit(whileStmt.Body);
-            conditionResult = Evaluate(whileStmt.Condition);
-        }
-
-        return (ValueResult) ZenValue.Void;
-    }
-
     public IEvaluationResult Visit(VarStmt varStmt)
     {
         // TODO: Check for duplicate variable names
@@ -426,6 +461,39 @@ public class Interpreter : IGenericVisitor<IEvaluationResult> {
         target.Assign(result);
     }
 
+
+    public IEvaluationResult Visit(TypeHint typeHint)
+    {
+        // For now, we just return the base type
+        return (TypeResult) typeHint.GetBaseZenType();
+    }
+
+    public IEvaluationResult Visit(Logical logical)
+    {
+        IEvaluationResult left = Evaluate(logical.Left);
+
+        if (logical.Token.Value == "or") {
+            if ( left.IsTruthy() ) return left;
+        } else {
+            if ( ! left.IsTruthy()) return left;
+        }
+
+        return Evaluate(logical.Right);
+    }
+
+    public IEvaluationResult Visit(WhileStmt whileStmt)
+    {
+        IEvaluationResult conditionResult = Evaluate(whileStmt.Condition);
+
+        while (conditionResult.IsTruthy())
+        {
+            Visit(whileStmt.Body);
+            conditionResult = Evaluate(whileStmt.Condition);
+        }
+
+        return (ValueResult) ZenValue.Void;
+    }
+
     public IEvaluationResult Visit(ForStmt forStmt)
     {   
         Environment previousEnvironment = environment;
@@ -460,9 +528,123 @@ public class Interpreter : IGenericVisitor<IEvaluationResult> {
         throw new NotImplementedException();
     }
 
-    public IEvaluationResult Visit(TypeHint typeHint)
+    public IEvaluationResult Visit(ReturnStmt returnStmt)
     {
-        // For now, we just return the base type
-        return (TypeResult) typeHint.GetBaseZenType();
+        IEvaluationResult result;
+
+        if (returnStmt.Expression != null) {
+            result = Evaluate(returnStmt.Expression);
+        }else {
+            result = (ValueResult) ZenValue.Void;
+        }
+
+        throw new ReturnException(result, returnStmt.Location);
+    }
+
+    public IEvaluationResult Visit(Call call)
+    {
+        IEvaluationResult callee = Evaluate(call.Callee);
+
+        if (callee.IsCallable()) {
+            ZenFunction function = (ZenFunction) callee.Value.Underlying!;
+
+            // check number of arguments is at least equal to the number of non-nullable parameters
+            if (call.Arguments.Length < function.Parameters.Count(p => ! p.Nullable)) {
+                throw Error($"Not enough arguments for function", null, ErrorType.RuntimeError);
+            }
+            
+            // check number of arguments is at most equal to the number of parameters
+            if (call.Arguments.Length > function.Parameters.Length) {
+                throw Error($"Too many arguments for function", null, ErrorType.RuntimeError);
+            }
+
+            // evaluate the arguments
+            ZenValue[] argumentValues = new ZenValue[call.Arguments.Length];
+
+            for (int i = 0; i < call.Arguments.Length; i++) {
+                argumentValues[i] = Evaluate(call.Arguments[i]).Value;
+            }
+
+            // check that the types of the arguments are compatible with the types of the parameters
+            for (int i = 0; i < call.Arguments.Length; i++) {
+                ZenFunction.Parameter parameter = function.Parameters[i];
+                ZenValue argument = argumentValues[i];
+
+                if ( ! TypeChecker.IsCompatible(parameter.Type, argument.Type)) {
+                    throw Error($"Cannot pass argument of type '{argument.Type}' to parameter of type '{parameter.Type}'", call.Arguments[i].Location, ErrorType.TypeError);
+                }
+            }
+
+            if (function is ZenHostFunction) {
+                return (ValueResult) function.Call(this, argumentValues);
+            }else if (function is ZenUserFunction) {
+                return (ValueResult) CallUserFunction((ZenUserFunction) function, argumentValues);
+            }else {
+                throw Error($"Cannot call unknown function type '{function.GetType()}'", call.Location, ErrorType.RuntimeError);
+            }
+        } else {
+            throw Error($"Cannot call non-callable of type '{callee.Type}'", call.Location, ErrorType.RuntimeError);
+        }
+    }
+    
+    public IEvaluationResult CallUserFunction(ZenUserFunction function, ZenValue[] arguments) {
+        Environment previousEnvironment = environment;
+        environment = new Environment(function.Closure);
+
+        try {
+            for (int i = 0; i < function.Parameters.Length; i++) {
+                environment.Define(false, function.Parameters[i].Name, function.Parameters[i].Type, function.Parameters[i].Nullable);
+                environment.Assign(function.Parameters[i].Name, arguments[i]);
+            }
+
+            function.Block.Accept(this);
+        }
+        catch ( ReturnException returnException ) {
+            // type check return value
+            if ( ! TypeChecker.IsCompatible(returnException.Result.Type, function.ReturnType)) {
+                throw Error($"Cannot return value of type '{returnException.Result.Type}' from function of type '{function.ReturnType}'", returnException.Location, ErrorType.TypeError);
+            }
+            return returnException.Result;
+        }
+        finally {
+            environment = previousEnvironment;
+        }
+
+        return (ValueResult) ZenValue.Void;
+    }
+
+    public IEvaluationResult Visit(FuncStmt funcStmt)
+    {
+        // function parameters
+        ZenFunction.Parameter[] parameters = new ZenFunction.Parameter[funcStmt.Parameters.Length];
+
+        for (int i = 0; i < funcStmt.Parameters.Length; i++) {
+            FunctionParameterResult funcParamResult = (FunctionParameterResult) funcStmt.Parameters[i].Accept(this);
+            parameters[i] = funcParamResult.Parameter;
+        }
+
+        RegisterFunction(funcStmt.Identifier.Value, funcStmt.ReturnType.GetZenType(), parameters, funcStmt.Block, environment);
+
+        return (ValueResult) ZenValue.Void;
+    }
+
+    public IEvaluationResult Visit(FuncParameter funcParameter)
+    {
+        // parameter name
+        string name = funcParameter.Identifier.Value;
+
+        // parameter type
+        ZenType type = ZenType.Null;
+        bool nullable = true;
+
+        if (funcParameter.TypeHint != null) {
+            type = funcParameter.TypeHint.GetZenType();
+            nullable = funcParameter.TypeHint.Nullable;
+        }
+
+
+        ZenFunction.Parameter parameter = new(name, type, nullable);
+
+        return (FunctionParameterResult) parameter;
     }
 }

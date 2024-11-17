@@ -68,9 +68,19 @@ public class Variable
 
     public bool IsTruthy() {
         if (Value != null) {
-            return Value.Value.IsTruthy();
+            return ((ZenValue) Value).IsTruthy();
         }else if (ObjectReference != null) {
             return true;
+        }
+
+        return false;
+    }
+
+    public bool IsCallable() {
+        if (Value != null) {
+            return ((ZenValue) Value).IsCallable();
+        }else if (ObjectReference != null) {
+            return false;
         }
 
         return false;
