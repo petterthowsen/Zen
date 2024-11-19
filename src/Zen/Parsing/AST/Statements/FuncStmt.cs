@@ -33,7 +33,7 @@ public class FuncStmt : Stmt
         Block = block;
     }
 
-    public override SourceLocation Location => throw new NotImplementedException();
+    public override SourceLocation Location => Identifier.Location;
 
     public override void Accept(IVisitor visitor)
     {

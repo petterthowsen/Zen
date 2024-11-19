@@ -16,6 +16,7 @@ public readonly struct ValueResult : IEvaluationResult {
     public bool IsCallable() => Value.IsCallable();
 
     public static implicit operator ValueResult(ZenValue value) => new() { Value = value };
+    public static implicit operator ValueResult(BoundMethod value) => new() { Value = new ZenValue(ZenType.BoundMethod, value) };
 }
 
 public class VariableResult : IEvaluationResult {
@@ -62,7 +63,7 @@ public readonly struct VoidResult : IEvaluationResult {
 public readonly struct TypeResult : IEvaluationResult {
     public required ZenType Type { get; init; }
     public ZenValue Value => ZenValue.Void;
-    public bool IsTruthy() => false;
+    public bool IsTruthy() => true;
     public bool IsCallable() => false;
 
     public static implicit operator TypeResult(ZenType type) => new() { Type = type };

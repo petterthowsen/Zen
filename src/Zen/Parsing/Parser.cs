@@ -1,5 +1,7 @@
 namespace Zen.Parsing;
 
+using System.ComponentModel;
+using System.Reflection.Metadata.Ecma335;
 using Zen.Common;
 using Zen.Lexing;
 using Zen.Parsing.AST;
@@ -219,6 +221,7 @@ public class Parser
 		if (MatchKeyword("for")) return ForStatement();
 		if (MatchKeywordSequence("async func")) return FuncStatement(true);
 		if (MatchKeyword("func")) return FuncStatement(false);
+		if (MatchKeyword("class")) return ClassStatement();
 		if (MatchKeyword("return")) return ReturnStatement();
 		return ExpressionStatement();
 	}
@@ -232,7 +235,7 @@ public class Parser
 			throw Error($"Expected some identifier after '{token.Value}' declaration", ErrorType.SyntaxError);
 		}
 		Token identifier = Previous; // identifier
-		
+
 		MaybeSome(TokenType.Whitespace); // any spaces
 
 		// if we find a : then we have a TypeHint
@@ -597,6 +600,164 @@ public class Parser
 		}
 	}
 
+	protected ClassStmt ClassStatement() {
+		// "class" keyword token
+		Token token = Previous;
+		AtleastOne(TokenType.Whitespace);
+
+		// identifier
+		if ( ! Match(TokenType.Identifier, TokenType.Keyword)) {
+			throw Error($"Expected 'Identifier' or 'Keyword' for class name after 'class' keyword", ErrorType.SyntaxError);
+		}
+
+		Token identifier = Previous;
+
+		MaybeSome(TokenType.Whitespace, TokenType.Newline);
+		
+		// open brace
+		Consume(TokenType.OpenBrace, "Expected '{' after class declaration");
+		MaybeSome(TokenType.Whitespace, TokenType.Newline);
+
+		// properties and methods
+		List<MethodStmt> methods = [];
+		List<PropertyStmt> properties = [];
+
+		// parse untill we find a close brace
+		while ( ! Check(TokenType.CloseBrace) && ! IsAtEnd) {
+
+			if (CheckMethodDeclaration()) {
+				methods.Add(MethodStatement());
+			}else {
+				properties.Add(PropertyStatement());
+			}
+
+			MaybeSome(TokenType.Whitespace, TokenType.Newline);
+		}
+
+		// close brace
+		Consume(TokenType.CloseBrace, "Expected '}' after block");
+
+		return new ClassStmt(token, identifier, [.. properties], [.. methods]);
+	}
+
+	private static readonly string[] methodModifiers = ["async", "public", "protected", "private", "abstract", "override", "final"];
+	private static readonly string[] propertyModifiers = ["public", "protected", "private", "readonly"];
+
+	private bool CheckMethodDeclaration() {
+		int index = _index;
+
+		while (Current.Type == TokenType.Keyword && methodModifiers.Contains(Current.Value)) {
+			Advance();
+			MaybeSome(TokenType.Whitespace);
+		}
+
+		// identifier
+		if ( ! Match(TokenType.Identifier, TokenType.Keyword)) {
+			_index = index;
+			return false;
+		}
+
+		MaybeSome(TokenType.Whitespace);
+
+		// open paren
+		if ( ! Match(TokenType.OpenParen)) {
+			_index = index;
+			return false;
+		}
+
+		_index = index;
+		return true;
+	}
+
+	protected MethodStmt MethodStatement() {
+		List<Token> modifiers = [];
+
+		while (Current.Type == TokenType.Keyword && methodModifiers.Contains(Current.Value)) {
+			modifiers.Add(Current);
+			Advance();
+			MaybeSome(TokenType.Whitespace);
+		}
+
+		// identifier
+		Token identifier;
+		if ( Match(TokenType.Identifier, TokenType.Keyword)) {
+			identifier = Previous;
+		} else {
+			throw Error($"Expected 'Identifier' or 'Keyword' for method name after modifiers", ErrorType.SyntaxError);
+		}
+
+		// open paren
+		Token openParen = Consume(TokenType.OpenParen, "Expected '(' after method identifier");
+		MaybeSome(TokenType.Whitespace);
+
+		// parameters
+		FuncParameter[] parameters = FuncParameters();
+
+		// close paren
+		Token closeParen = Consume(TokenType.CloseParen, "Expected ')' after function parameters");
+		MaybeSome(TokenType.Whitespace);
+
+		// return type?
+		TypeHint? returnTypeTypeHint = null;
+
+		if (Match(TokenType.Colon)) {
+			MaybeSome(TokenType.Whitespace);
+			returnTypeTypeHint = TypeHint();
+			MaybeSome(TokenType.Whitespace);
+		}else {
+			returnTypeTypeHint = new TypeHint(new Token(TokenType.StringLiteral, "void", identifier.Location), false);
+		}
+
+		// block
+		Consume(TokenType.OpenBrace, "Expected '{' after function parameters");
+		Block block = Block();
+
+		// consume }
+		block.CloseBrace = Consume(TokenType.CloseBrace, "Expected '}' after block");
+
+		return new MethodStmt(identifier, returnTypeTypeHint, parameters, block, [..modifiers]);
+	}
+
+	protected PropertyStmt PropertyStatement() {
+		Token[] modifiers = [];
+
+		while (Current.Type == TokenType.Keyword && propertyModifiers.Contains(Current.Value)) {
+			modifiers.Append(Current);
+			Advance();
+			MaybeSome(TokenType.Whitespace);
+		}
+
+		// identifier
+		Token identifier;
+		if ( Match(TokenType.Identifier, TokenType.Keyword)) {
+			identifier = Previous;
+		} else {
+			throw Error($"Expected 'Identifier' or 'Keyword' for method name after modifiers", ErrorType.SyntaxError);
+		}
+
+		MaybeSome(TokenType.Whitespace);
+
+		// typehint?
+		TypeHint? typeHint = null;
+
+		if (Match(TokenType.Colon)) {
+			MaybeSome(TokenType.Whitespace);
+			typeHint = TypeHint();
+			MaybeSome(TokenType.Whitespace);
+		}
+
+		// initializer ?
+		Expr? initializer = null;
+
+		if (Match(TokenType.Assign)) {
+			MaybeSome(TokenType.Whitespace);
+			initializer = Expression();
+			MaybeSome(TokenType.Whitespace);
+		}
+
+		return new PropertyStmt(identifier, typeHint, initializer, modifiers);
+	}
+
 	protected FuncStmt FuncStatement(bool async) {
 		// "func" keyword token
 		Token token = Previous;
@@ -715,6 +876,8 @@ public class Parser
 
 			if (expr is Identifier identifier) {
 				return new Assignment(op, identifier, valueExpression);
+			}else if (expr is Get get) {
+				return new Set(op, get.Expression, get.Identifier, valueExpression);
 			}
 
 			// error, but we don't throw it because the parser isn't in a confused state
@@ -841,6 +1004,7 @@ public class Parser
 
 	private Expr Unary()
 	{
+		// unary or negation
 		if (Match(TokenType.Minus) || MatchKeyword("not"))
 		{
 			Token op = Previous;
@@ -849,6 +1013,18 @@ public class Parser
 
 			Expr right = Unary();
 			return new Unary(op, right);
+		}
+		
+		// class instantiation
+		if (MatchKeyword("new"))
+		{
+			Token newKeyword = Previous;
+
+			MaybeSome(TokenType.Whitespace);
+
+			Call call = (Call) Call(); // Use Call to handle potential nested calls or nested instantiations
+			
+			return new Instantiation(newKeyword, call);
 		}
 
 		return Call();
@@ -863,6 +1039,10 @@ public class Parser
 
 			if (Match(TokenType.OpenParen)) {
 				expr = FinishCall(expr);
+			}
+			else if (Match(TokenType.Dot)) {
+				Token name = Consume(TokenType.Identifier, "Expect property name after '.'");
+				expr = new Get(expr, name);
 			}
 			else {
 				break;

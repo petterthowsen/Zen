@@ -16,5 +16,8 @@ public enum ErrorType
     RedefinitionError,
     UndefinedVariable,
     TypeError,
+    UndefinedProperty,
+    TypeMismatch,
+    NotImplemented,
 
 }

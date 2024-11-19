@@ -8,7 +8,7 @@ public class ZenUserFunction : ZenFunction {
 
     public Block Block;
 
-    public ZenUserFunction(ZenType returnType, Parameter[] parameters, Block block, Environment closure) : base(returnType, parameters, closure) {
+    public ZenUserFunction(ZenType returnType, List<Parameter> parameters, Block block, Environment closure) : base(returnType, parameters, closure) {
         Block = block;
     }
 

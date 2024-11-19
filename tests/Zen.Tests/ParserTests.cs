@@ -442,4 +442,100 @@ public class ParserTests {
         Assert.IsType<TypeHint>(funcStmt.ReturnType);
     }
     
+    [Fact]
+    public void TestClassDeclaration() {
+        ProgramNode program = Parse("class Test { }");
+        Assert.Single(program.Statements);
+        Assert.IsType<ClassStmt>(program.Statements[0]);
+
+        ClassStmt classStmt = (ClassStmt)program.Statements[0];
+        Assert.Equal("Test", classStmt.Identifier.Value);
+    }
+
+    [Fact]
+    public void TestClassDeclarationWithProperty() {
+        ProgramNode program = Parse("class Test { name: string }");
+        Assert.Single(program.Statements);
+        Assert.IsType<ClassStmt>(program.Statements[0]);
+
+        ClassStmt classStmt = (ClassStmt)program.Statements[0];
+        Assert.Equal("Test", classStmt.Identifier.Value);
+        Assert.Single(classStmt.Properties);
+        Assert.Equal("name", classStmt.Properties[0].Identifier.Value);
+        Assert.Equal(ZenType.String, classStmt.Properties[0].TypeHint!.GetZenType());
+    }
+
+    
+    [Fact]
+    public void TestClassDeclarationWithPropertyAndDefaultValue() {
+        ProgramNode program = Parse("class Test { name: string = \"default\" }");
+        Assert.Single(program.Statements);
+        Assert.IsType<ClassStmt>(program.Statements[0]);
+
+        ClassStmt classStmt = (ClassStmt)program.Statements[0];
+        Assert.Equal("Test", classStmt.Identifier.Value);
+        Assert.Single(classStmt.Properties);
+        Assert.Equal("name", classStmt.Properties[0].Identifier.Value);
+        Assert.Equal(ZenType.String, classStmt.Properties[0].TypeHint!.GetZenType());
+
+        Assert.IsType<Literal>(classStmt.Properties[0].Initializer);
+        Literal literal = (Literal) classStmt.Properties[0].Initializer!;
+
+        Assert.Equal(Literal.LiteralKind.String, literal.Kind);
+
+        Assert.Equal(ZenType.String, literal.Value.Type);
+        Assert.Equal("default", literal.Value.Underlying);
+    }
+
+    [Fact]
+    public void TestClassDeclarationWithMethod() {
+        ProgramNode program = Parse("class Test { test() { } }");
+        Assert.Single(program.Statements);
+        Assert.IsType<ClassStmt>(program.Statements[0]);
+
+        ClassStmt classStmt = (ClassStmt)program.Statements[0];
+        Assert.Equal("Test", classStmt.Identifier.Value);
+        Assert.Single(classStmt.Methods);
+        Assert.Equal("test", classStmt.Methods[0].Identifier.Value);
+    }
+
+    
+    [Fact]
+    public void TestInstantiationExpression() {
+        ProgramNode program = Parse("var obj = new Object()");
+
+        Assert.Single(program.Statements);
+        Assert.IsType<VarStmt>(program.Statements[0]);
+
+        VarStmt varStmt = (VarStmt)program.Statements[0];
+
+        Assert.Equal("obj", varStmt.Identifier.Value);
+
+        Assert.IsType<Instantiation>(varStmt.Initializer);
+
+        Instantiation instantiation = (Instantiation)varStmt.Initializer!;
+        Call call = instantiation.Call;
+
+        Assert.Empty(call.Arguments);
+    }
+
+    [Fact]
+    public void TestInstantiationExpressionWithArgument() {
+        ProgramNode program = Parse("var obj = new Object(\"hello\")");
+
+        Assert.Single(program.Statements);
+        Assert.IsType<VarStmt>(program.Statements[0]);
+
+        VarStmt varStmt = (VarStmt)program.Statements[0];
+
+        Assert.Equal("obj", varStmt.Identifier.Value);
+
+        Assert.IsType<Instantiation>(varStmt.Initializer);
+
+        Instantiation instantiation = (Instantiation)varStmt.Initializer!;
+        Call call = instantiation.Call;
+
+        Assert.Single(call.Arguments);
+        Assert.IsType<Literal>(call.Arguments[0]);
+    }
 }

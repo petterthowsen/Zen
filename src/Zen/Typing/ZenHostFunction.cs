@@ -7,7 +7,7 @@ public class ZenHostFunction : ZenFunction {
 
     public readonly Func<ZenValue[], ZenValue> Func;
 
-    public ZenHostFunction(ZenType returnType, ZenFunction.Parameter[] parameters, Func<ZenValue[], ZenValue> func, Environment closure) : base(returnType, parameters, closure) {
+    public ZenHostFunction(ZenType returnType, List<Parameter> parameters, Func<ZenValue[], ZenValue> func, Environment closure) : base(returnType, parameters, closure) {
         Func = func;
     }
 

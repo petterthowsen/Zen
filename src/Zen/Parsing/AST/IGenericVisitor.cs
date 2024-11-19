@@ -19,6 +19,10 @@ public interface IGenericVisitor<T>
     T Visit(PrintStmt printStmt);
     T Visit(FuncStmt funcStmt);
     T Visit(ReturnStmt returnStmt);
+    T Visit(ClassStmt classStmt);
+    T Visit(PropertyStmt propertyStmt);
+    T Visit(MethodStmt methodStmt);
+    T Visit(Instantiation instantiation);
 
     // Expressions
     T Visit(Binary binary);
@@ -31,5 +35,7 @@ public interface IGenericVisitor<T>
     T Visit(Logical logical);
     T Visit(Call call);
     T Visit(FuncParameter funcParameter);
+    T Visit(Get get);
+    T Visit(Set set);
 
 }

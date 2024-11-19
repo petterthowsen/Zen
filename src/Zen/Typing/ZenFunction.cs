@@ -29,20 +29,20 @@ public abstract class ZenFunction : ICallable {
         }
     }
 
-    public int Arity => Parameters.Length;
+    public int Arity => Parameters.Count;
     
     private readonly ZenType _returnType;
     public ZenType ReturnType => _returnType;
-    public readonly Parameter[] Parameters;
+    public List<Parameter> Parameters;
 
     public Environment? Closure = null;
 
-    public ZenFunction(ZenType returnType, Parameter[] parameters) {
+    public ZenFunction(ZenType returnType, List<Parameter> parameters) {
         _returnType = returnType;
         Parameters = parameters;
     }
 
-    public ZenFunction(ZenType returnType, Parameter[] parameters, Environment closure) : this(returnType, parameters) {
+    public ZenFunction(ZenType returnType, List<Parameter> parameters, Environment closure) : this(returnType, parameters) {
         Closure = closure;
     }
     

@@ -67,7 +67,7 @@ public class Interpreter : IGenericVisitor<IEvaluationResult>
         });
     }
 
-    public void RegisterHostFunction(string name, ZenType returnType, ZenFunction.Parameter[] parameters, Func<ZenValue[], ZenValue> func)
+    public void RegisterHostFunction(string name, ZenType returnType, List<ZenFunction.Parameter> parameters, Func<ZenValue[], ZenValue> func)
     {
         var hostFunc = new ZenHostFunction(returnType, parameters, func, globalEnvironment);
         globalEnvironment.Define(true, name, ZenType.Function, false);
@@ -75,7 +75,7 @@ public class Interpreter : IGenericVisitor<IEvaluationResult>
     }
 
     // TODO: need to store named map of parameters and their type and default value
-    public void RegisterFunction(string name, ZenType returnType, ZenUserFunction.Parameter[] parameters, Block block, Environment? closure = null)
+    public void RegisterFunction(string name, ZenType returnType, List<ZenFunction.Parameter> parameters, Block block, Environment? closure = null)
     {
         var userFunc = new ZenUserFunction(returnType, parameters, block, closure ?? globalEnvironment);
         globalEnvironment.Define(true, name, ZenType.Function, false);
@@ -544,15 +544,79 @@ public class Interpreter : IGenericVisitor<IEvaluationResult>
         }
 
         // perform the assignment operation
-        PerformAssignment(assignment.Operator, leftVariable, right.Value);
+        ZenValue newValue = PerformAssignment(assignment.Operator, (ZenValue) leftVariable.Value!, right.Value);
 
+        // update the variable
+        leftVariable.Assign(newValue);
+
+        // return the variable
         return (VariableResult) leftVariable;
     }
 
+    public IEvaluationResult Visit(Get get) {
+        IEvaluationResult result = Evaluate(get.Expression);
 
-    private static void PerformAssignment(Token op, Variable target, ZenValue right)
+        if (result.Type == ZenType.Object)
+        {
+            ZenObject instance = (ZenObject)result.Value.Underlying!;
+            
+            // is it a method?
+            ZenMethod? method;
+            instance.HasMethodHierarchically(get.Identifier.Value, out method);
+
+            if (method != null)
+            {
+                return (ValueResult) new BoundMethod(instance, method);
+            }
+
+            if ( ! instance.HasProperty(get.Identifier.Value)) {
+                throw Error($"Undefined property '{get.Identifier.Value}' on object of type '{result.Type}'", get.Identifier.Location, ErrorType.UndefinedProperty);
+            }
+
+            return (ValueResult) instance.GetProperty(get.Identifier.Value);
+        }
+        else
+        {
+            throw Error($"Cannot get property of type '{result.Type}'", get.Identifier.Location, ErrorType.TypeError);
+        }
+    }
+
+    public IEvaluationResult Visit(Set set) {
+        // evaluate the object expression
+        IEvaluationResult objectExpression = Evaluate(set.ObjectExpression);
+        string propertyName = set.Identifier.Value;
+
+        // get the object
+        ZenValue objectValue = objectExpression.Value;
+
+        if (objectValue.Type == ZenType.Object)
+        {
+            // get the object instance
+            ZenObject instance = (ZenObject)objectValue.Underlying!;
+
+            if ( ! instance.HasProperty(propertyName)) {
+                throw Error($"Undefined property '{propertyName}' on object of type '{objectValue.Type}'", set.Identifier.Location, ErrorType.UndefinedProperty);
+            }
+
+            // evaluate the value expression
+            IEvaluationResult valueExpression = Evaluate(set.ValueExpression);
+
+            // perform assignment
+            ZenValue newValue = PerformAssignment(set.Operator, instance.GetProperty(propertyName), valueExpression.Value);
+
+            // set the property
+            instance.SetProperty(propertyName, newValue);
+
+            return (ValueResult)newValue;
+        }
+        else
+        {
+            throw Error($"Cannot set property of non-object type '{objectValue.Type}'", set.Identifier.Location, ErrorType.TypeError);
+        }
+    }
+
+    private static ZenValue PerformAssignment(Token op, ZenValue left, ZenValue right)
     {
-        ZenValue left = target.GetZenValue()!;
         ZenValue result;
 
         if (op.Type == TokenType.Assign)
@@ -585,7 +649,7 @@ public class Interpreter : IGenericVisitor<IEvaluationResult>
             result = PerformArithmetic(op.Type, returnType, left.Underlying, right.Underlying);
         }
 
-        target.Assign(result);
+        return result;
     }
 
 
@@ -695,7 +759,7 @@ public class Interpreter : IGenericVisitor<IEvaluationResult>
             }
 
             // check number of arguments is at most equal to the number of parameters
-            if (call.Arguments.Length > function.Parameters.Length)
+            if (call.Arguments.Length > function.Parameters.Count)
             {
                 throw Error($"Too many arguments for function", null, ErrorType.RuntimeError);
             }
@@ -724,9 +788,12 @@ public class Interpreter : IGenericVisitor<IEvaluationResult>
             {
                 return (ValueResult)function.Call(this, argumentValues);
             }
-            else if (function is ZenUserFunction)
+            else if (function is ZenUserFunction userFunc)
             {
-                return CallUserFunction((ZenUserFunction)function, argumentValues);
+                return CallUserFunction(userFunc, argumentValues);
+            }
+            else if (function is BoundMethod boundMethod) {
+                return CallUserFunction(boundMethod, argumentValues);
             }
             else
             {
@@ -739,20 +806,36 @@ public class Interpreter : IGenericVisitor<IEvaluationResult>
         }
     }
 
+    public IEvaluationResult CallUserFunction(BoundMethod bound, ZenValue[] arguments) {
+        if (bound.Method is ZenUserMethod userMethod) {
+            return CallUserFunction(userMethod.Closure, userMethod.Block, userMethod.Parameters, userMethod.ReturnType, arguments);
+        }
+        else if (bound.Method is ZenHostMethod hostMethod) {
+            return (ValueResult) hostMethod.Call(this, bound.Instance, arguments);
+        }
+
+        return VoidResult.Instance;
+    }
+
     public IEvaluationResult CallUserFunction(ZenUserFunction function, ZenValue[] arguments)
     {
+        return CallUserFunction(function.Closure, function.Block, function.Parameters, function.ReturnType, arguments);
+    }
+
+    public IEvaluationResult CallUserFunction(Environment? closure, Block block, List<ZenFunction.Parameter> parameters, ZenType returnType, ZenValue[] arguments)
+    {
         Environment previousEnvironment = environment;
-        environment = new Environment(function.Closure);
+        environment = new Environment(closure);
 
         try
         {
-            for (int i = 0; i < function.Parameters.Length; i++)
+            for (int i = 0; i < parameters.Count; i++)
             {
-                environment.Define(false, function.Parameters[i].Name, function.Parameters[i].Type, function.Parameters[i].Nullable);
-                environment.Assign(function.Parameters[i].Name, arguments[i]);
+                environment.Define(false, parameters[i].Name, parameters[i].Type, parameters[i].Nullable);
+                environment.Assign(parameters[i].Name, arguments[i]);
             }
 
-            foreach (var statement in function.Block.Statements)
+            foreach (var statement in block.Statements)
             {
                 statement.Accept(this);
             }
@@ -760,9 +843,9 @@ public class Interpreter : IGenericVisitor<IEvaluationResult>
         catch (ReturnException returnException)
         {
             // type check return value
-            if (!TypeChecker.IsCompatible(returnException.Result.Type, function.ReturnType))
+            if (!TypeChecker.IsCompatible(returnException.Result.Type, returnType))
             {
-                throw Error($"Cannot return value of type '{returnException.Result.Type}' from function of type '{function.ReturnType}'", returnException.Location, ErrorType.TypeError);
+                throw Error($"Cannot return value of type '{returnException.Result.Type}' from function of type '{returnType}'", returnException.Location, ErrorType.TypeError);
             }
             return returnException.Result;
         }
@@ -774,15 +857,50 @@ public class Interpreter : IGenericVisitor<IEvaluationResult>
         return (ValueResult)ZenValue.Void;
     }
 
+    // public IEvaluationResult CallUserFunction(ZenUserFunction function, ZenValue[] arguments)
+    // {
+    //     Environment previousEnvironment = environment;
+    //     environment = new Environment(function.Closure);
+
+    //     try
+    //     {
+    //         for (int i = 0; i < function.Parameters.Count; i++)
+    //         {
+    //             environment.Define(false, function.Parameters[i].Name, function.Parameters[i].Type, function.Parameters[i].Nullable);
+    //             environment.Assign(function.Parameters[i].Name, arguments[i]);
+    //         }
+
+    //         foreach (var statement in function.Block.Statements)
+    //         {
+    //             statement.Accept(this);
+    //         }
+    //     }
+    //     catch (ReturnException returnException)
+    //     {
+    //         // type check return value
+    //         if (!TypeChecker.IsCompatible(returnException.Result.Type, function.ReturnType))
+    //         {
+    //             throw Error($"Cannot return value of type '{returnException.Result.Type}' from function of type '{function.ReturnType}'", returnException.Location, ErrorType.TypeError);
+    //         }
+    //         return returnException.Result;
+    //     }
+    //     finally
+    //     {
+    //         environment = previousEnvironment;
+    //     }
+
+    //     return (ValueResult)ZenValue.Void;
+    // }
+
     public IEvaluationResult Visit(FuncStmt funcStmt)
     {
         // function parameters
-        ZenFunction.Parameter[] parameters = new ZenFunction.Parameter[funcStmt.Parameters.Length];
+        List<ZenFunction.Parameter> parameters = [];
 
         for (int i = 0; i < funcStmt.Parameters.Length; i++)
         {
-            FunctionParameterResult funcParamResult = (FunctionParameterResult)funcStmt.Parameters[i].Accept(this);
-            parameters[i] = funcParamResult.Parameter;
+            FunctionParameterResult funcParamResult = (FunctionParameterResult) funcStmt.Parameters[i].Accept(this);
+            parameters.Add(funcParamResult.Parameter);
         }
 
         RegisterFunction(funcStmt.Identifier.Value, funcStmt.ReturnType.GetZenType(), parameters, funcStmt.Block, environment);
@@ -809,5 +927,114 @@ public class Interpreter : IGenericVisitor<IEvaluationResult>
         ZenFunction.Parameter parameter = new(name, type, nullable);
 
         return (FunctionParameterResult)parameter;
+    }
+
+    public IEvaluationResult Visit(ClassStmt classStmt)
+    {
+        environment.Define(true, classStmt.Identifier.Value, ZenType.Class, false);
+
+        // create the Properties
+        List<ZenClass.Property> properties = [];
+
+        foreach (var property in classStmt.Properties)
+        {
+            ZenType type = ZenType.Null;
+            ZenValue defaultValue = ZenValue.Null;
+
+            if (property.Initializer != null)
+            {
+                IEvaluationResult defaultValueResult = Evaluate(property.Initializer);
+                defaultValue = defaultValueResult.Value;
+            }
+
+            if (property.TypeHint != null)
+            {
+                type = property.TypeHint.GetZenType();
+            }
+
+            ZenClass.Visibility visibility = ZenClass.Visibility.Public;
+            
+            // check modifiers
+            foreach (Token modifier in property.Modifiers)
+            {
+                if (modifier.Value == "public")
+                {
+                    visibility = ZenClass.Visibility.Public;
+                }
+                else if (modifier.Value == "private")
+                {
+                    visibility = ZenClass.Visibility.Private;
+                }
+                else if (modifier.Value == "protected")
+                {
+                    visibility = ZenClass.Visibility.Protected;
+                }
+            }
+
+            properties.Add(new ZenClass.Property(property.Identifier.Value, type, defaultValue, visibility));
+        }
+
+        // create the methods
+        List<ZenMethod> methods = [];
+
+        foreach (MethodStmt methodStmt in classStmt.Methods)
+        {
+            string name = methodStmt.Identifier.Value;
+            ZenClass.Visibility visibility = ZenClass.Visibility.Public;
+            ZenType returnType = ZenType.Void;
+            List<ZenFunction.Parameter> parameters = [];
+            ZenUserMethod method = new(name, visibility, returnType, parameters, methodStmt.Block, environment);
+            methods.Add(method);
+        }
+
+        ZenClass clazz = new ZenClass(classStmt.Identifier.Value, methods, properties);
+
+        environment.Assign(classStmt.Identifier.Value, new ZenValue(ZenType.Class, clazz));
+
+        return (ValueResult)ZenValue.Void;
+    }
+
+    public IEvaluationResult Visit(PropertyStmt propertyStmt)
+    {
+        // this isn't used.
+        return (ValueResult)ZenValue.Void;
+    }
+
+    public IEvaluationResult Visit(MethodStmt methodStmt)
+    {
+        // this isn't used.
+        return (ValueResult)ZenValue.Void;
+    }
+
+    public IEvaluationResult Visit(Instantiation instantiation)
+    {
+        Call call = instantiation.Call;
+        IEvaluationResult clazzResult = Evaluate(call.Callee);
+
+        // make sure it's a Class type
+        if (clazzResult.Type != ZenType.Class)
+        {
+            throw Error($"Cannot instantiate non-class type '{clazzResult.Type}'", instantiation.Location, ErrorType.TypeError);
+        }
+
+        // get the underlying ZenClass
+        ZenValue value = clazzResult.Value;
+        ZenClass clazz = (ZenClass) value.Underlying!;
+
+        //TODO: gather arguments
+        List<ZenValue> arguments = [];
+        foreach (var argument in call.Arguments)
+        {
+            arguments.Add(Evaluate(argument).Value);
+        }
+
+        // create new instance
+        ZenObject instance = clazz.CreateInstance(this, [.. arguments]);
+
+        // wrap it in a ZenValue
+        ZenValue result = new ZenValue(ZenType.Object, instance);
+
+        // return as ValueResult (IEvaluationResult)
+        return (ValueResult) result;
     }
 }

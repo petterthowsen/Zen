@@ -14,7 +14,8 @@ public class Resolver : IVisitor
 {
     protected enum FunctionType {
         NONE,
-        FUNCTION
+        FUNCTION,
+        METHOD
     }
     
     protected Interpreter interpreter;
@@ -285,5 +286,42 @@ public class Resolver : IVisitor
         if (funcParameter.DefaultValue != null) {
             Resolve(funcParameter.DefaultValue);
         }
+    }
+
+    public void Visit(ClassStmt classStmt)
+    {
+        Declare(classStmt.Identifier);
+        Define(classStmt.Identifier);
+
+        foreach (MethodStmt method in classStmt.Methods) {
+            FunctionType declaration = FunctionType.METHOD;
+            ResolveFunction(method, declaration);
+        }
+    }
+
+    public void Visit(PropertyStmt propertyStmt)
+    {
+        throw new NotImplementedException();
+    }
+
+    public void Visit(MethodStmt methodStmt)
+    {
+        
+    }
+
+    public void Visit(Instantiation instantiation)
+    {
+        Resolve(instantiation.Call);
+    }
+
+    public void Visit(Get get)
+    {
+        Resolve(get.Expression);
+    }
+
+    public void Visit(Set set)
+    {
+        Resolve(set.ObjectExpression);
+        Resolve(set.ValueExpression);
     }
 }

@@ -276,4 +276,128 @@ public class DebugPrintVisitor : IVisitor {
         
         _sb.Indent--;
     }
+
+    public void Visit(ClassStmt classStmt)
+    {
+        _sb.Add(classStmt.ToString());
+        _sb.Indent++;
+
+        _sb.Add("Token: " + classStmt.Token.ToString());
+        _sb.Add("Identifier: " + classStmt.Identifier.ToString());
+
+        _sb.Add("Properties:");
+        foreach (var property in classStmt.Properties) {
+            property.Accept(this);
+        }
+        _sb.Indent++;
+        _sb.Indent--;
+
+        _sb.Add("Methods:");
+        foreach (var method in classStmt.Methods) {
+            method.Accept(this);
+        }
+        _sb.Indent++;
+        _sb.Indent--;
+
+        _sb.Indent--;
+    }
+
+    public void Visit(PropertyStmt propertyStmt)
+    {
+        _sb.Add(propertyStmt.ToString());
+        _sb.Indent++;
+
+        _sb.Add("Identifier: " + propertyStmt.Identifier.ToString());
+
+        if (propertyStmt.TypeHint != null) {
+            _sb.Add("Type Hint: " + propertyStmt.TypeHint.ToString());
+        }
+        
+        _sb.Add("Modifiers: " + string.Join(", ", propertyStmt.Modifiers.Select(m => m.Value)));
+
+        if (propertyStmt.Initializer != null) {
+            _sb.Add("Initializer:");
+            _sb.Indent++;
+            propertyStmt.Initializer.Accept(this);
+            _sb.Indent--;
+        }
+
+
+        _sb.Indent--;
+    }
+
+    public void Visit(MethodStmt methodStmt)
+    {
+        _sb.Add(methodStmt.ToString());
+        _sb.Indent++;
+
+        _sb.Add("Identifier: " + methodStmt.Identifier.ToString());
+        _sb.Add("Return Type: " + methodStmt.ReturnType.ToString());
+        _sb.Add("Modifiers: " + string.Join(", ", methodStmt.Modifiers.Select(m => m.Value)));
+
+        _sb.Add("Parameters:");
+        _sb.Indent++;
+        foreach (var param in methodStmt.Parameters) {
+            param.Accept(this);
+        }
+        _sb.Indent--;
+        //parameters
+        
+        _sb.Add("Body:");
+        _sb.Indent++;
+        foreach (var stmt in methodStmt.Block.Statements) {
+            stmt.Accept(this);
+        }
+        _sb.Indent--;
+        //body
+
+        _sb.Indent--;
+    }
+
+    public void Visit(Instantiation instantiation)
+    {
+        _sb.Add(instantiation.ToString());
+        _sb.Indent++;
+
+        instantiation.Call.Accept(this);
+
+        _sb.Indent--;
+    }
+
+    public void Visit(Get get)
+    {
+        _sb.Add(get.ToString());
+        _sb.Indent++;
+
+        _sb.Add("Expression:");
+        _sb.Indent++;
+        get.Expression.Accept(this);
+        _sb.Indent--;
+
+        _sb.Add("Identifier: " + get.Identifier.ToString());
+
+        _sb.Indent--;
+    }
+
+    public void Visit(Set set)
+    {
+        _sb.Add(set.ToString());
+        _sb.Indent++;
+
+        _sb.Add("ObjectExpression:");
+        _sb.Indent++;
+        set.ObjectExpression.Accept(this);
+        _sb.Indent--;
+
+        _sb.Add("Identifier: " + set.Identifier.ToString());
+
+        _sb.Add("Operator: " + set.Operator.ToString());
+
+        _sb.Add("ValueExpression:");
+        _sb.Indent++;
+        set.ValueExpression.Accept(this);
+        _sb.Indent--;
+
+        _sb.Indent++;
+    }
 }

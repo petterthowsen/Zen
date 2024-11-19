@@ -25,9 +25,12 @@ public enum Keywords
 
     // Function & Class Keywords
     Func, Async, Await,
-    
+
     // Class Keywords
-    Class, Extends, Implements, Abstract, Public, Private, Super, New, Is, This,
+    Class, Extends, Implements, 
+    Public, Protected, Private, 
+    Super, New, Is, This, Static,
+    Abstract, Final, Readonly, Override,
 
     Namespace, Import, From, As, Alias,
 

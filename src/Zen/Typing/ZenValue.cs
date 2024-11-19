@@ -37,7 +37,7 @@ public readonly struct ZenValue(ZenType type, dynamic? underlying = null)
     }
 
     public readonly bool IsCallable() {
-        return Type == ZenType.Function;
+        return Type == ZenType.Function || Type == ZenType.BoundMethod;
     }
     
     public readonly bool IsHostFunction() {
@@ -49,11 +49,13 @@ public readonly struct ZenValue(ZenType type, dynamic? underlying = null)
     }
 
     public ZenValue Call(Interpreter interpreter, params ZenValue[] arguments) {
-        if (IsHostFunction()) {
+        if (Type == ZenType.Function) {
             return ((ZenHostFunction)Underlying!).Call(interpreter, arguments);
+        }else if (Type == ZenType.BoundMethod) {
+            return ((BoundMethod)Underlying!).Call(interpreter, arguments);
         }
 
-        throw new Exception($"Cannot call {Underlying} as a function - it is not a callable function.");
+        throw new Exception($"Cannot call {Underlying} as a function - it is not a callable!");
     }
 
     public bool IsTruthy() {

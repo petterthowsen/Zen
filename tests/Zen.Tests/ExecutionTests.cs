@@ -281,4 +281,77 @@ public class ExecutionTests {
 
         Assert.Equal(Common.ErrorType.UndefinedVariable, error.Type);
     }
+
+    [Fact]
+    public void TestClassDeclaration() {
+        RestartInterpreter();
+        Execute("class Test {}");
+
+        Assert.True(Interpreter.environment.Exists("Test"));
+        
+        // get the value
+        ZenValue test = Interpreter.environment.GetValue("Test");
+
+        // make sure its a class
+        Assert.Equal(ZenType.Class, test.Type);
+        Assert.IsType<ZenClass>(test.Underlying);
+    }
+
+    
+    [Fact]
+    public void TestClassInstantiation() {
+        RestartInterpreter();
+
+        Execute("class Test {}");
+
+        Execute("var t = new Test()");
+
+        Assert.True(Interpreter.environment.Exists("t"));
+
+        // get the value
+        ZenValue test = Interpreter.environment.GetValue("t");
+
+        // make sure itsa ZenType.Object
+        Assert.Equal(ZenType.Object, test.Type);
+        Assert.IsType<ZenObject>(test.Underlying);
+
+        string? result = Execute("print t.ToString()");
+        Assert.Equal("Object(Test)", result);
+    }
+
+    
+    [Fact]
+    public void TestClassProperty() {
+        RestartInterpreter();
+
+        Execute("class Test { name: string = \"john\"}");
+
+        Execute("var t = new Test()");
+
+        Assert.True(Interpreter.environment.Exists("t"));
+
+        // get the value
+        ZenValue test = Interpreter.environment.GetValue("t");
+
+        // make sure its a ZenType.Object
+        Assert.Equal(ZenType.Object, test.Type);
+        Assert.IsType<ZenObject>(test.Underlying);
+
+        // get the object
+        ZenObject testObject = (ZenObject)test.Underlying!;
+
+        // make sure it has the expected property
+        Assert.True(testObject.Properties.ContainsKey("name"));
+        
+        // get the value
+        ZenValue nameValue = testObject.Properties["name"];
+
+        // make sure its a ZenType.String
+        Assert.Equal(ZenType.String, nameValue.Type);
+        Assert.Equal("john", nameValue.Underlying);
+
+        string? result = Execute("print t.name");
+
+        Assert.Equal("john", result);
+    }
 }
