@@ -2,4 +2,4 @@
 
 # build & run the project
 dotnet build
-dotnet run --project ./src/Zen
+dotnet run --project ./src/Zen -- "$@"

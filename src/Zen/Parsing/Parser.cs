@@ -36,25 +36,32 @@ public class Parser
 
 	protected bool IsAtEnd => Current.Type == TokenType.EOF;
 
-	public ProgramNode Parse(List<Token> tokens)
+	public ProgramNode Parse(List<Token> tokens, bool throwErrors = true)
 	{
 		Tokens = tokens;
 		_index = 0;
 		Errors.Clear();
-		// Context = ParsingContext.Default;
 		ProgramNode program = new();
 
-		try {
-			while ( ! IsAtEnd) {
-				program.Statements.Add(Statement());
-				MaybeSome(TokenType.Whitespace, TokenType.Newline);
+		if (throwErrors) {
+			ParseProgram(program);
+		}else {
+			try {
+				ParseProgram(program);
+			} catch (Error) {
+				Synchronize();
+				ParseProgram(program);
 			}
+		}
 
-			return program;
-		} catch (Error _err) {
-			//Synchronize();
-			//return Parse();
-			return program;
+		return program;
+	}
+
+	private void ParseProgram(ProgramNode program) {
+		while ( ! IsAtEnd) {
+			MaybeSome(TokenType.Whitespace, TokenType.Newline);
+			program.Statements.Add(Statement());
+			MaybeSome(TokenType.Whitespace, TokenType.Newline);
 		}
 	}
 
@@ -767,14 +774,14 @@ public class Parser
 		Token identifier = Consume(TokenType.Identifier, "Expected identifier after 'func' keyword");
 		
 		// open paren
-		Token openParen = Consume(TokenType.OpenParen, "Expected '(' after function identifier");
+		Consume(TokenType.OpenParen, "Expected '(' after function identifier");
 		MaybeSome(TokenType.Whitespace);
 
 		// parameters
 		FuncParameter[] parameters = FuncParameters();
 
 		// close paren
-		Token closeParen = Consume(TokenType.CloseParen, "Expected ')' after function parameters");
+		Consume(TokenType.CloseParen, "Expected ')' after function parameters");
 		MaybeSome(TokenType.Whitespace);
 
 		// return type?
@@ -802,11 +809,13 @@ public class Parser
 		List<FuncParameter> parameters = new List<FuncParameter>();
 		
 		while (!Check(TokenType.CloseParen)) {
-			MaybeSome(TokenType.Whitespace);
-
 			parameters.Add(FuncParameter());
 
-			MaybeSome(TokenType.Whitespace);
+			if (!Match(TokenType.Comma)) {
+				break;
+			}
+
+			MaybeSome(TokenType.Whitespace, TokenType.Newline);
 		}
 
 		return [..parameters];
@@ -1079,6 +1088,7 @@ public class Parser
 		if (MatchKeyword("false")) return new Literal(Literal.LiteralKind.Bool, false, Previous);
 		if (MatchKeyword("true")) return new Literal(Literal.LiteralKind.Bool, true, Previous);
 		if (MatchKeyword("null")) return new Literal(Literal.LiteralKind.Null, null, Previous);
+		if (MatchKeyword("this")) return new This(Previous);
 
 		if (Match(TokenType.Identifier))
 		{

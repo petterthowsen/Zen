@@ -1,3 +1,4 @@
+using Zen.Common;
 using Zen.Execution;
 
 namespace Zen.Typing;
@@ -33,30 +34,42 @@ public class ZenClass {
 
     public List<ZenMethod> Methods = [];
 
-    public List<Property> Properties = [];
+    public Dictionary<string, Property> Properties = [];
 
     public ZenClass(string name, List<ZenMethod> methods, List<Property> properties) {
         Name = name;
         Methods = methods;
-        Properties = properties;
+        Properties = properties.ToDictionary(x => x.Name, x => x);
     }
 
     public ZenClass(string name, List<ZenMethod> methods) : this(name, methods, []) {}
 
     public ZenObject CreateInstance(Interpreter interpreter, params ZenValue[] args) {
+        ZenType[] argTypes = args.Select(x => x.Type).ToArray();
+
+        // has a compatable constructor?
+        HasOwnConstructor(argTypes, out var constructor);
+
+        if (constructor == null && args.Length > 0) {
+            throw Interpreter.Error("No valid constructor found for class " + Name);
+        }
+
         ZenObject instance = new ZenObject(this);
 
-        foreach (Property property in Properties) {
+        // add properties
+        foreach (Property property in Properties.Values) {
             instance.Properties.Add(property.Name, property.Default);
         }
 
-        // find the init method
-        instance.HasMethodHierarchically("init", ZenType.Void, args.Select(x => x.Type).ToArray(), out var initMethod);
-        if (initMethod != null) {
-            instance.Call(interpreter, initMethod, args);
-        }
-
+        // call the constructor
+        // (required calls to super constructors are checked at compile time)
+        interpreter.CallUserFunction(constructor!.Bind(instance), args);
+        
         return instance;
+    }
+
+    public void HasOwnConstructor(ZenType[] argTypes, out ZenMethod? method) {
+        HasOwnMethod(Name, ZenType.Void, argTypes, out method);
     }
 
     public void HasOwnMethod(string name, ZenType returnType, ZenType[] argTypes, out ZenMethod? method) {

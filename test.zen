@@ -1,0 +1,9 @@
+class Person {
+
+    Name = "John"
+
+}
+
+var p = new Person()
+
+p.Name = "Jane"

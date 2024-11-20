@@ -1,0 +1,22 @@
+var total_n = 0
+
+func fib(n:int) : int {
+    total_n += 1
+
+    if n <= 2 {
+        return n
+    }
+    return fib(n - 1) + fib(n - 2)
+}
+
+print "Getting 30th fib number..."
+
+var start = time()
+print fib(30)
+var end = time()
+var elapsed = end - start
+
+print "Milliseconds Elapsed:"
+print elapsed
+
+print total_n

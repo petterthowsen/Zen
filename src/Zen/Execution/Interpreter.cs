@@ -566,7 +566,7 @@ public class Interpreter : IGenericVisitor<IEvaluationResult>
 
             if (method != null)
             {
-                return (ValueResult) new BoundMethod(instance, method);
+                return (ValueResult) method.Bind(instance);
             }
 
             if ( ! instance.HasProperty(get.Identifier.Value)) {
@@ -744,6 +744,11 @@ public class Interpreter : IGenericVisitor<IEvaluationResult>
         throw new ReturnException(result, returnStmt.Location);
     }
 
+    public IEvaluationResult Visit(This dis)
+    {
+        return LookUpVariable("this", dis);
+    }
+
     public IEvaluationResult Visit(Call call)
     {
         IEvaluationResult callee = Evaluate(call.Callee);
@@ -808,7 +813,7 @@ public class Interpreter : IGenericVisitor<IEvaluationResult>
 
     public IEvaluationResult CallUserFunction(BoundMethod bound, ZenValue[] arguments) {
         if (bound.Method is ZenUserMethod userMethod) {
-            return CallUserFunction(userMethod.Closure, userMethod.Block, userMethod.Parameters, userMethod.ReturnType, arguments);
+            return CallUserFunction(bound.Closure, userMethod.Block, bound.Parameters, bound.ReturnType, arguments);
         }
         else if (bound.Method is ZenHostMethod hostMethod) {
             return (ValueResult) hostMethod.Call(this, bound.Instance, arguments);
@@ -856,41 +861,6 @@ public class Interpreter : IGenericVisitor<IEvaluationResult>
 
         return (ValueResult)ZenValue.Void;
     }
-
-    // public IEvaluationResult CallUserFunction(ZenUserFunction function, ZenValue[] arguments)
-    // {
-    //     Environment previousEnvironment = environment;
-    //     environment = new Environment(function.Closure);
-
-    //     try
-    //     {
-    //         for (int i = 0; i < function.Parameters.Count; i++)
-    //         {
-    //             environment.Define(false, function.Parameters[i].Name, function.Parameters[i].Type, function.Parameters[i].Nullable);
-    //             environment.Assign(function.Parameters[i].Name, arguments[i]);
-    //         }
-
-    //         foreach (var statement in function.Block.Statements)
-    //         {
-    //             statement.Accept(this);
-    //         }
-    //     }
-    //     catch (ReturnException returnException)
-    //     {
-    //         // type check return value
-    //         if (!TypeChecker.IsCompatible(returnException.Result.Type, function.ReturnType))
-    //         {
-    //             throw Error($"Cannot return value of type '{returnException.Result.Type}' from function of type '{function.ReturnType}'", returnException.Location, ErrorType.TypeError);
-    //         }
-    //         return returnException.Result;
-    //     }
-    //     finally
-    //     {
-    //         environment = previousEnvironment;
-    //     }
-
-    //     return (ValueResult)ZenValue.Void;
-    // }
 
     public IEvaluationResult Visit(FuncStmt funcStmt)
     {
@@ -982,7 +952,16 @@ public class Interpreter : IGenericVisitor<IEvaluationResult>
             string name = methodStmt.Identifier.Value;
             ZenClass.Visibility visibility = ZenClass.Visibility.Public;
             ZenType returnType = ZenType.Void;
+
+            // method parameters
             List<ZenFunction.Parameter> parameters = [];
+
+            for (int i = 0; i < methodStmt.Parameters.Length; i++)
+            {
+                FunctionParameterResult funcParamResult = (FunctionParameterResult) methodStmt.Parameters[i].Accept(this);
+                parameters.Add(funcParamResult.Parameter);
+            }
+
             ZenUserMethod method = new(name, visibility, returnType, parameters, methodStmt.Block, environment);
             methods.Add(method);
         }

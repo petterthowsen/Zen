@@ -1,0 +1,16 @@
+print "Starting benchmark of 1 million binary expressions..."
+
+var start = time()
+var result = 0
+
+for i = 0; i < 1000000; i += 1 {
+    result = result + (i * 2 - 3) / 2
+}
+
+var end = time()
+var elapsed = end - start
+
+print "Result: "
+print result
+print "Milliseconds Elapsed:"
+print elapsed

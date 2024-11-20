@@ -16,4 +16,31 @@ public readonly struct SourceLocation {
             return $"{Code}({Line},{Column})";
         }
     }
+
+    /// <summary>
+    /// return the current line, plus a few lines above and below.
+    /// </summary>
+    /// <returns></returns>
+    public string GetExcerpt() {
+        if (Code == null) return "";
+
+        string result = "";
+        if (Line > 0) {
+            result += Code!.GetLine(Line - 1) + "\n";
+        }
+
+        result += Code!.GetLine(Line) + "\n";
+
+        // add a caret at the column
+        for (int i = 0; i < Column; i++) {
+            result += " ";
+        }
+        result += "^";
+
+        if (Line < Code.Lines.Length - 1) {
+            result += "\n" + Code!.GetLine(Line + 1) + "\n";
+        }
+
+        return result;
+    }
 }

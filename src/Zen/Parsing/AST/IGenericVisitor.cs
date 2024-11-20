@@ -37,5 +37,6 @@ public interface IGenericVisitor<T>
     T Visit(FuncParameter funcParameter);
     T Visit(Get get);
     T Visit(Set set);
+    T Visit(This dis);
 
 }

@@ -14,6 +14,10 @@ public class ZenObject {
         Class = clazz;
     }
 
+    public void HasOwnConstructor(ZenType[] argTypes, out ZenMethod? method) {
+        Class.HasOwnConstructor(argTypes, out method);
+    }
+
     public void HasOwnMethod(string name, ZenType returnType, ZenType[] argTypes, out ZenMethod? method) {
         Class.HasOwnMethod(name, returnType, argTypes, out method);
     }

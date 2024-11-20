@@ -37,4 +37,5 @@ public interface IVisitor
     void Visit(FuncParameter funcParameter);
     void Visit(Get get);
     void Visit(Set set);
+    void Visit(This dis);
 }

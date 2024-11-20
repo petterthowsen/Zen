@@ -245,7 +245,7 @@ public class DebugPrintVisitor : IVisitor {
         }
         _sb.Indent--;
 
-        _sb.Indent++;
+        _sb.Indent--;
     }
 
     public void Visit(FuncParameter funcParameter)
@@ -398,6 +398,11 @@ public class DebugPrintVisitor : IVisitor {
         set.ValueExpression.Accept(this);
         _sb.Indent--;
 
-        _sb.Indent++;
+        _sb.Indent--;
+    }
+
+    public void Visit(This dis)
+    {
+        _sb.Add(dis.ToString());
     }
 }

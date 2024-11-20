@@ -293,20 +293,25 @@ public class Resolver : IVisitor
         Declare(classStmt.Identifier);
         Define(classStmt.Identifier);
 
+        BeginScope();
+        scopes.Peek().Add("this", true);
+
         foreach (MethodStmt method in classStmt.Methods) {
             FunctionType declaration = FunctionType.METHOD;
             ResolveFunction(method, declaration);
         }
+
+        EndScope();
     }
 
     public void Visit(PropertyStmt propertyStmt)
     {
-        throw new NotImplementedException();
+        // don't need this yet since properties inside methods are via 'this'
     }
 
     public void Visit(MethodStmt methodStmt)
     {
-        
+        // I guess this is handled by the visit to ClassStmt
     }
 
     public void Visit(Instantiation instantiation)
@@ -323,5 +328,10 @@ public class Resolver : IVisitor
     {
         Resolve(set.ObjectExpression);
         Resolve(set.ValueExpression);
+    }
+
+    public void Visit(This dis)
+    {
+        ResolveLocal(dis, "this");
     }
 }

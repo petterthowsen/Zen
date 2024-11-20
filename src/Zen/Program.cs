@@ -46,17 +46,17 @@ public class Program
         // if not, check if it's a .zen file
         // if not a .zen file, attempt to execute input as is
 
+        Console.WriteLine(args);
+
         if (args.Length == 0) {
             // start REPL
             Console.WriteLine("Starting REPL");
             REPL();
         } else {
-            var lexer = new Lexer();
-
             // check if it's a .zen file
             if (args[0].EndsWith(".zen")) {
                 // check if file exists
-                if (!File.Exists(args[0])) {
+                if ( ! File.Exists(args[0])) {
                     Console.WriteLine("File does not exist");
                     return;
                 }
