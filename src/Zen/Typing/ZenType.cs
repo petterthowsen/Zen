@@ -68,4 +68,17 @@ public class ZenType {
             return Name;
         }
     }
+
+    public override bool Equals(object? obj)
+    {
+        if (obj is ZenType zenType) {
+            return Name == zenType.Name && Parameters.SequenceEqual(zenType.Parameters);
+        }
+        return base.Equals(obj);
+    }
+
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(Name, Parameters);
+    }
 }

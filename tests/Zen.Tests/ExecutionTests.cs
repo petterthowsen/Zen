@@ -403,24 +403,25 @@ class Point {
         Assert.Equal(2, constructor!.Arity);
         Assert.Equal(ZenType.Void, constructor.ReturnType);
 
-        // // define a new point
+        // define a new point
         Execute("var p = new Point(5, 10)");
 
-        // // make sure it has the expected properties
+        // make sure it has the expected properties
         Assert.True(Interpreter.environment.Exists("p"));
         ZenValue pValue = Interpreter.environment.GetValue("p");
         Assert.Equal(ZenType.Object, pValue.Type);
         Assert.IsType<ZenObject>(pValue.Underlying);
         ZenObject pObject = (ZenObject)pValue.Underlying!;
         
+        // make sure it has the expected properties
         Assert.True(pObject.Properties.ContainsKey("x"));
         Assert.True(pObject.Properties.ContainsKey("y"));
         ZenValue xValue = pObject.Properties["x"];
         ZenValue yValue = pObject.Properties["y"];
         Assert.Equal(ZenType.Integer, xValue.Type);
-        // Assert.Equal(5, xValue.Underlying);
+        Assert.Equal(5, xValue.Underlying);
         Assert.Equal(ZenType.Integer, yValue.Type);
-        // Assert.Equal(10, yValue.Underlying);
+        Assert.Equal(10, yValue.Underlying);
 
         // update the x property
         Execute("p.x = 7");

@@ -58,7 +58,7 @@ public class ZenClass {
 
         // add properties
         foreach (Property property in Properties.Values) {
-            instance.Properties.Add(property.Name, property.Default);
+            instance.Properties.Add(property.Name, new ZenValue(property.Type, property.Default));
         }
 
         // call the constructor

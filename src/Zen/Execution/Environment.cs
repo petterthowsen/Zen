@@ -16,22 +16,20 @@ public class Environment {
     /// Returns the ancestor of the environment at the given distance.
     /// For example, a distance of 0 returns the current environment,
     /// a distance of 1 returns the parent environment, and so on.
-    /// If the requested ancestor is not available (i.e., the environment
-    /// at the requested distance has no parent), the function returns the
-    /// highest ancestor available.
+    /// Throws an exception if the requested ancestor is not available.
     /// </summary>
     public Environment Ancestor(int distance) {
         if (distance == 0) {
             return this;
         }
 
-        Environment current = this;
+        Environment? current = this;
 
         for (int i = 0; i < distance; i++) {
-            if (current.Parent == null) {
-                break;
-            }
             current = current.Parent;
+            if (current == null) {
+                throw new Exception($"Cannot get ancestor at distance {distance} - environment chain too short");
+            }
         }
         
         return current;

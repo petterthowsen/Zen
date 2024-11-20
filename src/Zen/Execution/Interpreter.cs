@@ -624,7 +624,7 @@ public class Interpreter : IGenericVisitor<IEvaluationResult>
             // type check
             if (!TypeChecker.IsCompatible(left.Type, right.Type))
             {
-                throw Error($"Cannot assign value of type '{right.Type}' to variable of type '{left.Type}'", op.Location, ErrorType.TypeError);
+                throw Error($"Cannot assign value of type '{right.Type}' to target of type '{left.Type}'", op.Location, ErrorType.TypeError);
             }
             result = right;
         }
@@ -830,16 +830,20 @@ public class Interpreter : IGenericVisitor<IEvaluationResult>
     public IEvaluationResult CallUserFunction(Environment? closure, Block block, List<ZenFunction.Parameter> parameters, ZenType returnType, ZenValue[] arguments)
     {
         Environment previousEnvironment = environment;
-        environment = new Environment(closure);
+
+        // Create outer environment for parameters
+        Environment paramEnv = new Environment(closure);
+        for (int i = 0; i < parameters.Count; i++)
+        {
+            paramEnv.Define(false, parameters[i].Name, parameters[i].Type, parameters[i].Nullable);
+            paramEnv.Assign(parameters[i].Name, arguments[i]);
+        }
+
+        // Create inner environment for method body, which will contain 'this'
+        environment = new Environment(paramEnv);
 
         try
         {
-            for (int i = 0; i < parameters.Count; i++)
-            {
-                environment.Define(false, parameters[i].Name, parameters[i].Type, parameters[i].Nullable);
-                environment.Assign(parameters[i].Name, arguments[i]);
-            }
-
             foreach (var statement in block.Statements)
             {
                 statement.Accept(this);
@@ -908,17 +912,29 @@ public class Interpreter : IGenericVisitor<IEvaluationResult>
 
         foreach (var property in classStmt.Properties)
         {
-            ZenType type = ZenType.Null;
+            ZenType type = ZenType.Any;
             ZenValue defaultValue = ZenValue.Null;
 
             if (property.Initializer != null)
             {
                 IEvaluationResult defaultValueResult = Evaluate(property.Initializer);
                 defaultValue = defaultValueResult.Value;
-            }
+                type = defaultValue.Type;
 
-            if (property.TypeHint != null)
-            {
+                if (property.TypeHint != null)
+                {
+                    type = property.TypeHint.GetZenType();
+
+                    if ( ! TypeChecker.IsCompatible(defaultValue.Type, type))
+                    {
+                        throw Error($"Cannot assign value of type '{defaultValue.Type}' to property of type '{type}'", property.TypeHint.Location, ErrorType.TypeError);
+                    }
+                }
+            }else {
+                if (property.TypeHint == null) {
+                    throw Error($"Property '{property.Identifier.Value}' must have a type hint", property.Identifier.Location, ErrorType.SyntaxError);
+                }
+
                 type = property.TypeHint.GetZenType();
             }
 
