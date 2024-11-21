@@ -15,7 +15,8 @@ public class Resolver : IVisitor
     protected enum FunctionType {
         NONE,
         FUNCTION,
-        METHOD
+        METHOD,
+        CONSTRUCTOR,
     }
     
     protected Interpreter interpreter;
@@ -237,6 +238,11 @@ public class Resolver : IVisitor
     public void Visit(ReturnStmt returnStmt)
     {
         if (returnStmt.Expression != null) {
+            if (currentFunction == FunctionType.CONSTRUCTOR) {
+                // constructor can't return a value
+                throw Error("Constructors can't return a value.", returnStmt.Expression.Location);
+            }
+            
             Resolve(returnStmt.Expression);
         }
     }
@@ -298,6 +304,10 @@ public class Resolver : IVisitor
 
         foreach (MethodStmt method in classStmt.Methods) {
             FunctionType declaration = FunctionType.METHOD;
+            if (method.Identifier.Value == classStmt.Identifier.Value) {
+                declaration = FunctionType.CONSTRUCTOR;
+                
+            }
             ResolveFunction(method, declaration);
         }
 

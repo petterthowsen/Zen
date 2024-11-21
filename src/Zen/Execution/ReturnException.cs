@@ -1,8 +1,13 @@
 using Zen.Common;
-using Zen.Typing;
 
 namespace Zen.Execution;
 
+/// <summary>
+/// Thrown when a return statement is encountered.
+/// </summary>
+/// <remarks>
+/// A <see cref="IEvaluationResult"/> is stored in the <see cref="Result"/> property.
+/// </remarks>
 public class ReturnException : Exception {
     
     public IEvaluationResult Result;

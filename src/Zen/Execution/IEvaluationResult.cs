@@ -2,10 +2,32 @@ using Zen.Typing;
 
 namespace Zen.Execution;
 
+/// <summary>
+/// Represents the result of evaluating an expression or statement.
+/// </summary>
 public interface IEvaluationResult {
+
+    /// <summary>
+    /// The type of the result.
+    /// </summary>
     ZenType Type { get; }
+
+    /// <summary>
+    /// The value of the result.
+    /// </summary>
     ZenValue Value { get; }
+
+    /// <summary>
+    /// Whether the result is truthy.
+    /// </summary>
     bool IsTruthy();
+
+    /// <summary>
+    /// Whether the result is callable.
+    /// </summary>
+    /// <remarks>
+    /// A callable value is a ZenFunction or a bound method.
+    /// </remarks>
     bool IsCallable();
 }
 
@@ -33,27 +55,19 @@ public class VariableResult : IEvaluationResult {
 
 public class FunctionParameterResult : IEvaluationResult
 {
-    public ZenType Type => Parameter.Type;
-
-    public ZenValue Value => ZenValue.Void;
-
     public ZenFunction.Parameter Parameter;
 
+    public ZenType Type => Parameter.Type;
+    public ZenValue Value => ZenValue.Void;
+    public bool IsCallable() => false;
+    public bool IsTruthy() => true;
+
     public static implicit operator FunctionParameterResult(ZenFunction.Parameter parameter) => new() { Parameter = parameter };
-
-    public bool IsCallable()
-    {
-        return false;
-    }
-
-    public bool IsTruthy()
-    {
-        return true;
-    }
 }
 
 public readonly struct VoidResult : IEvaluationResult {
     public static readonly VoidResult Instance = new();
+
     public ZenValue Value => ZenValue.Void;
     public ZenType Type => ZenType.Void;
     public bool IsTruthy() => false;
