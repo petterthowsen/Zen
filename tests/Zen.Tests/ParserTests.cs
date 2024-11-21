@@ -538,4 +538,117 @@ public class ParserTests {
         Assert.Single(call.Arguments);
         Assert.IsType<Literal>(call.Arguments[0]);
     }
+
+      [Fact]
+    public void TestTypeCheckExpression() {
+        ProgramNode program = Parse("x is string");
+        Assert.Single(program.Statements);
+        Assert.IsType<ExpressionStmt>(program.Statements[0]);
+
+        ExpressionStmt exprStmt = (ExpressionStmt)program.Statements[0];
+        TypeCheck typeCheck = Assert.IsType<TypeCheck>(exprStmt.Expression);
+
+        Assert.Equal("is", typeCheck.Token.Value);
+        Assert.IsType<Identifier>(typeCheck.Expression);
+        Assert.IsType<TypeHint>(typeCheck.Type);
+
+        TypeHint typeHint = typeCheck.Type;
+        Assert.Equal("string", typeHint.Name);
+        Assert.False(typeHint.Nullable);
+    }
+
+    [Fact]
+    public void TestTypeCheckWithNullableType() {
+        ProgramNode program = Parse("x is string?");
+        Assert.Single(program.Statements);
+        Assert.IsType<ExpressionStmt>(program.Statements[0]);
+
+        ExpressionStmt exprStmt = (ExpressionStmt)program.Statements[0];
+        TypeCheck typeCheck = Assert.IsType<TypeCheck>(exprStmt.Expression);
+
+        Assert.Equal("is", typeCheck.Token.Value);
+        Assert.IsType<Identifier>(typeCheck.Expression);
+        Assert.IsType<TypeHint>(typeCheck.Type);
+
+        TypeHint typeHint = typeCheck.Type;
+        Assert.Equal("string", typeHint.Name);
+        Assert.True(typeHint.Nullable);
+    }
+
+    [Fact]
+    public void TestTypeCheckInIfCondition() {
+        ProgramNode program = Parse("if x is string { print x }");
+        Assert.Single(program.Statements);
+        Assert.IsType<IfStmt>(program.Statements[0]);
+
+        IfStmt ifStmt = (IfStmt)program.Statements[0];
+        TypeCheck typeCheck = Assert.IsType<TypeCheck>(ifStmt.Condition);
+
+        Assert.Equal("is", typeCheck.Token.Value);
+        Assert.IsType<Identifier>(typeCheck.Expression);
+        Assert.IsType<TypeHint>(typeCheck.Type);
+
+        TypeHint typeHint = typeCheck.Type;
+        Assert.Equal("string", typeHint.Name);
+        Assert.False(typeHint.Nullable);
+    }
+
+    [Fact]
+    public void TestTypeCastExpression() {
+        ProgramNode program = Parse("(int) x");
+        Assert.Single(program.Statements);
+        Assert.IsType<ExpressionStmt>(program.Statements[0]);
+
+        ExpressionStmt exprStmt = (ExpressionStmt)program.Statements[0];
+        TypeCast typeCast = Assert.IsType<TypeCast>(exprStmt.Expression);
+
+        Assert.Equal(TokenType.OpenParen, typeCast.Token.Type);
+        Assert.IsType<Identifier>(typeCast.Expression);
+        Assert.IsType<TypeHint>(typeCast.Type);
+
+        TypeHint typeHint = typeCast.Type;
+        Assert.Equal("int", typeHint.Name);
+        Assert.False(typeHint.Nullable);
+    }
+
+    [Fact]
+    public void TestTypeCastWithNullableType() {
+        ProgramNode program = Parse("(string?) x");
+        Assert.Single(program.Statements);
+        Assert.IsType<ExpressionStmt>(program.Statements[0]);
+
+        ExpressionStmt exprStmt = (ExpressionStmt)program.Statements[0];
+        TypeCast typeCast = Assert.IsType<TypeCast>(exprStmt.Expression);
+
+        Assert.Equal(TokenType.OpenParen, typeCast.Token.Type);
+        Assert.IsType<Identifier>(typeCast.Expression);
+        Assert.IsType<TypeHint>(typeCast.Type);
+
+        TypeHint typeHint = typeCast.Type;
+        Assert.Equal("string", typeHint.Name);
+        Assert.True(typeHint.Nullable);
+    }
+
+    [Fact]
+    public void TestTypeCastInAssignment() {
+        ProgramNode program = Parse("x = (int) 5.5");
+        Assert.Single(program.Statements);
+        Assert.IsType<ExpressionStmt>(program.Statements[0]);
+
+        ExpressionStmt exprStmt = (ExpressionStmt)program.Statements[0];
+        Assignment assignment = Assert.IsType<Assignment>(exprStmt.Expression);
+
+        Assert.Equal(TokenType.Assign, assignment.Operator.Type);
+        Assert.IsType<Identifier>(assignment.Identifier);
+        Assert.IsType<TypeCast>(assignment.Expression);
+
+        TypeCast typeCast = (TypeCast)assignment.Expression;
+        Assert.Equal(TokenType.OpenParen, typeCast.Token.Type);
+        Assert.IsType<Literal>(typeCast.Expression);
+        Assert.IsType<TypeHint>(typeCast.Type);
+
+        TypeHint typeHint = typeCast.Type;
+        Assert.Equal("int", typeHint.Name);
+        Assert.False(typeHint.Nullable);
+    }
 }

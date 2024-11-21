@@ -264,7 +264,7 @@ public class Parser
 		return new VarStmt(token, identifier, typeHint, initializer);
 	}
 
-	private TypeHint TypeHint() {
+	private TypeHint TypeHint(bool silent = false) {
 		if ( ! Match(TokenType.Identifier, TokenType.Keyword)) {
 			throw Error($"Expected type name (identifier or keyword) for type hint", ErrorType.SyntaxError);
 		}
@@ -302,9 +302,18 @@ public class Parser
 			}
 
 			Consume(TokenType.GreaterThan, "Expected '>' after generic type parameters");
+
+			MaybeSome(TokenType.Whitespace);
 		}
 
-		return new TypeHint(token, [.. parameters]);
+		//nullable?
+		bool nullable = false;
+		if (Match(TokenType.QuestionMark)) {
+			MaybeSome(TokenType.Whitespace);
+			nullable = true;
+		}
+
+		return new TypeHint(token, [.. parameters], nullable);
 	}
 
 	private PrintStmt PrintStatement() {
@@ -475,7 +484,7 @@ public class Parser
 		// loopIdentifier
 		Token loopIdentifier = Consume(TokenType.Identifier, "Expected identifier after 'for' keyword");
 		MaybeSome(TokenType.Whitespace);
-		
+
 		TypeHint? typeHint = null;
 		
 		// TypeHint is optional
@@ -957,14 +966,21 @@ public class Parser
 
 		MaybeSome(TokenType.Whitespace);
 
-		while (Match(TokenType.GreaterThan, TokenType.GreaterThanOrEqual, TokenType.LessThan, TokenType.LessThanOrEqual))
+		while (Match(TokenType.GreaterThan, TokenType.GreaterThanOrEqual, TokenType.LessThan, TokenType.LessThanOrEqual) || MatchKeyword("is"))
 		{
 			Token op = Previous;
 
 			MaybeSome(TokenType.Whitespace);
 
-			Expr right = Term();
-			expr = new Binary(expr, op, right);
+			if (op.Value == "is") {
+				// Parse type hint after 'is' keyword
+				TypeHint type = TypeHint();
+				expr = new TypeCheck(op, expr, type);
+			} else {
+				Expr right = Term();
+				expr = new Binary(expr, op, right);
+			}
+			
 			MaybeSome(TokenType.Whitespace);
 		}
 
@@ -1011,33 +1027,64 @@ public class Parser
 		return expr;
 	}
 
-	private Expr Unary()
-	{
-		// unary or negation
-		if (Match(TokenType.Minus) || MatchKeyword("not"))
-		{
-			Token op = Previous;
+    private Expr Unary()
+    {
+        // Type cast using parentheses
+        if (Match(TokenType.OpenParen))
+        {
+            Token leftParen = Previous;
+            MaybeSome(TokenType.Whitespace);
 
-			MaybeSome(TokenType.Whitespace);
+            // Look ahead to see if this is a type cast or just a grouping
+            int savedIndex = _index;
+			Error[] savedErrors = Errors.ToArray();
+            try {
+                // Try parsing as type hint
+                TypeHint type = TypeHint();
+                MaybeSome(TokenType.Whitespace);
+                Consume(TokenType.CloseParen, "Expected ')' after type in cast expression");
+                MaybeSome(TokenType.Whitespace);
+                Expr expr = Unary();
+                return new TypeCast(leftParen, type, expr);
+            }
+            catch {
+                // If parsing as type hint fails, restore index and treat as grouping
+                _index = savedIndex;
+				Errors.Clear();
+				Errors.AddRange(savedErrors);
 
-			Expr right = Unary();
-			return new Unary(op, right);
-		}
-		
-		// class instantiation
-		if (MatchKeyword("new"))
-		{
-			Token newKeyword = Previous;
+                Expr expr = Expression();
+                MaybeSome(TokenType.Whitespace);
+                Consume(TokenType.CloseParen, "Expected a matching ')' after expression.");
+                return new Grouping(expr);
+            }
+        }
 
-			MaybeSome(TokenType.Whitespace);
+        // unary or negation
+        if (Match(TokenType.Minus) || MatchKeyword("not"))
+        {
+            Token op = Previous;
 
-			Call call = (Call) Call(); // Use Call to handle potential nested calls or nested instantiations
-			
-			return new Instantiation(newKeyword, call);
-		}
+            MaybeSome(TokenType.Whitespace);
 
-		return Call();
-	}
+            Expr right = Unary();
+            return new Unary(op, right);
+        }
+        
+        // class instantiation
+        if (MatchKeyword("new"))
+        {
+            Token newKeyword = Previous;
+
+            MaybeSome(TokenType.Whitespace);
+
+            Call call = (Call) Call(); // Use Call to handle potential nested calls or nested instantiations
+            
+            return new Instantiation(newKeyword, call);
+        }
+
+        return Call();
+    }
 
 	private Expr Call() {
 		Expr expr = Primary();

@@ -39,7 +39,44 @@ public class Interpreter : IGenericVisitor<IEvaluationResult>
     {
         environment = globalEnvironment;
 
-        // register builtins
+        // register built in value constants 
+        globalEnvironment.Define(true, "true", ZenType.Boolean, false);
+        globalEnvironment.Assign("true", new ZenValue(ZenType.Boolean, true));
+
+        globalEnvironment.Define(true, "false", ZenType.Boolean, false);
+        globalEnvironment.Assign("false", new ZenValue(ZenType.Boolean, false));
+
+        globalEnvironment.Define(true, "null", ZenType.Null, false);
+        globalEnvironment.Assign("null", new ZenValue(ZenType.Null, null));
+
+        // register built in types
+        globalEnvironment.Define(true, "int", ZenType.Type, false);
+        globalEnvironment.Assign("int", new ZenValue(ZenType.Type, ZenType.Integer));
+        
+        globalEnvironment.Define(true, "int64", ZenType.Type, false);
+        globalEnvironment.Assign("int64", new ZenValue(ZenType.Type, ZenType.Integer64));
+
+        globalEnvironment.Define(true, "float", ZenType.Type, false);
+        globalEnvironment.Assign("float", new ZenValue(ZenType.Type, ZenType.Float));
+
+        globalEnvironment.Define(true, "float64", ZenType.Type, false);
+        globalEnvironment.Assign("float64", new ZenValue(ZenType.Type, ZenType.Float64));
+
+        globalEnvironment.Define(true, "string", ZenType.Type, false);
+        globalEnvironment.Assign("string", new ZenValue(ZenType.Type, ZenType.String));
+
+        globalEnvironment.Define(true, "bool", ZenType.Type, false);
+        globalEnvironment.Assign("bool", new ZenValue(ZenType.Type, ZenType.Boolean));
+
+        globalEnvironment.Define(true, "function", ZenType.Type, false);
+        globalEnvironment.Assign("function", new ZenValue(ZenType.Type, ZenType.Function));
+
+        globalEnvironment.Define(true, "object", ZenType.Type, false);
+        globalEnvironment.Assign("object", new ZenValue(ZenType.Type, ZenType.Object));
+
+        globalEnvironment.Define(true, "class", ZenType.Type, false);
+        globalEnvironment.Assign("class", new ZenValue(ZenType.Type, ZenType.Class));
+        
         RegisterBuiltins(new Builtins.Core.Typing());
         RegisterBuiltins(new Builtins.Core.Time());
     }
@@ -345,7 +382,7 @@ public class Interpreter : IGenericVisitor<IEvaluationResult>
             }
             else if (zenValue.Type == ZenType.Integer64)
             {
-                return (ValueResult)new ZenValue(ZenType.Integer64, -zenValue.Underlying);
+        return (ValueResult)new ZenValue(ZenType.Integer64, -zenValue.Underlying);
             }
             else if (zenValue.Type == ZenType.Float64)
             {
@@ -423,8 +460,8 @@ public class Interpreter : IGenericVisitor<IEvaluationResult>
 
         // Check if the variable is already defined
         if (environment.Exists(name))
-        {
-            throw Error($"Variable '{name}' is already defined", varStmt.Identifier.Location, ErrorType.RedefinitionError);
+    {
+        throw Error($"Variable '{name}' is already defined", varStmt.Identifier.Location, ErrorType.RedefinitionError);
         }
 
         // check for missing typehint without initializer
@@ -666,8 +703,8 @@ public class Interpreter : IGenericVisitor<IEvaluationResult>
                 // execute body
                 foreach (Stmt statement in forStmt.Body.Statements) {
                     statement.Accept(this);
-                }
-
+        }
+        
                 // increment loop variable
                 Evaluate(incrementor);
             }
@@ -702,8 +739,8 @@ public class Interpreter : IGenericVisitor<IEvaluationResult>
     }
 
     public IEvaluationResult Visit(This dis)
-    {
-        return LookUpVariable("this", dis);
+        {
+            return LookUpVariable("this", dis);
     }
 
     public IEvaluationResult Visit(Call call)
@@ -885,8 +922,8 @@ public class Interpreter : IGenericVisitor<IEvaluationResult>
                     if ( ! TypeChecker.IsCompatible(defaultValue.Type, type))
                     {
                         throw Error($"Cannot assign value of type '{defaultValue.Type}' to property of type '{type}'", property.TypeHint.Location, ErrorType.TypeError);
-                    }
-                }
+        }
+    }
             }else {
                 if (property.TypeHint == null) {
                     throw Error($"Property '{property.Identifier.Value}' must have a type hint", property.Identifier.Location, ErrorType.SyntaxError);
@@ -989,5 +1026,32 @@ public class Interpreter : IGenericVisitor<IEvaluationResult>
 
         // return as ValueResult (IEvaluationResult)
         return (ValueResult) result;
+    }
+
+    public IEvaluationResult Visit(TypeCheck typeCheck)
+    {
+        IEvaluationResult exprResult = Evaluate(typeCheck.Expression);
+        ZenType targetType = typeCheck.Type.GetZenType();
+
+        // Check if the expression's type is assignable to the target type
+        bool isCompatible = targetType.IsAssignableFrom(exprResult.Type);
+        return (ValueResult)new ZenValue(ZenType.Boolean, isCompatible);
+    }
+
+    public IEvaluationResult Visit(TypeCast typeCast)
+    {
+        IEvaluationResult exprResult = Evaluate(typeCast.Expression);
+        ZenType targetType = typeCast.Type.GetZenType();
+
+        try
+        {
+            ZenValue convertedValue = TypeConverter.Convert(exprResult.Value, targetType);
+        return (ValueResult)convertedValue;
+        }
+        catch (Exception)
+        {
+            throw Error($"Cannot cast value of type '{exprResult.Type}' to type '{targetType}'", 
+                typeCast.Token.Location, ErrorType.TypeError);
+        }
     }
 }

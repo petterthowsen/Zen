@@ -38,5 +38,6 @@ public interface IGenericVisitor<T>
     T Visit(Get get);
     T Visit(Set set);
     T Visit(This dis);
-
+    T Visit(TypeCheck typeCheck);
+    T Visit(TypeCast typeCast);
 }

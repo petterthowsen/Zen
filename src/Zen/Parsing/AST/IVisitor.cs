@@ -38,4 +38,6 @@ public interface IVisitor
     void Visit(Get get);
     void Visit(Set set);
     void Visit(This dis);
+    void Visit(TypeCheck typeCheck);
+    void Visit(TypeCast typeCast);
 }

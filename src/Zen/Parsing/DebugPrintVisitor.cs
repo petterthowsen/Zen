@@ -405,4 +405,32 @@ public class DebugPrintVisitor : IVisitor {
     {
         _sb.Add(dis.ToString());
     }
+
+    public void Visit(TypeCheck typeCheck)
+    {
+        _sb.Add(typeCheck.ToString());
+        _sb.Indent++;
+        
+        _sb.Add("Type: " + typeCheck.Type.ToString());
+
+        _sb.Add("Expression:");
+        _sb.Indent++;
+        typeCheck.Expression.Accept(this);
+        _sb.Indent--;
+
+        _sb.Indent--;
+    }
+
+    public void Visit(TypeCast typeCast)
+    {
+        _sb.Add(typeCast.ToString());
+        _sb.Indent++;
+
+        _sb.Add("Expression: ");
+        _sb.Indent++;
+        typeCast.Expression.Accept(this);
+        _sb.Indent--;
+
+        _sb.Indent--;
+    }
 }

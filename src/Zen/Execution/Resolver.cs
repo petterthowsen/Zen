@@ -344,4 +344,14 @@ public class Resolver : IVisitor
     {
         ResolveLocal(dis, "this");
     }
+
+    public void Visit(TypeCheck typeCheck)
+    {
+        Resolve(typeCheck.Expression);
+    }
+
+    public void Visit(TypeCast typeCast)
+    {
+        Resolve(typeCast.Expression);
+    }
 }
