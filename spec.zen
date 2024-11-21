@@ -1,39 +1,18 @@
 //---------------------------//
 // Zen Language Specification
 //---------------------------//
-// https://github.com/thowsenmedia/zen
-//
-// Zen is an general-purpose interpreted programming language implemented in Go.
-//
-// Why another programming language? Aren't there enough already?
-// I've been looking for a garbage-collected, object-oriented, interpreted language that was strictly typed, with smart nullability
-// and a good set of libraries for concurrency and important features related to the web, AI, ioc and potentially even desktop apps. 
-//
-// There are some candidates, but in my evaluation of other langauges, I found that they did one of these things wrong:
-// (by wrong, I mean it's not how I would prefer it.)
-// - too much magic: this is stupid, it makes code difficult to maintain and hard to read.
-// - lack of OOP: object-orientation isn't a bad thing.
-// - Lack of strict typing: this increases likelihood of bugs
-// - Lack of concurrency support
-// - Require too much tooling (I'm looking at you JavaScript, Typescript and the 189 million frameworks and package management systems!)
-// - Niche domain (PHP, Perl, Ruby)
-// - Lack of garbage collection: Humans are stupid (particularly me) and most of the time, what matters is results, not speed. Computers are fast enough today that interpreted languages with GC is no problem for most tasks. 
-//
-// Many languages have almost all of these, but are missing 1 or 2. That's why I'm creating Zen.
-
 // Zen draws inspiration from many languages, including: C#, Java, Scala, Gdscript, Python and others.
 
 // Zen supports many features, including:
 // - Classes
 // - Interfaces
-// - Traits
 // - Functions
 // - Arrays
 // - Maps
 // - Tuples for multiple return values from functions
 // - Ranges
 // - For, For In and While loops
-// - Powerful switch (called "when statements")
+// - Powerful switch statements
 // - Lambdas
 // - file include with return values
 // - Namespaces
@@ -71,9 +50,10 @@ anything = "hello" // OK: anything is 'any' type.
 // To make a nullable variable, use a question mark after the type:
 var subtitle:string?
 
-var something:any? // this is like any old care-free scripting language now, an untyped nullable! This is not recommended, but supported.
+var something:any // this is like any old care-free scripting language now, an untyped nullable! This is not recommended, but supported.
 something = "and now it has a value" // it's now a string
 something = 5
+something = null
 
 // you can check the type of something using the appropriately named "is" keyword:
 if something is int {

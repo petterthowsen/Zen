@@ -58,13 +58,24 @@ public class ZenClass {
 
         // add properties
         foreach (Property property in Properties.Values) {
-            instance.Properties.Add(property.Name, new ZenValue(property.Type, property.Default));
+            instance.Properties.Add(property.Name, property.Default);
         }
 
         // call the constructor
         // (required calls to super constructors are checked at compile time)
+        if (constructor == null) {
+            return instance;
+        }
+
         interpreter.CallUserFunction(constructor!.Bind(instance), args);
-        
+
+        // verify that all non-nullable properties have been initialized
+        foreach (Property property in Properties.Values) {
+            if (instance.GetProperty(property.Name).IsNull()) {
+                throw Interpreter.Error("Non-nullable Property " + property.Name + " must be set in the constructor.", null, ErrorType.TypeError);
+            }
+        }
+
         return instance;
     }
 

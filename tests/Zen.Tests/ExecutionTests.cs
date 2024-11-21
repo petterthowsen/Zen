@@ -348,7 +348,7 @@ public class ExecutionTests {
 
         // make sure its a ZenType.String
         Assert.Equal(ZenType.String, nameValue.Type);
-        Assert.Equal("john", nameValue.Underlying);
+        Assert.Equal<string>("john", nameValue.Underlying);
 
         string? result = Execute("print t.name");
 

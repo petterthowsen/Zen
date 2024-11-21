@@ -2,6 +2,9 @@ using Zen.Typing;
 
 namespace Zen.Execution;
 
+/// <summary>
+/// Represents a scope in the execution environment.
+/// </summary>
 public class Environment {
 
     public Environment? Parent;

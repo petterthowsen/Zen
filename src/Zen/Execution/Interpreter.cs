@@ -6,6 +6,7 @@ using Zen.Parsing.AST;
 using Zen.Parsing.AST.Expressions;
 using Zen.Parsing.AST.Statements;
 using Zen.Typing;
+using Zen.Execution.EvaluationResult;
 
 namespace Zen.Execution;
 
@@ -17,8 +18,17 @@ public class Interpreter : IGenericVisitor<IEvaluationResult>
         return new RuntimeError(message, errorType, location);
     }
 
+    /// <summary>
+    /// The top level environment / global scope
+    /// </summary>
     public Environment globalEnvironment = new();
+
+    // The current environment
     public Environment environment;
+
+    /// <summary>
+    /// Maps expressions to a distance from global scope (I think?)
+    /// </summary>
     protected Dictionary<Expr, int> Locals = [];
 
     // Global Output Buffering - useful for testing
@@ -29,42 +39,17 @@ public class Interpreter : IGenericVisitor<IEvaluationResult>
     {
         environment = globalEnvironment;
 
-        // 'int' converts a number to a Integer.
-        RegisterHostFunction("int", ZenType.Integer, [new ZenFunction.Parameter("val", ZenType.Any)], (ZenValue[] args) =>
-        {
-            return TypeConverter.Convert(args[0], ZenType.Integer);
-        });
+        // register builtins
+        RegisterBuiltins(new Builtins.Core.Typing());
+        RegisterBuiltins(new Builtins.Core.Time());
+    }
 
-        // 'int64' converts a number to a Integer64.
-        RegisterHostFunction("to_int64", ZenType.Integer64, [new ZenFunction.Parameter("val", ZenType.Any)], (ZenValue[] args) =>
-        {
-            return TypeConverter.Convert(args[0], ZenType.Integer64);
-        });
-
-        // 'float' converts a number to a Float.
-        RegisterHostFunction("to_float", ZenType.Float, [new ZenFunction.Parameter("val", ZenType.Any)], (ZenValue[] args) =>
-        {
-            return TypeConverter.Convert(args[0], ZenType.Float);
-        });
-
-        // 'float64' converts a number to a Float64.    
-        RegisterHostFunction("to_float64", ZenType.Float64, [new ZenFunction.Parameter("val", ZenType.Any)], (ZenValue[] args) =>
-        {
-            return TypeConverter.Convert(args[0], ZenType.Float64);
-        });
-
-        // 'time' returns the current time in milliseconds.
-        RegisterHostFunction("time", ZenType.Integer64, [], (ZenValue[] args) =>
-        {
-            long milliseconds = DateTimeOffset.Now.ToUnixTimeMilliseconds();
-            return new ZenValue(ZenType.Integer64, milliseconds);
-        });
-
-        // 'type' returns the string representation of a type.
-        RegisterHostFunction("type", ZenType.String, [new ZenFunction.Parameter("val", ZenType.Any)], (ZenValue[] args) =>
-        {
-            return new ZenValue(ZenType.String, args[0].Type.ToString());
-        });
+    /// <summary>
+    /// Registers builtins from the provided builtins provider.
+    /// </summary>
+    /// <param name="builtinsProvider"></param>
+    public void RegisterBuiltins(IBuiltinsProvider builtinsProvider) {
+        builtinsProvider.RegisterBuiltins(this);
     }
 
     public void RegisterHostFunction(string name, ZenType returnType, List<ZenFunction.Parameter> parameters, Func<ZenValue[], ZenValue> func)
@@ -85,33 +70,6 @@ public class Interpreter : IGenericVisitor<IEvaluationResult>
     public void Resolve(Expr expr, int depth = 0)
     {
         Locals.Add(expr, depth);
-    }
-
-    /// <summary>
-    /// Determines if a given object is truthy.
-    /// </summary>
-    public static bool IsTruthy(dynamic? value)
-    {
-        if (value is Variable variable) return variable.IsTruthy();
-        if (value is ZenValue) return value.IsTruthy();
-
-        return value switch
-        {
-            null => false,
-            bool b => b,
-            int i => i != 0,
-            float f => f != 0f,
-            long l => l != 0L,
-            double d => d != 0d,
-            _ => true
-        };
-    }
-
-    public static bool IsNumber(dynamic? value)
-    {
-        if (value is null) return false;
-        if (value is ZenValue) return value.IsNumber();
-        return false;
     }
 
     public static bool IsArithmeticOperator(TokenType type)
@@ -154,7 +112,7 @@ public class Interpreter : IGenericVisitor<IEvaluationResult>
     public static bool IsEqual(dynamic? a, dynamic? b)
     {
         if (a is null && b is null) return true;
-        if (a is null || b is null) return false;
+        if (a is null) return false;
 
         return a.Equals(b);
     }
@@ -214,7 +172,7 @@ public class Interpreter : IGenericVisitor<IEvaluationResult>
         {
             foreach (var elseIf in ifStmt.ElseIfs)
             {
-                if (IsTruthy(Evaluate(elseIf.Condition)))
+                if (Evaluate(elseIf.Condition).IsTruthy())
                 {
                     elseIf.Then.Accept(this);
                     break;
@@ -319,7 +277,7 @@ public class Interpreter : IGenericVisitor<IEvaluationResult>
         bool result = operatorToken.Type switch
         {
             TokenType.Equal => IsEqual(left, right),
-            TokenType.NotEqual => !IsEqual(left, right),
+            TokenType.NotEqual => ! IsEqual(left, right),
             TokenType.LessThan => left.Underlying < right.Underlying,
             TokenType.LessThanOrEqual => left.Underlying <= right.Underlying,
             TokenType.GreaterThan => left.Underlying > right.Underlying,
@@ -349,8 +307,7 @@ public class Interpreter : IGenericVisitor<IEvaluationResult>
         if (unary.IsNot())
         {
             // Negate the truthiness of the value
-            var result = !IsTruthy(eval);
-            if (result)
+            if ( ! eval.IsTruthy())
             {
                 return (ValueResult)ZenValue.True;
             }
@@ -936,6 +893,7 @@ public class Interpreter : IGenericVisitor<IEvaluationResult>
                 }
 
                 type = property.TypeHint.GetZenType();
+                defaultValue = new ZenValue(type);
             }
 
             ZenClass.Visibility visibility = ZenClass.Visibility.Public;

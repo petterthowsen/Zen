@@ -45,6 +45,10 @@ public class TypeHint : Expr
         return false;
     }
 
+    public override int GetHashCode() {
+        return HashCode.Combine(Name, Nullable, Parameters);
+    }
+
     public override void Accept(IVisitor visitor)
     {
         visitor.Visit(this);
