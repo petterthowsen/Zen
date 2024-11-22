@@ -6,8 +6,8 @@ namespace Zen.Parsing.AST.Expressions;
 
 public class TypeCheck : Expr
 {
-    public Token Token; // "is"
     public Expr Expression { get; }
+    public Token Token; // "is"
     public TypeHint Type { get; }
     public override SourceLocation Location => Token.Location;
 

@@ -11,5 +11,7 @@ public readonly struct TypeResult : IEvaluationResult {
     public bool IsTruthy() => true;
     public bool IsCallable() => false;
 
+    public bool IsClass() => Type is ZenTypeClass;
+
     public static implicit operator TypeResult(ZenType type) => new() { Type = type };
 }

@@ -3,8 +3,8 @@ namespace Zen.Typing;
 public class ZenType {
     public static ZenType Keyword = new("keyword");
     public static ZenType Any = new("any");
-    public static ZenType Object = new("object");
-    public static ZenType Class = new("class");
+    public static ZenType Object = new("Object");
+    public static ZenType Class = new("Class");
     public static ZenType Function = new("func");
     public static ZenType BoundMethod = new("BoundMethod");
     public static ZenType Integer = new("int");
@@ -19,26 +19,29 @@ public class ZenType {
     public static ZenType Map = new("map", [ZenType.String, ZenType.String]);
     public static ZenType Type = new("type"); // New: Represents type values themselves
 
-    public static ZenType FromString(string name) {
-        return name switch {
-            "any" => Any,
-            "object" => Object,
-            "class" => Class,
-            "func" => Function,
-            "BoundMethod" => BoundMethod,
-            "int" => Integer,
-            "float" => Float,
-            "int64" => Integer64,
-            "float64" => Float64,
-            "bool" => Boolean,
-            "string" => String,
-            "null" => Null,
-            "void" => Void,
-            "array" => Array,
-            "map" => Map,
-            "type" => Type,
-            _ => new(name)
-        };
+    private static readonly Dictionary<string, ZenType> _primitives = new() {
+        { "int", Integer },
+        { "float", Float },
+        { "int64", Integer64 },
+        { "float64", Float64 },
+        { "bool", Boolean },
+        { "string", String },
+        { "null", Null },
+        { "void", Void },
+        { "array", Array },
+        { "map", Map },
+        { "func", Function },        
+    };
+
+    public static bool Exists(string name) => _primitives.ContainsKey(name);
+
+    public static ZenType FromString(string name, bool nullable = false) {
+        ZenType type;
+        if (_primitives.TryGetValue(name, out type)) {
+            return nullable ? type.MakeNullable() : type;
+        } else {
+            return new ZenType(name, nullable);
+        }
     }
 
     public readonly string Name;
@@ -56,7 +59,7 @@ public class ZenType {
         IsNullable = false;
     }
 
-    protected ZenType(string name, bool isNullable, params ZenType[] parameters) {
+    public ZenType(string name, bool isNullable, params ZenType[] parameters) {
         Name = name;
         IsNullable = isNullable;
         Parameters = parameters;
@@ -68,8 +71,8 @@ public class ZenType {
 
     // Returns true if this type can be assigned a value of the given type
     public bool IsAssignableFrom(ZenType other) {
-        // Handle type-to-type comparisons
-        if (this == Type && other == Type) {
+        // Any type can be assigned to Any
+        if (this == Any) {
             return true;
         }
 
@@ -78,8 +81,8 @@ public class ZenType {
             return true;
         }
 
-        // Any type can be assigned to itself
-        if (this == other) {
+        // If types are exactly the same, they're assignable
+        if (Name == other.Name && IsNullable == other.IsNullable) {
             return true;
         }
 
@@ -91,11 +94,6 @@ public class ZenType {
         // A nullable type cannot be assigned to its non-nullable version
         if (!IsNullable && other.IsNullable) {
             return false;
-        }
-
-        // Any type can be assigned to Any
-        if (this == Any) {
-            return true;
         }
 
         // Check parametric types

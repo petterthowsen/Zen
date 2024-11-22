@@ -94,6 +94,13 @@ The Zen language implementation follows a classic compiler/interpreter architect
    - Reports resolution errors with source locations
 
 4. **Interpreter** (`src/Zen/Execution/Interpreter.cs`):
+   The interpreter is split into multiple partial classes for better organization:
+   - `Interpreter.Core.cs`: Core interpreter functionality and initialization
+   - `Interpreter.ExprVisitor.cs`: Expression evaluation visitor implementation
+   - `Interpreter.StmtVisitor.cs`: Statement execution visitor implementation
+   - `Interpreter.FuncHandler.cs`: Function and method call handling
+
+   Key features:
    - Executes the AST using a tree-walk interpreter
    - Implements a scope-based environment system
    - Provides runtime type checking and type conversion
@@ -109,6 +116,66 @@ The system uses a visitor pattern for traversing and executing the AST, with sep
 - Scoped variable resolution
 - Runtime error handling with source locations
 
+### Type System
+
+Zen features a static type system with type inference. The type system includes:
+
+#### Basic Types
+- `int`: 32-bit integer
+- `int64`: 64-bit integer
+- `float`: 32-bit floating-point
+- `float64`: 64-bit floating-point
+- `bool`: Boolean value
+- `string`: String value
+- `void`: Represents no value
+- `null`: Represents absence of value
+- `type`: Represents type values themselves
+
+#### Nullable Types
+Any type can be made nullable by appending a question mark (?). Nullable types can hold either a value of their base type or null.
+
+```zen
+// Non-nullable variables must have a value
+var age: int = 25
+
+// Nullable variables can be null
+var name: string? = null
+name = "John" // Valid: assigning string to string?
+
+var requiredName: string = null // Error: can't assign null to non-nullable type
+```
+
+#### Type Checking
+The `is` operator checks if a value matches a type:
+
+```zen
+var x = 5
+print x is int     // true
+print x is int?    // true (non-nullable can be assigned to nullable)
+print x is string  // false
+
+var y: int? = null
+print y is int     // false (nullable might be null)
+print y is int?    // true
+```
+
+#### Type Casting
+Types can be cast using parentheses:
+
+```zen
+var x = 5.5
+var y = (int) x    // Converts float to int
+print y            // 5
+
+var z: string? = "Hello"
+var w = (string) z // Cast from string? to string (fails if z is null)
+```
+
+Type casting rules:
+- Numeric types can be cast between each other
+- Nullable types can be cast to their non-nullable version (fails if the value is null)
+- Invalid casts throw a runtime error
+
 ### Builtin System
 
 Zen provides an extensible builtin system through the `IBuiltinsProvider` interface. This allows for modular addition of built-in functionality:
@@ -122,12 +189,12 @@ Zen provides an extensible builtin system through the `IBuiltinsProvider` interf
 
 ## TODO
 
-- [] Typing
-- - [] Nullable types
-- - [] Type casting using parenthesis
-- - [] Type comparison using 'is'
+- [x] Typing
+- - [x] Nullable types
+- - [x] Type casting using parenthesis
+- - [x] Type comparison using 'is'
 - - [] Union types, like type number = int|float
-- [] Classes
+- [x] Classes
 - - [] Interfaces
 - - - [] interface declaration statement
 - - - [] class support for interfaces via `implements` keyword

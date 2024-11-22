@@ -36,10 +36,13 @@ public class ZenClass {
 
     public Dictionary<string, Property> Properties = [];
 
+    public ZenTypeClass Type;
+
     public ZenClass(string name, List<ZenMethod> methods, List<Property> properties) {
         Name = name;
         Methods = methods;
         Properties = properties.ToDictionary(x => x.Name, x => x);
+        Type = new ZenTypeClass(this, Name, []);
     }
 
     public ZenClass(string name, List<ZenMethod> methods) : this(name, methods, []) {}
@@ -139,6 +142,14 @@ public class ZenClass {
         }else {
             SuperClass.HasMethodHierarchically(name, out method);
         }
+    }
+
+    public bool IsAssignableFrom(ZenClass other) {
+        return this == other || this.SuperClass == other || this.SuperClass.IsAssignableFrom(other);
+    }
+
+    public bool IsSubclassOf(ZenClass other) {
+        return other.IsAssignableFrom(this);
     }
 
     public override string ToString()

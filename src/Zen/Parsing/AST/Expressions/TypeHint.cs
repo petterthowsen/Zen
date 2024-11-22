@@ -27,13 +27,17 @@ public class TypeHint : Expr
         Nullable = nullable;
     }
 
+    public bool IsPrimitive() {
+        return ZenType.Exists(Name);
+    }
+
     public ZenType GetBaseZenType() {
-        return ZenType.FromString(Name);
+        return ZenType.FromString(Name, Nullable);
     }
 
     public ZenType GetZenType() {
         if (IsParametric) {
-            return new ZenType(Name, Parameters.Select(p => p.GetZenType()).ToArray());
+            return new ZenType(Name, Nullable, Parameters.Select(p => p.GetZenType()).ToArray());
         }
         return GetBaseZenType();
     }
