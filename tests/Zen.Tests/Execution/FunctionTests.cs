@@ -73,6 +73,20 @@ public class FunctionTests : TestRunner
     }
 
     [Fact]
+    public void TestFuncWithLocalVars() {
+        RestartInterpreter();
+        string? result = Execute(@"func hello() {
+    var a = 1
+    var b = 2
+    print a + b
+}
+hello()
+");
+
+        Assert.Equal("3", result);
+    }
+
+    [Fact]
     public void TestScope() {
         RestartInterpreter();
 

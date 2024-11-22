@@ -117,9 +117,10 @@ public class Resolver : IVisitor
     }
 
     private void ResolveLocal(Expr expr, string name) {
-        foreach (var scope in scopes) {
-            if (scope.ContainsKey(name)) {
-                interpreter.Resolve(expr, scope.Count - 1);
+        var scopesList = scopes.ToList(); // Convert stack to list for indexed access
+        for (int i = 0; i < scopesList.Count; i++) {
+            if (scopesList[i].ContainsKey(name)) {
+                interpreter.Resolve(expr, scopesList.Count - 1 - i);
                 return;
             }
         }
