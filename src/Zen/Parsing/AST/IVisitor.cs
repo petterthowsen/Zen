@@ -40,4 +40,5 @@ public interface IVisitor
     void Visit(This dis);
     void Visit(TypeCheck typeCheck);
     void Visit(TypeCast typeCast);
+    void Visit(Await await);
 }

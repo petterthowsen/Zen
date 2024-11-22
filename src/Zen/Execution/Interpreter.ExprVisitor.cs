@@ -60,7 +60,7 @@ public partial class Interpreter
         }
     }
 
-    public IEvaluationResult Visit(Grouping grouping)
+public IEvaluationResult Visit(Grouping grouping)
     {
         return Evaluate(grouping.Expression);
     }
@@ -70,8 +70,8 @@ public partial class Interpreter
         IEvaluationResult eval = Evaluate(unary.Right);
 
         if (unary.IsNot())
-        {
-            // Negate the truthiness of the value
+{
+    // Negate the truthiness of the value
             if ( ! eval.IsTruthy())
             {
                 return (ValueResult)ZenValue.True;
@@ -217,6 +217,34 @@ public partial class Interpreter
         return LookUpVariable("this", dis);
     }
 
+    public IEvaluationResult Visit(Await await)
+    {
+        // Evaluate the expression being awaited
+        IEvaluationResult result = Evaluate(await.Expression);
+        
+        // Get the value
+        ZenValue value = result.Value;
+        
+        // If it's not a promise, throw an error
+        if (value.Underlying is not ZenPromise promise)
+        {
+            throw Error($"Cannot await non-promise value of type '{value.Type}'", 
+                await.Location, Common.ErrorType.TypeError);
+        }
+
+        // Wait for the promise to complete and get its result
+        try 
+        {
+            ZenValue promiseResult = promise.AsTask().GetAwaiter().GetResult();
+            return (ValueResult)promiseResult;
+        }
+        catch (Exception ex)
+        {
+            throw Error($"Promise rejected with error: {ex.Message}", 
+                await.Location, Common.ErrorType.RuntimeError);
+        }
+    }
+
     public IEvaluationResult Visit(Call call)
     {
         IEvaluationResult callee = Evaluate(call.Callee);
@@ -233,8 +261,8 @@ public partial class Interpreter
 
             // check number of arguments is at most equal to the number of parameters
             if (call.Arguments.Length > function.Parameters.Count)
-            {
-                throw Error($"Too many arguments for function", null, Common.ErrorType.RuntimeError);
+    {
+        throw Error($"Too many arguments for function", null, Common.ErrorType.RuntimeError);
             }
 
             // evaluate the arguments
@@ -254,8 +282,8 @@ public partial class Interpreter
                 if (!TypeChecker.IsCompatible(argument.Type, parameter.Type))
                 {
                     throw Error($"Cannot pass argument of type '{argument.Type}' to parameter of type '{parameter.Type}'", call.Arguments[i].Location, Common.ErrorType.TypeError);
-                }
-            }
+    }
+}
 
             if (function is ZenHostFunction)
             {
@@ -345,8 +373,8 @@ public partial class Interpreter
                 ZenClass clazz = (ZenClass) variable.Value.Underlying!;
 
                 return (TypeResult) clazz.Type;
-            }
-        }
+    }
+    }
 
         return (TypeResult) typeHint.GetBaseZenType();
     }

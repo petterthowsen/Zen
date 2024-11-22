@@ -7,7 +7,7 @@ public class ZenClass {
 
     public static readonly ZenClass Master = new ZenClass("Master", [
         // methods
-        new ZenHostMethod("ToString", Visibility.Public, ZenType.String, [], (ZenValue[] args) => {
+        new ZenHostMethod(false, "ToString", Visibility.Public, ZenType.String, [], (ZenValue[] args) => {
             ZenObject instance = ((ZenValue) args[0]).Underlying!;
             return new ZenValue(ZenType.String, "Object(" + instance.Class.Name + ")");
         }),

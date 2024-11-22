@@ -226,7 +226,7 @@ public class Parser
 		if (MatchKeyword("if")) return IfStatement();
 		if (MatchKeyword("while")) return WhileStatement();
 		if (MatchKeyword("for")) return ForStatement();
-		if (MatchKeywordSequence("async func")) return FuncStatement(true);
+		if (MatchKeywordSequence("async", "func")) return FuncStatement(true);
 		if (MatchKeyword("func")) return FuncStatement(false);
 		if (MatchKeyword("class")) return ClassStatement();
 		if (MatchKeyword("return")) return ReturnStatement();
@@ -1029,6 +1029,15 @@ public class Parser
 
     private Expr Unary()
     {
+        // await expression
+        if (MatchKeyword("await"))
+        {
+            Token awaitToken = Previous;
+            MaybeSome(TokenType.Whitespace);
+            Expr expr = Unary();
+            return new Await(awaitToken, expr);
+        }
+
         // Type cast using parentheses
         if (Match(TokenType.OpenParen))
         {
@@ -1037,7 +1046,7 @@ public class Parser
 
             // Look ahead to see if this is a type cast or just a grouping
             int savedIndex = _index;
-			Error[] savedErrors = Errors.ToArray();
+            Error[] savedErrors = Errors.ToArray();
             try {
                 // Try parsing as type hint
                 TypeHint type = TypeHint();
@@ -1050,8 +1059,8 @@ public class Parser
             catch {
                 // If parsing as type hint fails, restore index and treat as grouping
                 _index = savedIndex;
-				Errors.Clear();
-				Errors.AddRange(savedErrors);
+                Errors.Clear();
+                Errors.AddRange(savedErrors);
 
                 Expr expr = Expression();
                 MaybeSome(TokenType.Whitespace);

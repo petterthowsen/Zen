@@ -433,4 +433,12 @@ public class DebugPrintVisitor : IVisitor {
 
         _sb.Indent--;
     }
+
+    public void Visit(Await await)
+    {
+        _sb.Add(await.ToString());
+        _sb.Indent++;
+        await.Expression.Accept(this);
+        _sb.Indent--;
+    }
 }

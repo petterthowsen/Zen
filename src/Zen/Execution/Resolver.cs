@@ -355,4 +355,9 @@ public class Resolver : IVisitor
     {
         Resolve(typeCast.Expression);
     }
+
+    public void Visit(Await await)
+    {
+        Resolve(await.Expression);
+    }
 }

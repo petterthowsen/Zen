@@ -9,7 +9,7 @@ public class ZenUserMethod : ZenMethod
 
     public Block Block;
 
-    public ZenUserMethod(string name, ZenClass.Visibility visibility, ZenType returnType, List<ZenFunction.Parameter> parameters, Block block, Environment closure) : base(name, visibility, returnType, parameters)
+    public ZenUserMethod(bool async, string name, ZenClass.Visibility visibility, ZenType returnType, List<ZenFunction.Parameter> parameters, Block block, Environment closure) : base(async, name, visibility, returnType, parameters)
     {
         Block = block;
         Closure = closure;

@@ -269,7 +269,7 @@ public partial class Interpreter
             parameters.Add(funcParamResult.Parameter);
         }
 
-        RegisterFunction(funcStmt.Identifier.Value, funcStmt.ReturnType.GetZenType(), parameters, funcStmt.Block, environment);
+        RegisterFunction(funcStmt.Async, funcStmt.Identifier.Value, funcStmt.ReturnType.GetZenType(), parameters, funcStmt.Block, environment);
 
         return (ValueResult)ZenValue.Void;
     }
@@ -350,7 +350,7 @@ public partial class Interpreter
                 parameters.Add(funcParamResult.Parameter);
             }
 
-            ZenUserMethod method = new(name, visibility, returnType, parameters, methodStmt.Block, environment);
+            ZenUserMethod method = new(methodStmt.Async, name, visibility, returnType, parameters, methodStmt.Block, environment);
             methods.Add(method);
         }
 

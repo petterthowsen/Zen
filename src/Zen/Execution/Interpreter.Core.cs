@@ -32,9 +32,15 @@ public partial class Interpreter : IGenericVisitor<IEvaluationResult>
     public bool GlobalOutputBufferingEnabled = false;
     public readonly StringBuilder GlobalOutputBuffer = new();
 
+    // Event loop for managing async operations
+    private readonly EventLoop _eventLoop;
+
     public Interpreter()
     {
         environment = globalEnvironment;
+        _eventLoop = new EventLoop();
+        _eventLoop.Start();
+
         RegisterBuiltins(new Builtins.Core.Typing());
         RegisterBuiltins(new Builtins.Core.Time());
     }
@@ -50,15 +56,38 @@ public partial class Interpreter : IGenericVisitor<IEvaluationResult>
 
     public void RegisterHostFunction(string name, ZenType returnType, List<ZenFunction.Parameter> parameters, Func<ZenValue[], ZenValue> func)
     {
-        var hostFunc = new ZenHostFunction(returnType, parameters, func, globalEnvironment);
+        var hostFunc = new ZenHostFunction(false, returnType, parameters, func, globalEnvironment);
         globalEnvironment.Define(true, name, ZenType.Function, false);
         globalEnvironment.Assign(name, new ZenValue(ZenType.Function, hostFunc));
     }
 
-    // TODO: need to store named map of parameters and their type and default value
-    public void RegisterFunction(string name, ZenType returnType, List<ZenFunction.Parameter> parameters, Block block, Environment? closure = null)
+    public void RegisterAsyncHostFunction(string name, ZenType returnType, List<ZenFunction.Parameter> parameters, Func<ZenValue[], Task<ZenValue>> func)
     {
-        var userFunc = new ZenUserFunction(returnType, parameters, block, closure ?? globalEnvironment);
+        var hostFunc = new ZenHostFunction(true, returnType, parameters, args =>
+        {
+            var promise = new ZenPromise(environment, returnType);
+            _eventLoop.EnqueueTask(async () =>
+            {
+                try
+                {
+                    var result = await func(args);
+                    promise.Resolve(result);
+                }
+                catch (Exception ex)
+                {
+                    promise.Reject(new ZenValue(ZenType.String, ex.Message));
+                }
+            });
+            return new ZenValue(ZenType.Promise, promise);
+        }, globalEnvironment);
+
+        globalEnvironment.Define(true, name, ZenType.Function, false);
+        globalEnvironment.Assign(name, new ZenValue(ZenType.Function, hostFunc));
+    }
+
+    public void RegisterFunction(bool async, string name, ZenType returnType, List<ZenFunction.Parameter> parameters, Block block, Environment? closure = null)
+    {
+        var userFunc = new ZenUserFunction(async, returnType, parameters, block, closure ?? globalEnvironment);
         globalEnvironment.Define(true, name, ZenType.Function, false);
         globalEnvironment.Assign(name, new ZenValue(ZenType.Function, userFunc));
     }
@@ -234,5 +263,10 @@ public partial class Interpreter : IGenericVisitor<IEvaluationResult>
     public void Interpret(Node node)
     {
         node.Accept(this);
+    }
+
+    public void Shutdown()
+    {
+        _eventLoop.Stop();
     }
 }

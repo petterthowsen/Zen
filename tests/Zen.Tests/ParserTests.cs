@@ -386,6 +386,23 @@ public class ParserTests {
         Assert.IsType<TypeHint>(funcStmt.ReturnType);
     }
 
+    [Fact]
+    public void TestAsyncFuncStmt() {
+        ProgramNode program = Parse("async func test() { }");
+        Assert.Single(program.Statements);
+        Assert.IsType<FuncStmt>(program.Statements[0]);
+
+        FuncStmt funcStmt = (FuncStmt)program.Statements[0];
+        Assert.Equal(TokenType.Identifier, funcStmt.Identifier.Type);
+        Assert.Equal("test", funcStmt.Identifier.Value);
+
+        Assert.Empty(funcStmt.Parameters);
+        Assert.IsType<Block>(funcStmt.Block);
+        Assert.IsType<TypeHint>(funcStmt.ReturnType);
+
+        Assert.True(funcStmt.Async);
+    }
+
     
     [Fact]
     public void TestFuncStmtWithExplicitVoidReturnType() {

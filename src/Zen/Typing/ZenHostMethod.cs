@@ -1,3 +1,4 @@
+using System.Reflection.Metadata;
 using Zen.Execution;
 
 namespace Zen.Typing;
@@ -9,12 +10,13 @@ public class ZenHostMethod : ZenMethod
     public readonly Func<ZenValue[], ZenValue> Func;
 
     public ZenHostMethod(
+        bool async,
         string name,
         ZenClass.Visibility visibility,
         ZenType returnType,
         List<Parameter> parameters,
         Func<ZenValue[], ZenValue> func
-    ) : base(name, visibility, returnType, parameters)
+    ) : base(async, name, visibility, returnType, parameters)
     {
         Func = func;
     }

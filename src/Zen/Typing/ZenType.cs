@@ -17,7 +17,8 @@ public class ZenType {
     public static ZenType Void = new("void");
     public static ZenType Array = new("array", [ZenType.String, ZenType.Integer]);
     public static ZenType Map = new("map", [ZenType.String, ZenType.String]);
-    public static ZenType Type = new("type"); // New: Represents type values themselves
+    public static ZenType Type = new("type"); // Represents type values themselves
+    public static ZenType Promise = new("Promise"); // New: Represents Promise type
 
     private static readonly Dictionary<string, ZenType> _primitives = new() {
         { "int", Integer },
@@ -30,7 +31,8 @@ public class ZenType {
         { "void", Void },
         { "array", Array },
         { "map", Map },
-        { "func", Function },        
+        { "func", Function },
+        { "Promise", Promise },
     };
 
     public static bool Exists(string name) => _primitives.ContainsKey(name);
@@ -52,6 +54,7 @@ public class ZenType {
     public bool IsPrimitive => this == Integer || this == Float || this == Integer64 || this == Float64 || this == Boolean || this == String || this == Null || this == Void;
     public bool IsNumeric => this == Integer || this == Float || this == Integer64 || this == Float64;
     public bool IsParametric => Parameters.Length > 0;
+    public bool IsPromise => this == Promise || (IsParametric && Name == "Promise"); // New: Check if type is Promise
 
     public ZenType(string name, params ZenType[] parameters) {
         Name = name;

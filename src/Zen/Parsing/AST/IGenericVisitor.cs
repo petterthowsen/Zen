@@ -40,4 +40,5 @@ public interface IGenericVisitor<T>
     T Visit(This dis);
     T Visit(TypeCheck typeCheck);
     T Visit(TypeCast typeCast);
+    T Visit(Await await);
 }

@@ -31,18 +31,22 @@ public abstract class ZenFunction : ICallable {
 
     public int Arity => Parameters.Count;
     
+    public bool Async = false;
+
     private readonly ZenType _returnType;
     public ZenType ReturnType => _returnType;
     public List<Parameter> Parameters;
 
     public Environment? Closure = null;
 
-    public ZenFunction(ZenType returnType, List<Parameter> parameters) {
+    public ZenFunction(bool async, ZenType returnType, List<Parameter> parameters) {
         _returnType = returnType;
         Parameters = parameters;
+        Async = async;
     }
 
-    public ZenFunction(ZenType returnType, List<Parameter> parameters, Environment closure) : this(returnType, parameters) {
+    public ZenFunction(bool async, ZenType returnType, List<Parameter> parameters, Environment closure) : this(async, returnType, parameters) {
+        Async = async;
         Closure = closure;
     }
     
