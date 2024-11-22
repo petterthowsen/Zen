@@ -1,10 +1,10 @@
-// Interpreter.Core.cs
 using System.Text;
 using Zen.Common;
 using Zen.Lexing;
 using Zen.Parsing.AST;
 using Zen.Typing;
 using Zen.Execution.EvaluationResult;
+using Zen.Execution.Import;
 
 namespace Zen.Execution;
 
@@ -24,7 +24,7 @@ public partial class Interpreter : IGenericVisitor<IEvaluationResult>
     public Environment environment;
 
     /// <summary>
-    /// Maps expressions to a distance from global scope (I think?)
+    /// Maps expressions to a distance from global scope
     /// </summary>
     protected Dictionary<Expr, int> Locals = [];
 
@@ -33,16 +33,22 @@ public partial class Interpreter : IGenericVisitor<IEvaluationResult>
     public readonly StringBuilder GlobalOutputBuffer = new();
 
     // Event loop for managing async operations
-    private readonly EventLoop _eventLoop;
+    public readonly EventLoop EventLoop;
 
-    public Interpreter()
+    // Importer for managing packages and modules
+    public Importer Importer;
+
+    public Interpreter(EventLoop eventLoop)
     {
         environment = globalEnvironment;
-        _eventLoop = new EventLoop();
-        _eventLoop.Start();
-
+        EventLoop = eventLoop;
         RegisterBuiltins(new Builtins.Core.Typing());
         RegisterBuiltins(new Builtins.Core.Time());
+    }
+
+    public void SetImporter(Importer importer)
+    {
+        Importer = importer;
     }
 
     /// <summary>
@@ -66,7 +72,7 @@ public partial class Interpreter : IGenericVisitor<IEvaluationResult>
         var hostFunc = new ZenHostFunction(true, returnType, parameters, args =>
         {
             var promise = new ZenPromise(environment, returnType);
-            _eventLoop.EnqueueTask(async () =>
+            EventLoop.EnqueueTask(async () =>
             {
                 try
                 {
@@ -88,8 +94,13 @@ public partial class Interpreter : IGenericVisitor<IEvaluationResult>
     public void RegisterFunction(bool async, string name, ZenType returnType, List<ZenFunction.Parameter> parameters, Block block, Environment? closure = null)
     {
         var userFunc = new ZenUserFunction(async, returnType, parameters, block, closure ?? globalEnvironment);
+        RegisterFunction(name, userFunc);
+    }
+
+    public void RegisterFunction(string name, ZenUserFunction func)
+    {
         globalEnvironment.Define(true, name, ZenType.Function, false);
-        globalEnvironment.Assign(name, new ZenValue(ZenType.Function, userFunc));
+        globalEnvironment.Assign(name, new ZenValue(ZenType.Function, func));
     }
 
     public void Resolve(Expr expr, int depth = 0)
@@ -267,6 +278,6 @@ public partial class Interpreter : IGenericVisitor<IEvaluationResult>
 
     public void Shutdown()
     {
-        _eventLoop.Stop();
+        EventLoop.Stop();
     }
 }

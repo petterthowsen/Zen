@@ -1,0 +1,5 @@
+async func DelayAndReturn(ms: int): int {
+    var t = time()
+    await delay(ms)
+    return time() - t
+}

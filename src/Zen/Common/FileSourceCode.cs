@@ -2,9 +2,9 @@ namespace Zen.Common;
 
 using System.IO;
 
-class FileSourceCode : AbstractSourceCode {
+public class FileSourceCode : AbstractSourceCode {
 
-    public required string FilePath { get; init; }
+    public string FilePath;
 
     private static string ReadFile(string filePath) {
         return File.ReadAllText(filePath);

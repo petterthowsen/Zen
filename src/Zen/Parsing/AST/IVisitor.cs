@@ -1,3 +1,4 @@
+using Zen.Execution.Import;
 using Zen.Parsing.AST.Expressions;
 using Zen.Parsing.AST.Statements;
 
@@ -23,6 +24,9 @@ public interface IVisitor
     void Visit(PropertyStmt propertyStmt);
     void Visit(MethodStmt methodStmt);
     void Visit(Instantiation instantiation);
+    void Visit(ImportStmt importStmt);
+    void Visit(FromImportStmt fromImportStmt);
+    void Visit(PackageStmt packageStmt);
 
     // Expressions
     void Visit(Binary binary);

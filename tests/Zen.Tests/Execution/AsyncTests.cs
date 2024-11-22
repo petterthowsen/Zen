@@ -69,19 +69,6 @@ public class AsyncTests : TestRunner
     public void TestAsyncDelay() {
         RestartInterpreter();
 
-        // Register a test async function that returns a promise
-        Interpreter.RegisterAsyncHostFunction(
-            "delay",
-            ZenType.Integer,
-            [new ZenFunction.Parameter("ms", ZenType.Integer, false)],
-            async (args) =>
-            {
-                int ms = (int)args[0].Underlying;
-                await Task.Delay(ms);
-                return new ZenValue(ZenType.Integer, ms);
-            }
-        );
-
         string? result = Execute(@"
             async func test() {
                 var start = time()
@@ -99,18 +86,6 @@ public class AsyncTests : TestRunner
     public void TestAsyncFuncWithLocalVars() {
         RestartInterpreter();
 
-        Interpreter.RegisterAsyncHostFunction(
-            "delay",
-            ZenType.Integer,
-            [new ZenFunction.Parameter("ms", ZenType.Integer, false)],
-            async (args) =>
-            {
-                int ms = (int)args[0].Underlying;
-                await Task.Delay(ms);
-                return new ZenValue(ZenType.Integer, ms);
-            }
-        );
-
         string? result = Execute(@"
             async func test() {
                 var start = time()
@@ -120,9 +95,10 @@ public class AsyncTests : TestRunner
                 print elapsed >= 100 and a + b == 101
             }
             test()
+            print ""before""
         ");
 
-        Assert.Equal("true", result);
+        Assert.Equal("beforetrue", result);
     }
 
     [Fact]

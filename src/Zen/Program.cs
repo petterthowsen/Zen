@@ -7,6 +7,7 @@ using Zen.Execution;
 using Zen.Lexing;
 using Zen.Parsing;
 using Zen.Parsing.AST;
+using Zen.Execution.Import;
 
 public class Program
 {
@@ -94,9 +95,11 @@ public class Program
             return;
         }
 
-        // execute program
         if (program != null) {
-            interpreter ??= new Interpreter();
+            // execute program
+            interpreter = new Interpreter(new EventLoop());
+            var importer = new Importer(parser, lexer, interpreter);
+            interpreter.SetImporter(importer);
             Resolver resolver = new(interpreter);
             
             try {
@@ -117,7 +120,7 @@ public class Program
     protected static void REPL() {
         Console.WriteLine("Zen REPL v0.1");
         
-        Interpreter interpreter = new();
+        Runtime runtime = new();
 
         while (true) {
             Console.Write(">> ");
@@ -131,7 +134,7 @@ public class Program
             //     input = "print " + input;
             // }
 
-            Execute(input, interpreter);
+            runtime.Execute(input);
         }
     }
 

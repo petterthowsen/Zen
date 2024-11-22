@@ -1,7 +1,5 @@
 namespace Zen.Parsing;
 
-using System.ComponentModel;
-using System.Reflection.Metadata.Ecma335;
 using Zen.Common;
 using Zen.Lexing;
 using Zen.Parsing.AST;
@@ -230,7 +228,75 @@ public class Parser
 		if (MatchKeyword("func")) return FuncStatement(false);
 		if (MatchKeyword("class")) return ClassStatement();
 		if (MatchKeyword("return")) return ReturnStatement();
+		if (MatchKeyword("import")) return ImportStatement();
+		if (MatchKeyword("from")) return FromImportStatement();
+		if (MatchKeyword("package")) return PackageStatement();
 		return ExpressionStatement();
+	}
+
+	private ImportStmt ImportStatement() {
+		Token token = Previous;
+		AtleastOne(TokenType.Whitespace);
+
+		var path = new List<string>();
+
+		// Parse import path (e.g., "MyPackage/Utils/Module")
+		do {
+			var name = Consume(TokenType.Identifier, "Expected module name.");
+			path.Add(name.Value);
+		} while (Match(TokenType.Slash, TokenType.Dot));
+
+		MaybeSome(TokenType.Whitespace);
+
+		Token? alias = null;
+		if (MatchKeyword("as")) {
+			AtleastOne(TokenType.Whitespace);
+			alias = Consume(TokenType.Identifier, "Expected alias name after 'as'.");
+		}
+
+		return new ImportStmt(token, path.ToArray(), alias);
+	}
+
+	private FromImportStmt FromImportStatement() {
+		Token token = Previous; // "from" keyword token
+		AtleastOne(TokenType.Whitespace);
+
+		var path = new List<string>();
+		var symbols = new List<Token>();
+
+		// Parse import path (e.g., "MyPackage/Utils/Module")
+		do {
+			var name = Consume(TokenType.Identifier, "Expected module name.");
+			path.Add(name.Value);
+		} while (Match(TokenType.Slash, TokenType.Dot));
+
+		// parse "import" token
+		AtleastOne(TokenType.Whitespace);
+		Consume(TokenType.Keyword, "Expected 'import' keyword after path.");
+		MaybeSome(TokenType.Whitespace);
+
+		// Parse symbols (e.g., "MyClass", "myFunction")
+		do {
+			var name = Consume(TokenType.Identifier, "Expected symbol name.");
+			symbols.Add(name);
+		} while (Match(TokenType.Comma));
+
+		return new FromImportStmt(token, path.ToArray(), [..symbols]);
+	}
+
+	private PackageStmt PackageStatement() {
+		Token token = Previous;
+		AtleastOne(TokenType.Whitespace);
+
+		var path = new List<string>();
+
+		// Parse package path (e.g., "MyPackage/SubPackage")
+		do {
+			var name = Consume(TokenType.Identifier, "Expected package name.");
+			path.Add(name.Value);
+		} while (Match(TokenType.Slash));
+
+		return new PackageStmt(token, path.ToArray());
 	}
 
 	private VarStmt VarStatement(Token? startingToken = null) {
@@ -1055,7 +1121,7 @@ public class Parser
                 MaybeSome(TokenType.Whitespace);
                 Expr expr = Unary();
                 return new TypeCast(leftParen, type, expr);
-            }
+}
             catch {
                 // If parsing as type hint fails, restore index and treat as grouping
                 _index = savedIndex;
@@ -1201,6 +1267,7 @@ public class Parser
 				switch (Peek().Value)
 				{
 					case "class":
+					case "async":
 					case "func":
 					case "var":
 					case "const":

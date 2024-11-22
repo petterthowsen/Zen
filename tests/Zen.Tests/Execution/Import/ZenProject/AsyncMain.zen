@@ -1,0 +1,8 @@
+from MyPackage/Utils import DelayAndReturn
+
+async func test() {
+    var elapsed = await DelayAndReturn(100)
+    print elapsed >= 100
+}
+
+test()

@@ -668,4 +668,32 @@ public class ParserTests {
         Assert.Equal("int", typeHint.Name);
         Assert.False(typeHint.Nullable);
     }
+
+    [Fact]
+    public void TestPackageDeclaration() {
+        ProgramNode program = Parse("package foo");
+        Assert.Single(program.Statements);
+        Assert.IsType<PackageStmt>(program.Statements[0]);
+    }
+
+    [Fact]
+    public void TestImportStatement() {
+        ProgramNode program = Parse("import foo");
+        Assert.Single(program.Statements);
+        Assert.IsType<ImportStmt>(program.Statements[0]);
+
+        ImportStmt importStmt = (ImportStmt)program.Statements[0];
+        Assert.Equal("foo", importStmt.Path[0]);
+    }
+
+    [Fact]
+    public void TestFromImportStatement() {
+        ProgramNode program = Parse("from foo import bar");
+        Assert.Single(program.Statements);
+        Assert.IsType<FromImportStmt>(program.Statements[0]);
+
+        FromImportStmt fromImportStmt = (FromImportStmt)program.Statements[0];
+        Assert.Equal("foo", fromImportStmt.Path[0]);
+        Assert.Equal("bar", fromImportStmt.Symbols[0].Value);
+    }
 }

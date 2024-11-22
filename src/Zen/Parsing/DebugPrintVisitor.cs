@@ -441,4 +441,19 @@ public class DebugPrintVisitor : IVisitor {
         await.Expression.Accept(this);
         _sb.Indent--;
     }
+
+    public void Visit(ImportStmt importStmt)
+    {
+        _sb.Add(importStmt.ToString());
+    }
+
+    public void Visit(FromImportStmt fromImportStmt)
+    {
+        _sb.Add(fromImportStmt.ToString());
+    }
+
+    public void Visit(PackageStmt packageStmt)
+    {
+        _sb.Add(packageStmt.ToString());
+    }
 }

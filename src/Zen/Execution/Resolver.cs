@@ -360,4 +360,19 @@ public class Resolver : IVisitor
     {
         Resolve(await.Expression);
     }
+
+    public void Visit(ImportStmt importStmt)
+    {
+        // handled by the Importer
+    }
+
+    public void Visit(FromImportStmt fromImportStmt)
+    {
+        // handled by the Importer
+    }
+
+    public void Visit(PackageStmt packageStmt)
+    {
+        // handled by the Importer
+    }
 }

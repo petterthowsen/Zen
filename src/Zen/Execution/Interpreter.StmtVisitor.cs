@@ -1,4 +1,4 @@
-// Interpreter.StatementVisitor.cs
+using Zen.Common;
 using Zen.Execution.EvaluationResult;
 using Zen.Lexing;
 using Zen.Parsing.AST;
@@ -11,7 +11,7 @@ public partial class Interpreter
     public IEvaluationResult Visit(ProgramNode programNode)
     {
         foreach (var statement in programNode.Statements)
-        {
+    {
             statement.Accept(this);
         }
 
@@ -59,7 +59,7 @@ public partial class Interpreter
                     break;
                 }
             }
-        }
+            }
         else if (ifStmt.Else != null)
         {
             ifStmt.Else.Accept(this);
@@ -128,7 +128,7 @@ public partial class Interpreter
             if (varStmt.TypeHint == null)
             {
                 type = value.Type;
-            }
+        }
 
             environment.Define(constant, name, type!, nullable);
             environment.Assign(name, value.Value);
@@ -258,8 +258,15 @@ public partial class Interpreter
         throw new ReturnException(result, returnStmt.Location);
     }
 
-    public IEvaluationResult Visit(FuncStmt funcStmt)
+    /// <summary>
+    /// Parse a function statement but does not register it.
+    /// </summary>
+    /// <param name="funcStmt"></param>
+    /// <returns>ZenFunction</returns>
+    protected ZenUserFunction ParseFunctionStatement(FuncStmt funcStmt, Environment? closure = null)
     {
+        closure ??= environment;
+
         // function parameters
         List<ZenFunction.Parameter> parameters = [];
 
@@ -269,15 +276,20 @@ public partial class Interpreter
             parameters.Add(funcParamResult.Parameter);
         }
 
-        RegisterFunction(funcStmt.Async, funcStmt.Identifier.Value, funcStmt.ReturnType.GetZenType(), parameters, funcStmt.Block, environment);
+        return new ZenUserFunction(funcStmt.Async, funcStmt.ReturnType.GetZenType(), parameters, funcStmt.Block, closure);
+    }
+
+    public IEvaluationResult Visit(FuncStmt funcStmt)
+    {
+        ZenUserFunction zenFunction = ParseFunctionStatement(funcStmt);
+
+        RegisterFunction(funcStmt.Identifier.Value, zenFunction);
 
         return (ValueResult)ZenValue.Void;
     }
 
-       public IEvaluationResult Visit(ClassStmt classStmt)
+    protected ZenClass ParseClassStatement(ClassStmt classStmt)
     {
-        environment.Define(true, classStmt.Identifier.Value, ZenType.Class, false);
-
         // create the Properties
         List<ZenClass.Property> properties = [];
 
@@ -354,7 +366,14 @@ public partial class Interpreter
             methods.Add(method);
         }
 
-        ZenClass clazz = new ZenClass(classStmt.Identifier.Value, methods, properties);
+        return new ZenClass(classStmt.Identifier.Value, methods, properties);
+    }
+
+    public IEvaluationResult Visit(ClassStmt classStmt)
+    {
+        environment.Define(true, classStmt.Identifier.Value, ZenType.Class, false);
+
+        ZenClass clazz = ParseClassStatement(classStmt);
 
         environment.Assign(classStmt.Identifier.Value, new ZenValue(ZenType.Class, clazz));
 

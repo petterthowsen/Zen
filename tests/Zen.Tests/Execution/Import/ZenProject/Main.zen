@@ -1,0 +1,3 @@
+from MyPackage/Utils import PrintHello
+
+PrintHello()

@@ -23,6 +23,9 @@ public interface IGenericVisitor<T>
     T Visit(PropertyStmt propertyStmt);
     T Visit(MethodStmt methodStmt);
     T Visit(Instantiation instantiation);
+    T Visit(ImportStmt importStmt);
+    T Visit(FromImportStmt fromImportStmt);
+    T Visit(PackageStmt packageStmt);
 
     // Expressions
     T Visit(Binary binary);

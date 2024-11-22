@@ -32,7 +32,7 @@ public enum Keywords
     Super, New, Is, This, Static,
     Abstract, Final, Readonly, Override,
 
-    Namespace, Import, From, As, Alias,
+    Namespace, Package, Import, From, As, Alias,
 
     Try, Catch, Throw, Finally,
 

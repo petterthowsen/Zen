@@ -1,35 +1,30 @@
-using Xunit.Abstractions;
-using Zen.Common;
-using Zen.Execution;
-using Zen.Execution.Import;
 using Zen.Lexing;
 using Zen.Parsing;
+using Zen.Parsing.AST;
+using Zen.Execution.Import;
+using Zen.Common;
 
-namespace Zen.Tests;
+namespace Zen.Execution;
 
-public class TestRunner
+/// <summary>
+/// The main runtime for Zen, managing lexing, parsing, and execution.
+/// </summary>
+public class Runtime
 {
-    protected readonly ITestOutputHelper Output;
-    protected readonly Lexer Lexer;
-    protected readonly Parser Parser;
-    protected Resolver Resolver;
-    protected Interpreter Interpreter;
-    protected readonly EventLoop EventLoop;
-    protected Importer Importer;
+    public readonly Lexer Lexer;
+    public readonly Parser Parser;
+    public readonly Resolver Resolver;
+    public readonly Interpreter Interpreter;
+    public readonly EventLoop EventLoop;
+    public readonly Importer Importer;
 
-    public TestRunner(ITestOutputHelper output)
+    public Runtime()
     {
-        Output = output;
         Lexer = new Lexer();
         Parser = new Parser();
         EventLoop = new EventLoop();
         EventLoop.Start();
         
-        RestartInterpreter();
-    }
-
-    protected virtual void RestartInterpreter()
-    {
         // Create interpreter first
         Interpreter = new Interpreter(EventLoop);
         
@@ -42,18 +37,18 @@ public class TestRunner
         Resolver = new Resolver(Interpreter);
     }
 
-    protected string? Execute(ISourceCode source)
+    public string? Execute(ISourceCode sourceCode)
     {
-        List<Token> tokens = Lexer.Tokenize(source);
-        var node = Parser.Parse(tokens);
-
+        List<Token> tokens = Lexer.Tokenize(sourceCode);
+        ProgramNode node = Parser.Parse(tokens);
+        
         if (Parser.Errors.Count > 0)
         {
             throw new Exception("Parse errors: " + string.Join("\n", Parser.Errors));
         }
 
         Resolver.Resolve(node);
-
+        
         if (Resolver.Errors.Count > 0)
         {
             throw new Exception("Resolver errors: " + string.Join("\n", Resolver.Errors));
@@ -66,5 +61,15 @@ public class TestRunner
         return output;
     }
 
-    protected string? Execute(string source) => Execute(new InlineSourceCode(source));
+    public string? Execute(string sourceCodeText) => Execute(new InlineSourceCode(sourceCodeText));
+
+    public void LoadPackage(string path)
+    {
+        Importer.LoadPackage(path);
+    }
+
+    public void Shutdown()
+    {
+        EventLoop.Stop();
+    }
 }

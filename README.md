@@ -99,6 +99,7 @@ The Zen language implementation follows a classic compiler/interpreter architect
    - `Interpreter.ExprVisitor.cs`: Expression evaluation visitor implementation
    - `Interpreter.StmtVisitor.cs`: Statement execution visitor implementation
    - `Interpreter.FuncHandler.cs`: Function and method call handling
+   - `Interpreter.Import.cs`: Module import and symbol resolution
 
    Key features:
    - Executes the AST using a tree-walk interpreter
@@ -115,6 +116,40 @@ The system uses a visitor pattern for traversing and executing the AST, with sep
 - First-class functions and closures
 - Scoped variable resolution
 - Runtime error handling with source locations
+- Module system with imports and namespaces
+
+### Module System
+
+Zen features a robust module system that supports packages, namespaces, and imports:
+
+#### Packages
+- Each Zen project must have a `package.zen` file that defines the package name
+- Package names form the root namespace for all modules in the package
+- Files in a package can access each other's public symbols
+
+#### Modules
+- Each `.zen` file is a module
+- Modules can contain functions, classes, and variables
+- Modules automatically get their own scope
+- Functions defined in a module close over the module's environment
+
+#### Imports
+Two types of import statements are supported:
+```zen
+// Import entire module (creates namespace)
+import MyPackage/Utils
+
+// Import specific symbols
+from MyPackage/Utils import PrintHello, FormatString
+```
+
+Import features:
+- Modules are loaded lazily when imported
+- Each module is executed only once
+- Imported functions maintain their original module scope
+- Circular dependencies are handled properly
+- Symbols can be imported with aliases
+- Directory modules automatically include all .zen files
 
 ### Type System
 
@@ -188,6 +223,8 @@ Zen provides an extensible builtin system through the `IBuiltinsProvider` interf
 - New builtin modules can be easily added by implementing IBuiltinsProvider
 
 ## TODO
+- [] Improved error handling
+- - [] make the interpreter track the current token and make the interpreters Error static function use that as the SourceLocation for the error.
 
 - [x] Typing
 - - [x] Nullable types
@@ -203,15 +240,15 @@ Zen provides an extensible builtin system through the `IBuiltinsProvider` interf
 - - [] super.method() for calling any parent method?
 - [] Static analysis
 - - [] Constant folding
-- [] Namespaces, packages & imports
-- - [] Ability to define nested symbols in the environment
-- - [] System for keeping track of the current executed file and the "working directory"
-- - [] `ìmport` system to import top-level public symbols from an files, with support for aliases
-- - [] `include` builtin function for executing the given file relative to the current file OR working directory? Not sure
-- - [] set up some Interpreter constants for the ZEN_HOME where packages are located
-- [] Runtime
-- - [] Event loop implementation
-- - [] Async / Await
+- [x] Namespaces, packages & imports
+- - [x] Ability to define nested symbols in the environment
+- - [x] System for keeping track of the current executed file and the "working directory"
+- - [x] `ìmport` system to import top-level public symbols from files, with support for aliases
+- - [] Package versioning and dependency management
+- - [] Standard library organization
+- [x] Runtime
+- - [x] Event loop implementation
+- - [x] Async / Await
 - - [] Exceptions
 - - - [] Exception Throwing
 - - - [] try/catch/finally statements
