@@ -1,4 +1,7 @@
+using System.Reflection;
+using System.Security.Cryptography.X509Certificates;
 using Zen.Common;
+using Zen.Execution.Import.Providers;
 using Zen.Lexing;
 using Zen.Parsing;
 using Zen.Parsing.AST;
@@ -12,18 +15,42 @@ namespace Zen.Execution.Import;
 public class Importer
 {
     private readonly Dictionary<string, Package> _packages = new();
-    private readonly Dictionary<string, Module> _modules = new();
-    private readonly Dictionary<string, Symbol> _symbols = new();
     private readonly HashSet<string> _executedModules = new();
     private readonly Parser _parser;
     private readonly Lexer _lexer;
     private readonly Interpreter _interpreter;
+    private readonly ModuleResolver _resolver;
+    private readonly FileSystemModuleProvider _fsProvider;
+    private Module? _currentModule;
 
     public Importer(Parser parser, Lexer lexer, Interpreter interpreter)
     {
         _parser = parser;
         _lexer = lexer;
         _interpreter = interpreter;
+
+        // Initialize providers
+        _fsProvider = new FileSystemModuleProvider();
+        var providers = new List<IModuleProvider>
+        {
+            // Standard library (embedded resources) has highest priority
+            new EmbeddedResourceModuleProvider(
+                typeof(Importer).Assembly,
+                "Zen.Execution.Builtins"
+            ),
+            // Filesystem provider for packages and search paths
+            _fsProvider
+        };
+
+        _resolver = new ModuleResolver(providers);
+    }
+
+    /// <summary>
+    /// Registers a new module provider.
+    /// </summary>
+    public void RegisterProvider(IModuleProvider provider)
+    {
+        _resolver.RegisterProvider(provider);
     }
 
     /// <summary>
@@ -31,11 +58,7 @@ public class Importer
     /// </summary>
     public Module GetModule(string modulePath)
     {
-        if (!_modules.TryGetValue(modulePath, out var module))
-        {
-            throw new RuntimeError($"Module not found: {modulePath}");
-        }
-        return module;
+        return _resolver.ResolveModule(modulePath, _parser, _lexer, _interpreter);
     }
 
     /// <summary>
@@ -52,8 +75,15 @@ public class Importer
 
         // Phase 1: Symbol Resolution
         Package package = LoadPackageDefinition(packagePath);
-        ScanModules(package);
+        
+        // Register the package with the filesystem provider
+        _fsProvider.RegisterPackage(package.RootNamespace, package.RootPath);
+        
+        // Add to known packages
         _packages[package.RootNamespace] = package;
+        
+        // Scan for modules
+        ScanModules(package);
     }
 
     /// <summary>
@@ -62,12 +92,29 @@ public class Importer
     /// </summary>
     public Symbol? ResolveSymbol(string name, string currentNamespace)
     {
-        // First check local namespace
-        if (_symbols.TryGetValue($"{currentNamespace}.{name}", out var symbol))
-            return symbol;
+        // First check current module's imports
+        if (_currentModule != null)
+        {
+            var symbol = _currentModule.ResolveImport(name);
+            if (symbol != null) return symbol;
+        }
 
-        // Then check global imports
-        return _symbols.GetValueOrDefault(name);
+        // Then check local namespace
+        var modulePath = $"{currentNamespace}/{name}";
+        try
+        {
+            var module = GetModule(modulePath);
+            if (module.IsSingleSymbol)
+            {
+                return module.Symbols[0];
+            }
+        }
+        catch (RuntimeError)
+        {
+            // Module not found, continue searching
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -77,7 +124,7 @@ public class Importer
     /// </summary>
     public void Import(string modulePath, string? alias = null)
     {
-        var module = LoadModule(modulePath);
+        var module = GetModule(modulePath);
         
         // Phase 2: Module Execution (if not already executed)
         if (!_executedModules.Contains(module.Path))
@@ -85,11 +132,16 @@ public class Importer
             ExecuteModule(module);
         }
 
+        if (_currentModule == null)
+        {
+            throw new RuntimeError("No current module context for import");
+        }
+
         if (module.IsSingleSymbol)
         {
             // Import single symbol directly
             var symbol = module.Symbols[0];
-            _symbols[alias ?? symbol.Name] = symbol;
+            _currentModule.AddImport(alias ?? symbol.Name, symbol);
         }
         else
         {
@@ -97,7 +149,7 @@ public class Importer
             var ns = alias ?? module.Namespace;
             foreach (var symbol in module.Symbols)
             {
-                _symbols[$"{ns}.{symbol.Name}"] = symbol;
+                _currentModule.AddImport($"{ns}/{symbol.Name}", symbol);
             }
         }
     }
@@ -107,71 +159,131 @@ public class Importer
     /// </summary>
     public void ImportSymbols(string modulePath, IEnumerable<string> symbolNames)
     {
-        // First try to load the module as a directory
-        var module = LoadModule(modulePath);
+        if (_currentModule == null)
+        {
+            throw new RuntimeError("No current module context for import");
+        }
 
         foreach (var name in symbolNames)
         {
-            // First try to find the symbol in the directory module
-            var symbol = module.Symbols.FirstOrDefault(s => s.Name == name);
-            
-            if (symbol == null)
+            // First try to load the symbol as a direct module
+            var symbolPath = $"{modulePath}/{name}";
+            try
             {
-                // If not found, try to load it as a separate file
-                var symbolModulePath = Path.Combine(modulePath, name).Replace("\\", "/");
+                var symbolModule = GetModule(symbolPath);
+                
+                // Execute the symbol module if needed
+                if (!_executedModules.Contains(symbolModule.Path))
+                {
+                    ExecuteModule(symbolModule);
+                }
+
+                if (symbolModule.IsSingleSymbol)
+                {
+                    _currentModule.AddImport(name, symbolModule.Symbols[0]);
+                    continue;
+                }
+            }
+            catch (RuntimeError)
+            {
+                // If not found as a direct module, try to find the symbol in the module itself
                 try
                 {
-                    var symbolModule = LoadModule(symbolModulePath);
+                    var module = GetModule(modulePath);
                     
-                    // Execute the symbol module if needed
-                    if (!_executedModules.Contains(symbolModule.Path))
+                    // Execute the module if needed
+                    if (!_executedModules.Contains(module.Path))
                     {
-                        ExecuteModule(symbolModule);
+                        ExecuteModule(module);
                     }
 
-                    if (symbolModule.Symbols.Count > 0)
+                    var symbol = module.Symbols.FirstOrDefault(s => s.Name == name);
+                    if (symbol != null)
                     {
-                        symbol = symbolModule.Symbols[0];
+                        _currentModule.AddImport(name, symbol);
+                        continue;
                     }
                 }
                 catch (RuntimeError)
                 {
-                    // If we can't find the symbol module, throw an error
+                    // If module not found, throw error
                     throw new RuntimeError($"Symbol '{name}' not found in module '{modulePath}'");
                 }
-            }
-            else
-            {
-                // If we found the symbol in the directory module, make sure its source module is executed
-                var sourceModulePath = Path.Combine(modulePath, name).Replace("\\", "/");
-                if (_modules.TryGetValue(sourceModulePath, out var sourceModule) && !_executedModules.Contains(sourceModule.Path))
-                {
-                    ExecuteModule(sourceModule);
-                }
-            }
 
-            if (symbol != null)
-            {
-                _symbols[name] = symbol;
-            }
-            else
-            {
+                // If we get here, the symbol wasn't found
                 throw new RuntimeError($"Symbol '{name}' not found in module '{modulePath}'");
             }
         }
     }
 
-    private void ExecuteModule(Module module)
+    /// <summary>
+    /// Executes a module.
+    /// If global is true, the module is executed in the global environment,
+    /// otherwise it's executed in its own Environment.
+    /// </summary>
+    public void ExecuteModule(Module module, bool global = false)
+    {
+        var prevModule = _currentModule;
+
+        try {
+            _currentModule = module;
+
+            if (global) {
+            Execute(module.Ast!);
+            }else {
+                ExecuteModule(module);
+            }
+
+            // we probably don't need to tag it as executed
+            //_executedModules.Add(module.Path);
+        } finally {
+            _currentModule = prevModule;
+        }
+    }
+
+    protected void Execute(ProgramNode node)
+    {
+        // Create a new resolver for this module
+        var resolver = new Resolver(_interpreter);
+        resolver.Resolve(node);
+
+        // Execute the node
+        _interpreter.Interpret(node);
+    }
+
+    public void SetCurrentModule(Module module)
+    {
+        _currentModule = module;
+    }
+
+    public void ExecuteModule(Module module) 
     {
         if (module.Ast != null)
         {
-            // Create a new environment for the module
-            var moduleEnv = new Environment(_interpreter.globalEnvironment);
+            // Store the module's environment if it already exists
+            var moduleEnv = module.Environment ?? new Environment(_interpreter.globalEnvironment);
             var prevEnv = _interpreter.environment;
-            _interpreter.environment = moduleEnv;
+            var prevModule = _currentModule;
+            //var prevLocals = _interpreter.Locals;
+            // we don't neccecarily need to reset the locals because:
+            // each entry is always unique because they're keyed by the AST Node.
 
             try
             {
+                // Set up module context
+                _interpreter.environment = moduleEnv;
+                _interpreter.Locals = new Dictionary<Node, int>();
+                _currentModule = module;
+
+                // Create a new resolver for this module
+                var resolver = new Resolver(_interpreter);
+                resolver.ResolveModule(module.Ast, true);
+
+                if (resolver.Errors.Count > 0)
+                {
+                    throw new RuntimeError(string.Join("\n", resolver.Errors));
+                }
+
                 // Execute the module
                 _interpreter.Interpret(module.Ast);
                 _executedModules.Add(module.Path);
@@ -181,16 +293,20 @@ public class Importer
             }
             finally
             {
-                // Restore the previous environment
+                // Restore the previous context
                 _interpreter.environment = prevEnv;
+                _currentModule = prevModule;
+
+                // Reset the locals
+                //_interpreter.Locals = prevLocals;
             }
         }
     }
 
     private Package LoadPackageDefinition(string path)
     {
-        var source = File.ReadAllText(path);
-        var tokens = _lexer.Tokenize(source);
+        var source = new FileSourceCode(path);
+        var tokens = _lexer.Tokenize(source.Code);
         var ast = _parser.Parse(tokens);
 
         // Find the package statement
@@ -205,87 +321,16 @@ public class Importer
 
     private void ScanModules(Package package)
     {
-        var files = Directory.GetFiles(package.RootPath, "*.zen", SearchOption.AllDirectories)
-            .Where(f => !Path.GetFileName(f).StartsWith("_")); // Ignore files starting with _
+        var modules = _resolver.ListModules(package.RootNamespace);
 
-        foreach (var file in files)
+        foreach (var modulePath in modules)
         {
-            if (Path.GetFileName(file) == "package.zen")
+            if (modulePath.EndsWith("/package"))
                 continue;
 
-            var relativePath = Path.GetRelativePath(package.RootPath, file);
-            var modulePath = Path.Combine(package.RootNamespace, Path.ChangeExtension(relativePath, null)).Replace("\\", "/");
-            var module = LoadModuleFile(file, modulePath);
-            _modules[modulePath] = module;
+            var module = GetModule(modulePath);
             package.Modules[modulePath] = module;
         }
-    }
-
-    private Module LoadModule(string modulePath)
-    {
-        // First check if we already have this module loaded
-        if (_modules.TryGetValue(modulePath, out var existingModule))
-            return existingModule;
-
-        // Find the package that contains this module
-        var packageName = modulePath.Split('/')[0];
-        if (!_packages.TryGetValue(packageName, out var package))
-        {
-            throw new RuntimeError($"Package '{packageName}' not found");
-        }
-
-        // Get the relative path within the package
-        var relativePath = string.Join("/", modulePath.Split('/').Skip(1));
-        
-        // Try as a directory first
-        var dirPath = Path.Combine(package.RootPath, relativePath);
-        if (Directory.Exists(dirPath))
-        {
-            // Load all .zen files in the directory
-            var files = Directory.GetFiles(dirPath, "*.zen")
-                .Where(f => !Path.GetFileName(f).StartsWith("_"));
-            
-            var symbols = new List<Symbol>();
-            foreach (var file in files)
-            {
-                var fileModule = LoadModuleFile(file, Path.Combine(modulePath, Path.GetFileNameWithoutExtension(file)));
-                symbols.AddRange(fileModule.Symbols);
-                _modules[fileModule.Path] = fileModule;
-                package.Modules[fileModule.Path] = fileModule;
-            }
-
-            // Create a directory module that contains all symbols
-            var module = Module.CreateDirectoryModule(modulePath, symbols);
-            _modules[modulePath] = module;
-            package.Modules[modulePath] = module;
-            return module;
-        }
-
-        // Try as a file
-        var filePath = Path.Combine(package.RootPath, relativePath + ".zen");
-        if (File.Exists(filePath))
-        {
-            var module = LoadModuleFile(filePath, modulePath);
-            _modules[modulePath] = module;
-            package.Modules[modulePath] = module;
-            return module;
-        }
-
-        throw new RuntimeError($"Module not found: {modulePath}");
-    }
-
-    private Module LoadModuleFile(string filePath, string modulePath)
-    {
-        var source = File.ReadAllText(filePath);
-        var tokens = _lexer.Tokenize(source);
-        var ast = _parser.Parse(tokens);
-
-        // Extract symbols with the module reference
-        var module = Module.CreateFileModule(modulePath, [], ast);
-        var symbols = ExtractSymbols(ast, module);
-        module.Symbols.AddRange(symbols);
-        
-        return module;
     }
 
     private string? ExtractPackageName(ProgramNode ast)
@@ -298,40 +343,5 @@ public class Importer
             }
         }
         return null;
-    }
-
-    private List<Symbol> ExtractSymbols(ProgramNode ast, Module module)
-    {
-        var symbols = new List<Symbol>();
-
-        foreach (var stmt in ast.Statements)
-        {
-            switch (stmt)
-            {
-                case FuncStmt func:
-                    symbols.Add(new Symbol(
-                        func.Identifier.Value,
-                        SymbolType.Function,
-                        module,
-                        func
-                    ));
-                    break;
-
-                case ClassStmt cls:
-                    symbols.Add(new Symbol(
-                        cls.Identifier.Value,
-                        SymbolType.Class,
-                        module,
-                        cls
-                    ));
-                    break;
-
-                // Variables are not exported by default
-                // case VarStmt:
-                //     break;
-            }
-        }
-
-        return symbols;
     }
 }

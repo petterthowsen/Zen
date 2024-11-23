@@ -51,6 +51,18 @@ public class Resolver : IVisitor
         }
     }
 
+    public void ResolveModule(ProgramNode module, bool global = false)
+    {
+        if (global) {
+            Resolve(module);
+            return;
+        }
+        
+        BeginScope();
+        Resolve(module);
+        EndScope();
+    }
+
     public void Resolve(Stmt[] statements) {
         foreach (var statement in statements) {
             Resolve(statement);
@@ -103,10 +115,22 @@ public class Resolver : IVisitor
         Dictionary<String, Boolean> scope = scopes.Peek();
         
         if (scope.ContainsKey(name.Value)) {
-            throw Interpreter.Error("Variable with this name already declared in this scope.", name.Location);
+            throw Interpreter.Error("Variable with this name already declared in this scope.", name.Location, ErrorType.RedefinitionError);
         }
 
         scope.Add(name.Value, false);
+    }
+
+    private void Declare(string name, SourceLocation? location) {
+        if (scopes.Count == 0) return;
+
+        Dictionary<String, Boolean> scope = scopes.Peek();
+        
+        if (scope.ContainsKey(name)) {
+            throw Interpreter.Error("Variable with this name already declared in this scope.", location, ErrorType.RedefinitionError);
+        }
+
+        scope.Add(name, false);
     }
 
     private void Define(Token name) {
@@ -116,7 +140,26 @@ public class Resolver : IVisitor
         scope[name.Value] = true;
     }
 
-    private void ResolveLocal(Expr expr, string name) {
+    private void Define(string name)
+    {
+        if (scopes.Count == 0) return;
+
+        Dictionary<String, Boolean> scope = scopes.Peek();
+        scope[name] = true;
+    }
+
+    /// <summary>
+    ///     Resolves a local variable by name.
+    /// </summary>
+    /// <remarks>
+    ///     This looks, for good reason, a lot like the code in Environment for evaluating a variable.
+    ///     We start at the innermost scope and work outwards, looking in each map for a matching name.
+    ///     If we find the variable, we resolve it, passing in the number of scopes between the current innermost scope and the scope where the variable was found.
+    ///     So, if the variable was found in the current scope, we pass in 0. If it’s in the immediately enclosing scope, 1. You get the idea.
+    /// </remarks>
+    /// <param name="expr"></param>
+    /// <param name="name"></param>
+    private void ResolveLocal(Node expr, string name) {
         var scopesList = scopes.ToList(); // Convert stack to list for indexed access
         for (int i = 0; i < scopesList.Count; i++) {
             if (scopesList[i].ContainsKey(name)) {
@@ -152,19 +195,6 @@ public class Resolver : IVisitor
     {
         Resolve(assignment.Expression);
         ResolveLocal(assignment, assignment.Identifier.Name);
-    }
-
-    public void Visit(Identifier identifier)
-    {
-        if (scopes.Count == 0) return;
-
-        Dictionary<String, Boolean> scope = scopes.Peek();
-
-        if (scope.ContainsKey(identifier.Name) && !scope[identifier.Name]) {
-            Error("Cannot read local variable in its own initializer.", identifier.Location);
-        }
-
-        ResolveLocal(identifier, identifier.Name);
     }
 
     public void Visit(Block block)
@@ -361,14 +391,49 @@ public class Resolver : IVisitor
         Resolve(await.Expression);
     }
 
+    public void Visit(Identifier identifier)
+    {
+        // if scopes.Count == 0, we're in the global scope
+        // there's therefore no need to resolve the identifier since
+        // the Interpreter will get it from the global environment
+        if (scopes.Count == 0) return;
+
+        Dictionary<String, Boolean> scope = scopes.Peek();
+
+        if (scope.ContainsKey(identifier.Name) && !scope[identifier.Name]) {
+            Error("Cannot read local variable in its own initializer.", identifier.Location);
+        }
+
+        ResolveLocal(identifier, identifier.Name);//identifier.Name == identifier.Token.Value
+    }
+
     public void Visit(ImportStmt importStmt)
     {
-        // handled by the Importer
+        string name;
+
+        // For "import X as Y", declare Y in the current scope
+        if (importStmt.Alias != null)
+        {
+            Token alias = (Token) importStmt.Alias;
+            name = alias.Value;
+        }
+        else
+        {
+            // For "import X", declare X in the current scope
+            name = importStmt.Path.Last();
+        }
+        Declare(name, importStmt.Location);
+        Define(name);
     }
 
     public void Visit(FromImportStmt fromImportStmt)
     {
-        // handled by the Importer
+        // For "from X import Y", declare Y in the current scope
+        foreach (var symbol in fromImportStmt.Symbols)
+        {
+            Declare(symbol);
+            Define(symbol);
+        }
     }
 
     public void Visit(PackageStmt packageStmt)

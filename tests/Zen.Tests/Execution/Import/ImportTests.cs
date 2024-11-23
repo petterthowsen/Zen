@@ -1,5 +1,6 @@
 using Xunit.Abstractions;
 using Zen.Common;
+using Zen.Execution.Import.Providers;
 
 namespace Zen.Tests.Execution.Import;
 
@@ -18,14 +19,17 @@ public class ImportTests : TestRunner
             testClassDir,
             "../../../Execution/Import/ZenProject"
         )).Replace("\\", "/");
+
+        // Load the package which will register it with the FileSystemModuleProvider
+        Importer.LoadPackage(_projectPath);
     }
 
     [Fact]
     public void TestBasicImport()
     {
-        // Load the package
-        Importer.LoadPackage(_projectPath);
-
+        // Set working namespace for the tests
+        Interpreter.SetWorkingNamespace("MyPackage");
+        
         // Execute Main.zen which imports and uses PrintHello
         var mainPath = Path.Combine(_projectPath, "Main.zen");
         var source = new FileSourceCode(mainPath);
@@ -37,9 +41,9 @@ public class ImportTests : TestRunner
     [Fact]
     public void TestAsyncImport()
     {
-        // Load the package
-        Importer.LoadPackage(_projectPath);
-
+        // Set working namespace for the tests
+        Interpreter.SetWorkingNamespace("MyPackage");
+        
         // Execute AsyncMain.zen which imports and uses DelayAndReturn
         var mainPath = Path.Combine(_projectPath, "AsyncMain.zen");
         var source = new FileSourceCode(mainPath);
@@ -51,12 +55,12 @@ public class ImportTests : TestRunner
     [Fact]
     public void TestFromImport()
     {
-        // Load the package
-        Importer.LoadPackage(_projectPath);
-
+        // Set working namespace for the tests
+        Interpreter.SetWorkingNamespace("MyPackage");
+        
         // Create and execute source that uses from-import syntax
         var source = @"
-            from MyPackage.Utils import PrintHello
+            from MyPackage/Utils import PrintHello
             PrintHello()
         ";
         var result = Execute(source);
@@ -67,12 +71,12 @@ public class ImportTests : TestRunner
     [Fact]
     public void TestFromImportAsync()
     {
-        // Load the package
-        Importer.LoadPackage(_projectPath);
-
+        // Set working namespace for the tests
+        Interpreter.SetWorkingNamespace("MyPackage");
+        
         // Create and execute source that uses from-import syntax with async function
         var source = @"
-            from MyPackage.Utils import DelayAndReturn
+            from MyPackage/Utils import DelayAndReturn
 
             async func test() {
                 var elapsed = await DelayAndReturn(100)
@@ -84,5 +88,21 @@ public class ImportTests : TestRunner
         var result = Execute(source);
 
         Assert.Equal("true", result?.Trim());
+    }
+
+    [Fact]
+    public void TestBuiltInImport()
+    {
+        // Set working namespace for the tests
+        Interpreter.SetWorkingNamespace("MyPackage");
+        
+        // Execute Main.zen which imports and uses PrintHello
+        var result = Execute(@"
+            from System import Exception
+            var e = new Exception(""test message"")
+            print e.Message
+        ");
+
+        Assert.Equal("test message", result?.Trim());
     }
 }

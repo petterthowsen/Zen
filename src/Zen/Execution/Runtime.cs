@@ -42,36 +42,51 @@ public class Runtime
 
     public ProgramNode parse(string sourceCode) => Parse(new InlineSourceCode(sourceCode));
 
-    public string? Execute(ProgramNode programNode)
+    protected string? Execute(ISourceCode source, bool asModule = true)
     {
-        Resolver.Resolve(programNode);
-        
-        if (Resolver.Errors.Count > 0)
-        {
-            throw new Exception("Resolver errors: " + string.Join("\n", Resolver.Errors));
-        }
+        List<Token> tokens = Lexer.Tokenize(source);
+        var node = Parser.Parse(tokens);
 
-        Interpreter.GlobalOutputBufferingEnabled = true;
-        Interpreter.Interpret(programNode, true);
-        string output = Interpreter.GlobalOutputBuffer.ToString();
-        Interpreter.GlobalOutputBuffer.Clear();
-        return output;
-    }
-
-    public string? Execute(ISourceCode sourceCode)
-    {
-        List<Token> tokens = Lexer.Tokenize(sourceCode);
-        ProgramNode node = Parser.Parse(tokens);
-        
         if (Parser.Errors.Count > 0)
         {
             throw new Exception("Parse errors: " + string.Join("\n", Parser.Errors));
         }
 
-        return Execute(node);
+        if (asModule) {
+            // Create a module for the code being executed
+            var modulePath = source is FileSourceCode fileSource 
+                ? Path.GetFileNameWithoutExtension(fileSource.FilePath)
+                : "_inline";
+            var module = Module.CreateFileModule(modulePath, [], node);
+
+            // Execute the module in the global environment.
+            // Subsequent imported modules will be executed in their own environment.
+            Importer.ExecuteModule(module, global: true);
+        }
+        else {
+            Resolver.Resolve(node);
+            if (Resolver.Errors.Count > 0)
+            {
+                throw new Exception("Resolver errors: " + string.Join("\n", Resolver.Errors));
+            }
+            
+            Interpreter.Interpret(node, true);
+        }
+        
+        string output = Interpreter.GlobalOutputBuffer.ToString();
+        return output;
     }
 
-    public string? Execute(string sourceCodeText) => Execute(new InlineSourceCode(sourceCodeText));
+    public string? Execute(string sourceCodeText, bool asModule = false) => Execute(new InlineSourceCode(sourceCodeText), asModule);
+
+    /// <summary>
+    ///     A program must be a module, so this can be used to set the root module of the executing main script.
+    /// </summary>
+    /// <param name="module"></param>
+    public void SetCurrentModule(Module module)
+    {
+        Importer.SetCurrentModule(module);
+    }
 
     public void LoadPackage(string path)
     {

@@ -122,6 +122,10 @@ public class Program
         
         Runtime runtime = new();
 
+        Module replModule = Module.CreateFileModule("_repl",[], null);
+
+        runtime.SetCurrentModule(replModule);
+
         while (true) {
             Console.Write(">> ");
             string? input = Console.ReadLine();

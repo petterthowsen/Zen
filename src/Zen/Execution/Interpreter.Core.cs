@@ -24,9 +24,9 @@ public partial class Interpreter : IGenericVisitor<IEvaluationResult>
     public Environment environment;
 
     /// <summary>
-    /// Maps expressions to a distance from global scope
+    /// Maps expressions to a distance
     /// </summary>
-    protected Dictionary<Expr, int> Locals = [];
+    public Dictionary<Node, int> Locals = [];
 
     // Global Output Buffering - useful for testing
     public bool GlobalOutputBufferingEnabled = false;
@@ -44,9 +44,6 @@ public partial class Interpreter : IGenericVisitor<IEvaluationResult>
         EventLoop = eventLoop;
         RegisterBuiltins(new Builtins.Core.Typing());
         RegisterBuiltins(new Builtins.Core.Time());
-
-        // import the Exception class
-        Importer.LoadPackage("std/exception");
     }
 
     public void SetImporter(Importer importer)
@@ -106,9 +103,14 @@ public partial class Interpreter : IGenericVisitor<IEvaluationResult>
         globalEnvironment.Assign(name, new ZenValue(ZenType.Function, func));
     }
 
-    public void Resolve(Expr expr, int depth = 0)
+    public void Resolve(Node expr, int depth = 0)
     {
         Locals.Add(expr, depth);
+    }
+
+    public void ClearLocals()
+    {
+        Locals.Clear();
     }
 
     private VariableResult LookUpVariable(string name, Expr expr)

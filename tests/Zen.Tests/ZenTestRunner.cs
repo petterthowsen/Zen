@@ -52,15 +52,19 @@ public class TestRunner
             throw new Exception("Parse errors: " + string.Join("\n", Parser.Errors));
         }
 
-        Resolver.Resolve(node);
+        // Create a module for the code being executed
+        var modulePath = source is FileSourceCode fileSource 
+            ? Path.GetFileNameWithoutExtension(fileSource.FilePath)
+            : "_inline";
+        var module = Module.CreateFileModule(modulePath, [], node);
 
-        if (Resolver.Errors.Count > 0)
-        {
-            throw new Exception("Resolver errors: " + string.Join("\n", Resolver.Errors));
-        }
-
+        // Enable output buffering before executing the module
         Interpreter.GlobalOutputBufferingEnabled = true;
-        Interpreter.Interpret(node);
+        Interpreter.GlobalOutputBuffer.Clear();
+
+        // Execute the module in the global environment.
+        // Subsequent imported modules will be executed in their own environment.
+        Importer.ExecuteModule(module, global: true);
 
         string output = Interpreter.GlobalOutputBuffer.ToString();
         Interpreter.GlobalOutputBuffer.Clear();

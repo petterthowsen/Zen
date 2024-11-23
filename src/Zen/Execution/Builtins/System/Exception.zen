@@ -1,6 +1,6 @@
 class Exception {
 
-    Message:string = ""
+    Message:string = "message"
 
     Exception(msg:string)
     {

@@ -14,6 +14,10 @@ public class FileSourceCode : AbstractSourceCode {
         FilePath = filePath;
     }
 
+    public FileSourceCode(string filePath, string code) : base(code) {
+        FilePath = filePath;
+    }
+
     public override string ToString()
     {
         return $"{FilePath}";

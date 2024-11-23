@@ -706,7 +706,7 @@ public class Parser
 
 		// parse untill we find a close brace
 		while ( ! Check(TokenType.CloseBrace) && ! IsAtEnd) {
-
+			
 			if (CheckMethodDeclaration()) {
 				methods.Add(MethodStatement());
 			}else {
@@ -770,14 +770,14 @@ public class Parser
 
 		// open paren
 		Token openParen = Consume(TokenType.OpenParen, "Expected '(' after method identifier");
-		MaybeSome(TokenType.Whitespace);
+		MaybeSome(TokenType.Whitespace, TokenType.Newline);
 
 		// parameters
 		FuncParameter[] parameters = FuncParameters();
 
 		// close paren
 		Token closeParen = Consume(TokenType.CloseParen, "Expected ')' after function parameters");
-		MaybeSome(TokenType.Whitespace);
+		MaybeSome(TokenType.Whitespace, TokenType.Newline);
 
 		// return type?
 		TypeHint? returnTypeTypeHint = null;
@@ -789,6 +789,8 @@ public class Parser
 		}else {
 			returnTypeTypeHint = new TypeHint(new Token(TokenType.StringLiteral, "void", identifier.Location), false);
 		}
+
+		MaybeSome(TokenType.Whitespace, TokenType.Newline);
 
 		// block
 		Consume(TokenType.OpenBrace, "Expected '{' after function parameters");
