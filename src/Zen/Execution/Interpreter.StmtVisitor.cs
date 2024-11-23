@@ -10,23 +10,30 @@ public partial class Interpreter
 {
     public IEvaluationResult Visit(ProgramNode programNode)
     {
+        return Visit(programNode, true);
+    }
+
+    public IEvaluationResult Visit(ProgramNode programNode, bool awaitEvents)
+    {
         // First, process all top-level statements
         foreach (var statement in programNode.Statements)
         {
             statement.Accept(this);
         }
 
-        // Then wait for all event loop tasks to complete
-        var timeout = TimeSpan.FromSeconds(5);
-        var startTime = DateTime.Now;
+        if (awaitEvents) {
+            // Then wait for all event loop tasks to complete
+            var timeout = TimeSpan.FromSeconds(5);
+            var startTime = DateTime.Now;
 
-        while (EventLoop.HasPendingTasks)
-        {
-            if (DateTime.Now - startTime >= timeout)
+            while (EventLoop.HasPendingTasks)
             {
-                throw Error("Event loop tasks did not complete within timeout period");
+                if (DateTime.Now - startTime >= timeout)
+                {
+                    throw Error("Event loop tasks did not complete within timeout period");
+                }
+                Thread.Sleep(1); // Small delay to prevent CPU spinning
             }
-            Thread.Sleep(1); // Small delay to prevent CPU spinning
         }
 
         return VoidResult.Instance;

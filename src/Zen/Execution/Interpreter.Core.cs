@@ -44,6 +44,9 @@ public partial class Interpreter : IGenericVisitor<IEvaluationResult>
         EventLoop = eventLoop;
         RegisterBuiltins(new Builtins.Core.Typing());
         RegisterBuiltins(new Builtins.Core.Time());
+
+        // import the Exception class
+        Importer.LoadPackage("std/exception");
     }
 
     public void SetImporter(Importer importer)
@@ -274,6 +277,11 @@ public partial class Interpreter : IGenericVisitor<IEvaluationResult>
     public void Interpret(Node node)
     {
         node.Accept(this);
+    }
+
+    public void Interpret(ProgramNode node, bool awaitEvents = true)
+    {
+        Visit(node, true);
     }
 
     public void Shutdown()

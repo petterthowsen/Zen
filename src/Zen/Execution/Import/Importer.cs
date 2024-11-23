@@ -51,7 +51,7 @@ public class Importer
         }
 
         // Phase 1: Symbol Resolution
-        var package = LoadPackageDefinition(packagePath);
+        Package package = LoadPackageDefinition(packagePath);
         ScanModules(package);
         _packages[package.RootNamespace] = package;
     }

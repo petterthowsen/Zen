@@ -13,9 +13,10 @@ public class Runtime
 {
     public readonly Lexer Lexer;
     public readonly Parser Parser;
+
+    public readonly EventLoop EventLoop;
     public readonly Resolver Resolver;
     public readonly Interpreter Interpreter;
-    public readonly EventLoop EventLoop;
     public readonly Importer Importer;
 
     public Runtime()
@@ -37,6 +38,26 @@ public class Runtime
         Resolver = new Resolver(Interpreter);
     }
 
+    public ProgramNode Parse(ISourceCode sourceCode) => Parser.Parse(Lexer.Tokenize(sourceCode));
+
+    public ProgramNode parse(string sourceCode) => Parse(new InlineSourceCode(sourceCode));
+
+    public string? Execute(ProgramNode programNode)
+    {
+        Resolver.Resolve(programNode);
+        
+        if (Resolver.Errors.Count > 0)
+        {
+            throw new Exception("Resolver errors: " + string.Join("\n", Resolver.Errors));
+        }
+
+        Interpreter.GlobalOutputBufferingEnabled = true;
+        Interpreter.Interpret(programNode, true);
+        string output = Interpreter.GlobalOutputBuffer.ToString();
+        Interpreter.GlobalOutputBuffer.Clear();
+        return output;
+    }
+
     public string? Execute(ISourceCode sourceCode)
     {
         List<Token> tokens = Lexer.Tokenize(sourceCode);
@@ -47,18 +68,7 @@ public class Runtime
             throw new Exception("Parse errors: " + string.Join("\n", Parser.Errors));
         }
 
-        Resolver.Resolve(node);
-        
-        if (Resolver.Errors.Count > 0)
-        {
-            throw new Exception("Resolver errors: " + string.Join("\n", Resolver.Errors));
-        }
-
-        Interpreter.GlobalOutputBufferingEnabled = true;
-        Interpreter.Interpret(node);
-        string output = Interpreter.GlobalOutputBuffer.ToString();
-        Interpreter.GlobalOutputBuffer.Clear();
-        return output;
+        return Execute(node);
     }
 
     public string? Execute(string sourceCodeText) => Execute(new InlineSourceCode(sourceCodeText));

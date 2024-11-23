@@ -1,0 +1,15 @@
+class Exception {
+
+    Message:string = ""
+
+    Exception(msg:string)
+    {
+        this.Message = msg
+    }
+
+    toString(): string
+    {
+        return Message
+    }
+
+}

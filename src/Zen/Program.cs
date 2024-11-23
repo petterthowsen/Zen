@@ -110,7 +110,7 @@ public class Program
                     return;
                 }
 
-                interpreter.Interpret(program);
+                interpreter.Interpret(program, true);
             } catch (Exception error) {
                 Console.WriteLine(error);
             }
