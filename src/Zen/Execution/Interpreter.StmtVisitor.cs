@@ -10,9 +10,23 @@ public partial class Interpreter
 {
     public IEvaluationResult Visit(ProgramNode programNode)
     {
+        // First, process all top-level statements
         foreach (var statement in programNode.Statements)
-    {
+        {
             statement.Accept(this);
+        }
+
+        // Then wait for all event loop tasks to complete
+        var timeout = TimeSpan.FromSeconds(5);
+        var startTime = DateTime.Now;
+
+        while (EventLoop.HasPendingTasks)
+        {
+            if (DateTime.Now - startTime >= timeout)
+            {
+                throw Error("Event loop tasks did not complete within timeout period");
+            }
+            Thread.Sleep(1); // Small delay to prevent CPU spinning
         }
 
         return VoidResult.Instance;
@@ -59,7 +73,7 @@ public partial class Interpreter
                     break;
                 }
             }
-            }
+        }
         else if (ifStmt.Else != null)
         {
             ifStmt.Else.Accept(this);
@@ -72,9 +86,7 @@ public partial class Interpreter
     {
         IEvaluationResult expResult = Evaluate(printStmt.Expression);
 
-        ZenValue value = expResult.Value; // might be a from a variable - might not.
-
-        // todo: might need to handle some types differently
+        ZenValue value = expResult.Value;
 
         if (GlobalOutputBufferingEnabled)
         {
@@ -102,8 +114,8 @@ public partial class Interpreter
 
         // Check if the variable is already defined
         if (environment.Exists(name))
-    {
-        throw Error($"Variable '{name}' is already defined", varStmt.Identifier.Location, Common.ErrorType.RedefinitionError);
+        {
+            throw Error($"Variable '{name}' is already defined", varStmt.Identifier.Location, Common.ErrorType.RedefinitionError);
         }
 
         // check for missing typehint without initializer
@@ -114,7 +126,6 @@ public partial class Interpreter
 
         if (varStmt.TypeHint != null)
         {
-            // type = varStmt.TypeHint.GetBaseType();
             type = Evaluate(varStmt.TypeHint).Type;
             nullable = varStmt.TypeHint.Nullable;
         }
@@ -128,7 +139,7 @@ public partial class Interpreter
             if (varStmt.TypeHint == null)
             {
                 type = value.Type;
-        }
+            }
 
             environment.Define(constant, name, type!, nullable);
             environment.Assign(name, value.Value);
@@ -223,7 +234,7 @@ public partial class Interpreter
                 // execute body
                 foreach (Stmt statement in forStmt.Body.Statements) {
                     statement.Accept(this);
-        }
+                }
         
                 // increment loop variable
                 Evaluate(incrementor);
@@ -258,11 +269,6 @@ public partial class Interpreter
         throw new ReturnException(result, returnStmt.Location);
     }
 
-    /// <summary>
-    /// Parse a function statement but does not register it.
-    /// </summary>
-    /// <param name="funcStmt"></param>
-    /// <returns>ZenFunction</returns>
     protected ZenUserFunction ParseFunctionStatement(FuncStmt funcStmt, Environment? closure = null)
     {
         closure ??= environment;

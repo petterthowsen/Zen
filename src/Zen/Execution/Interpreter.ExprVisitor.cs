@@ -235,7 +235,29 @@ public IEvaluationResult Visit(Grouping grouping)
         // Wait for the promise to complete and get its result
         try 
         {
-            ZenValue promiseResult = promise.AsTask().GetAwaiter().GetResult();
+            // Create a new promise that will be resolved when the task completes
+            var waitPromise = new ZenPromise(environment, promise.ResultType);
+            var completed = false;
+            var promiseResult = ZenValue.Void;
+
+            // Add callbacks to handle resolution/rejection
+            promise.Then(() => 
+            {
+                promiseResult = promise.AsTask().GetAwaiter().GetResult();
+                completed = true;
+            });
+
+            promise.Catch(() => 
+            {
+                completed = true;
+            });
+
+            // Wait for the promise to complete
+            while (!completed)
+            {
+                Thread.Sleep(1);
+            }
+
             return (ValueResult)promiseResult;
         }
         catch (Exception ex)
@@ -261,8 +283,8 @@ public IEvaluationResult Visit(Grouping grouping)
 
             // check number of arguments is at most equal to the number of parameters
             if (call.Arguments.Length > function.Parameters.Count)
-    {
-        throw Error($"Too many arguments for function", null, Common.ErrorType.RuntimeError);
+            {
+                throw Error($"Too many arguments for function", null, Common.ErrorType.RuntimeError);
             }
 
             // evaluate the arguments
@@ -282,24 +304,10 @@ public IEvaluationResult Visit(Grouping grouping)
                 if (!TypeChecker.IsCompatible(argument.Type, parameter.Type))
                 {
                     throw Error($"Cannot pass argument of type '{argument.Type}' to parameter of type '{parameter.Type}'", call.Arguments[i].Location, Common.ErrorType.TypeError);
-    }
-}
+                }
+            }
 
-            if (function is ZenHostFunction)
-            {
-                return (ValueResult)function.Call(this, argumentValues);
-            }
-            else if (function is ZenUserFunction userFunc)
-            {
-                return CallUserFunction(userFunc, argumentValues);
-            }
-            else if (function is BoundMethod boundMethod) {
-                return CallUserFunction(boundMethod, argumentValues);
-            }
-            else
-            {
-                throw Error($"Cannot call unknown function type '{function.GetType()}'", call.Location, Common.ErrorType.RuntimeError);
-            }
+            return CallFunction(function, argumentValues);
         }
         else
         {
@@ -373,8 +381,8 @@ public IEvaluationResult Visit(Grouping grouping)
                 ZenClass clazz = (ZenClass) variable.Value.Underlying!;
 
                 return (TypeResult) clazz.Type;
-    }
-    }
+            }
+        }
 
         return (TypeResult) typeHint.GetBaseZenType();
     }
@@ -444,7 +452,7 @@ public IEvaluationResult Visit(Grouping grouping)
         try
         {
             ZenValue convertedValue = TypeConverter.Convert(exprResult.Value, targetType);
-        return (ValueResult)convertedValue;
+            return (ValueResult)convertedValue;
         }
         catch (Exception)
         {

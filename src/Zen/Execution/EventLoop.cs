@@ -13,6 +13,8 @@ public class EventLoop
     private readonly CancellationTokenSource _cts;
     private readonly Thread _eventLoopThread;
     private bool _isRunning;
+    private int _taskCount;
+    private readonly List<Task> _pendingTasks;
 
     public EventLoop()
     {
@@ -20,6 +22,8 @@ public class EventLoop
         _cts = new CancellationTokenSource();
         _eventLoopThread = new Thread(RunEventLoop);
         _isRunning = false;
+        _taskCount = 0;
+        _pendingTasks = new List<Task>();
     }
 
     public void Start()
@@ -43,7 +47,56 @@ public class EventLoop
 
     public void EnqueueTask(Action task)
     {
-        _taskQueue.Enqueue(task);
+        Interlocked.Increment(ref _taskCount);
+        _taskQueue.Enqueue(() =>
+        {
+            try
+            {
+                task();
+            }
+            finally
+            {
+                Interlocked.Decrement(ref _taskCount);
+            }
+        });
+    }
+
+    public void EnqueueTask(Func<Task> asyncTask)
+    {
+        Interlocked.Increment(ref _taskCount);
+        var task = Task.Run(async () =>
+        {
+            try
+            {
+                await asyncTask();
+            }
+            finally
+            {
+                Interlocked.Decrement(ref _taskCount);
+            }
+        });
+        lock (_pendingTasks)
+        {
+            _pendingTasks.Add(task);
+            task.ContinueWith(t =>
+            {
+                lock (_pendingTasks)
+                {
+                    _pendingTasks.Remove(t);
+                }
+            });
+        }
+    }
+
+    public bool HasPendingTasks
+    {
+        get
+        {
+            lock (_pendingTasks)
+            {
+                return _taskCount > 0 || _pendingTasks.Count > 0;
+            }
+        }
     }
 
     private void RunEventLoop()
@@ -71,19 +124,19 @@ public class EventLoop
     }
 
     /// <summary>
-    /// Schedules a Task to run on the event loop and returns a Promise that will be resolved
-    /// when the task completes.
+    /// Schedules a function to run on the event loop and returns a Promise that will be resolved
+    /// when the function completes.
     /// </summary>
-    public ZenPromise Schedule<T>(Func<Task<T>> taskFactory, Environment environment, ZenType resultType)
+    public ZenPromise Schedule(Action<ZenPromise> action, Environment environment, ZenType resultType)
     {
         var promise = new ZenPromise(environment, resultType);
 
-        EnqueueTask(async () =>
+        // Schedule the function to run on the event loop
+        EnqueueTask(() =>
         {
             try
             {
-                var result = await taskFactory();
-                promise.Resolve(new ZenValue(resultType, result));
+                action(promise);
             }
             catch (Exception ex)
             {

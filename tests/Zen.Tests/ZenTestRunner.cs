@@ -61,6 +61,7 @@ public class TestRunner
 
         Interpreter.GlobalOutputBufferingEnabled = true;
         Interpreter.Interpret(node);
+
         string output = Interpreter.GlobalOutputBuffer.ToString();
         Interpreter.GlobalOutputBuffer.Clear();
         return output;

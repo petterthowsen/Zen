@@ -118,6 +118,66 @@ The system uses a visitor pattern for traversing and executing the AST, with sep
 - Runtime error handling with source locations
 - Module system with imports and namespaces
 
+### Concurrency Model
+
+Zen implements a concurrency model similar to Node.js, using a single-threaded event loop with async/await support:
+
+#### Event Loop
+- Single-threaded execution model
+- Tasks are queued and executed sequentially
+- Non-blocking I/O operations are scheduled on the event loop
+- Maintains a queue of pending tasks and tracks their completion
+
+#### Async Functions
+- Declared using the `async` keyword
+- Always return a Promise
+- When called, immediately schedule their execution on the event loop
+- Continue executing the caller's code without blocking
+
+#### Promises
+- Represent the eventual completion of an async operation
+- Can be in one of three states: pending, resolved, or rejected
+- Support Then/Catch callbacks for handling completion
+- Automatically created for async function returns
+
+#### Await Expression
+- Used inside async functions to wait for Promise completion
+- Suspends execution of the current function
+- Resumes when the Promise resolves or rejects
+- Unwraps the Promise result or throws on rejection
+
+Example:
+```zen
+async func delay(ms: int): Promise<int> {
+    // Built-in function that returns a Promise
+    // which resolves after ms milliseconds
+    return await delay(ms)
+}
+
+async func example() {
+    var start = time()
+    var result = await delay(100)  // Waits for 100ms
+    var elapsed = time() - start
+    print elapsed >= 100  // true
+}
+
+// Call async function without await
+example()  // Returns immediately
+print "This runs first"
+```
+
+Program Execution:
+1. Top-level code runs synchronously
+2. Async functions are scheduled on the event loop
+3. Event loop processes tasks until all are complete
+4. Program exits when no tasks remain
+
+This model enables:
+- Non-blocking I/O operations
+- Concurrent execution of async tasks
+- Predictable single-threaded execution
+- Easy handling of asynchronous operations
+
 ### Module System
 
 Zen features a robust module system that supports packages, namespaces, and imports:
