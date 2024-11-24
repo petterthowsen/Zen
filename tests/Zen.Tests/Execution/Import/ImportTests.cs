@@ -26,10 +26,7 @@ public class ImportTests : TestRunner
 
     [Fact]
     public void TestBasicImport()
-    {
-        // Set working namespace for the tests
-        Interpreter.SetWorkingNamespace("MyPackage");
-        
+    {        
         // Execute Main.zen which imports and uses PrintHello
         var mainPath = Path.Combine(_projectPath, "Main.zen");
         var source = new FileSourceCode(mainPath);
@@ -40,10 +37,7 @@ public class ImportTests : TestRunner
 
     [Fact]
     public void TestAsyncImport()
-    {
-        // Set working namespace for the tests
-        Interpreter.SetWorkingNamespace("MyPackage");
-        
+    {    
         // Execute AsyncMain.zen which imports and uses DelayAndReturn
         var mainPath = Path.Combine(_projectPath, "AsyncMain.zen");
         var source = new FileSourceCode(mainPath);
@@ -55,9 +49,6 @@ public class ImportTests : TestRunner
     [Fact]
     public void TestFromImport()
     {
-        // Set working namespace for the tests
-        Interpreter.SetWorkingNamespace("MyPackage");
-        
         // Create and execute source that uses from-import syntax
         var source = @"
             from MyPackage/Utils import PrintHello
@@ -70,10 +61,7 @@ public class ImportTests : TestRunner
 
     [Fact]
     public void TestFromImportAsync()
-    {
-        // Set working namespace for the tests
-        Interpreter.SetWorkingNamespace("MyPackage");
-        
+    {        
         // Create and execute source that uses from-import syntax with async function
         var source = @"
             from MyPackage/Utils import DelayAndReturn
@@ -93,9 +81,6 @@ public class ImportTests : TestRunner
     [Fact]
     public void TestBuiltInImport()
     {
-        // Set working namespace for the tests
-        Interpreter.SetWorkingNamespace("MyPackage");
-        
         // Execute Main.zen which imports and uses PrintHello
         var result = Execute(@"
             from System import Exception

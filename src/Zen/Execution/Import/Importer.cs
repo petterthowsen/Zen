@@ -62,19 +62,43 @@ public class Importer
     }
 
     /// <summary>
+    /// Given a path, checks if the directory contains a 'package.zen' file.
+    /// </summary>
+    /// <param name="path"></param>
+    /// <returns></returns>
+    public bool PackageFileExists(string filePath)
+    {
+        String fullPath = Path.GetFullPath(filePath);
+        if (File.Exists(fullPath)) fullPath = Path.GetDirectoryName(fullPath);
+
+        fullPath = Path.Combine(fullPath, "package.zen");
+
+        return File.Exists(fullPath);
+    }
+
+    /// <summary>
     /// Loads a package from the specified directory path.
     /// The directory must contain a package.zen file.
     /// </summary>
-    public void LoadPackage(string path)
+    public Package LoadPackage(string path, bool throwIfNotFound = true)
     {
-        var packagePath = Path.Combine(path, "package.zen");
-        if (!File.Exists(packagePath))
+        if (Path.GetFileName(path) != "package.zen" && File.Exists(path))
+        {
+            path = Path.GetDirectoryName(path);
+        }
+
+        if (Path.GetFileName(path) != "package.zen")
+        {
+            path = Path.Combine(path, "package.zen");
+        }
+
+        if (!File.Exists(path) && throwIfNotFound)
         {
             throw new RuntimeError($"No package.zen found in {path}");
         }
 
         // Phase 1: Symbol Resolution
-        Package package = LoadPackageDefinition(packagePath);
+        Package package = LoadPackageDefinition(path);
         
         // Register the package with the filesystem provider
         _fsProvider.RegisterPackage(package.RootNamespace, package.RootPath);
@@ -84,6 +108,8 @@ public class Importer
         
         // Scan for modules
         ScanModules(package);
+
+        return package;
     }
 
     /// <summary>
@@ -237,7 +263,9 @@ public class Importer
             // we probably don't need to tag it as executed
             //_executedModules.Add(module.Path);
         } finally {
-            _currentModule = prevModule;
+            if (prevModule != null) {
+                _currentModule = prevModule;
+            }
         }
     }
 

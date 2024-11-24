@@ -53,6 +53,35 @@ public class FileSystemModuleProvider : IModuleProvider
         }
     }
 
+    private bool TryFindModuleFile(string basePath, string relativePath, out string? foundPath)
+    {
+        foundPath = null;
+
+        // First try as a direct .zen file
+        var directPath = Path.Combine(basePath, relativePath + ".zen");
+        if (File.Exists(directPath))
+        {
+            foundPath = directPath;
+            return true;
+        }
+
+        // If that doesn't exist and there are multiple parts, try treating the last part as a file
+        var parts = relativePath.Split('/');
+        if (parts.Length > 1)
+        {
+            var parentPath = string.Join("/", parts.Take(parts.Length - 1));
+            var fileName = parts.Last();
+            var nestedPath = Path.Combine(basePath, parentPath, fileName + ".zen");
+            if (File.Exists(nestedPath))
+            {
+                foundPath = nestedPath;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public bool CanProvide(string modulePath)
     {
         // First check if this is a package-qualified path
@@ -62,18 +91,17 @@ public class FileSystemModuleProvider : IModuleProvider
             var packageName = modulePath[..firstSlash];
             if (_packageRoots.TryGetValue(packageName, out var packageRoot))
             {
-                // Strip package name and look in package root
+                // Strip package name and try both file patterns
                 var relativePath = modulePath[(firstSlash + 1)..];
-                var filePath = Path.Combine(packageRoot, relativePath + ".zen");
-                return File.Exists(filePath);
+                if (TryFindModuleFile(packageRoot, relativePath, out _))
+                    return true;
             }
         }
 
         // If not found in package roots, try search paths
         foreach (var searchPath in _searchPaths)
         {
-            var filePath = Path.Combine(searchPath, modulePath + ".zen");
-            if (File.Exists(filePath))
+            if (TryFindModuleFile(searchPath, modulePath, out _))
                 return true;
         }
 
@@ -89,12 +117,11 @@ public class FileSystemModuleProvider : IModuleProvider
             var packageName = modulePath[..firstSlash];
             if (_packageRoots.TryGetValue(packageName, out var packageRoot))
             {
-                // Strip package name and look in package root
+                // Strip package name and try both file patterns
                 var relativePath = modulePath[(firstSlash + 1)..];
-                var filePath = Path.Combine(packageRoot, relativePath + ".zen");
-                if (File.Exists(filePath))
+                if (TryFindModuleFile(packageRoot, relativePath, out var foundPath) && foundPath != null)
                 {
-                    return new FileSourceCode(filePath);
+                    return new FileSourceCode(foundPath);
                 }
             }
         }
@@ -102,10 +129,9 @@ public class FileSystemModuleProvider : IModuleProvider
         // If not found in package roots, try search paths
         foreach (var searchPath in _searchPaths)
         {
-            var filePath = Path.Combine(searchPath, modulePath + ".zen");
-            if (File.Exists(filePath))
+            if (TryFindModuleFile(searchPath, modulePath, out var foundPath) && foundPath != null)
             {
-                return new FileSourceCode(filePath);
+                return new FileSourceCode(foundPath);
             }
         }
 

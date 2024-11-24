@@ -54,6 +54,8 @@ public class Program
             Console.WriteLine("Starting REPL");
             REPL();
         } else {
+            ISourceCode script;
+
             // check if it's a .zen file
             if (args[0].EndsWith(".zen")) {
                 // check if file exists
@@ -63,16 +65,17 @@ public class Program
                 }
 
                 // read file
-                string code = File.ReadAllText(args[0]);
-                Execute(code);
+                script = new FileSourceCode(args[0]);
             } else {
                 // it's not a .zen file, execute input as is
-                Execute(args[0]);
+                script = new InlineSourceCode(args[0]);
             }
+
+            Execute(script);
         }
     }
 
-    protected static void Execute(string code, Interpreter? interpreter = null) {
+    protected static void _Execute(string code, Interpreter? interpreter = null) {
         var lexer = new Lexer();
         var tokens = lexer.Tokenize(code);
 
@@ -115,6 +118,25 @@ public class Program
                 Console.WriteLine(error);
             }
         }
+    }
+
+    protected static void Execute(ISourceCode script)
+    {
+        Console.WriteLine("Executing script " + script);
+        Runtime runtime = new();
+
+        if (script is FileSourceCode fileSourceCode) {
+            string path = fileSourceCode.FilePath;
+            
+            // Load the package which will register it with the FileSystemModuleProvider
+            if (runtime.PackageFileExists(path)) {
+                Console.WriteLine($"Found nearby package file for {path}");
+                Package package = runtime.LoadPackage(path);
+            }
+        }
+
+        //runtime.SetCurrentModule(Module.CreateFileModule("_main",[], null));
+        runtime.Execute(script, asModule: true);
     }
 
     protected static void REPL() {

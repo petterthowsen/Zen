@@ -42,7 +42,14 @@ public class Runtime
 
     public ProgramNode parse(string sourceCode) => Parse(new InlineSourceCode(sourceCode));
 
-    protected string? Execute(ISourceCode source, bool asModule = true)
+    /// <summary>
+    /// Execute the given source code. Pass true to execute as a module, this should be done for top-level main scripts.
+    /// </summary>
+    /// <param name="source"></param>
+    /// <param name="asModule"></param>
+    /// <returns></returns>
+    /// <exception cref="Exception"></exception>
+    public string? Execute(ISourceCode source, bool asModule = true)
     {
         List<Token> tokens = Lexer.Tokenize(source);
         var node = Parser.Parse(tokens);
@@ -88,9 +95,14 @@ public class Runtime
         Importer.SetCurrentModule(module);
     }
 
-    public void LoadPackage(string path)
+    public bool PackageFileExists(string directory)
     {
-        Importer.LoadPackage(path);
+        return Importer.PackageFileExists(directory);
+    }
+
+    public Package LoadPackage(string path)
+    {
+        return Importer.LoadPackage(path);
     }
 
     public void Shutdown()

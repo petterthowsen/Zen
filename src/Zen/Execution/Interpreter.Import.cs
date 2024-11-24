@@ -6,16 +6,7 @@ using Zen.Typing;
 namespace Zen.Execution;
 
 public partial class Interpreter {
-    private string? _workingNamespace;
-
-    /// <summary>
-    /// Sets the working namespace for resolving imports.
-    /// </summary>
-    public void SetWorkingNamespace(string? ns)
-    {
-        _workingNamespace = ns;
-    }
-
+ 
     public IEvaluationResult Visit(PackageStmt package)
     {
         // Package statements are handled during module loading
