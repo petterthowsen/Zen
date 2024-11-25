@@ -19,17 +19,18 @@ public partial class Interpreter {
         var alias = import.Alias?.Value;
 
         // Import the module through the Importer
-        Importer.Import(modulePath, alias);
+        Importer.Import(modulePath);
 
         // Get all symbols from the module and copy them to the current environment
         var module = Importer.GetModule(modulePath);
-        if (module.Environment == null)
+        if ( ! module.IsInitialized)
         {
             throw new RuntimeError($"Module {module.Path} has not been executed");
         }
 
-        if (module.IsSingleSymbol)
+        if (module.Symbols.Count == 1)
         {
+            // todo: throw error if alias is already defined
             var symbol = module.Symbols[0];
             var name = alias ?? symbol.Name;
             ZenValue value = module.Environment.GetValue(symbol.Name);
@@ -38,14 +39,8 @@ public partial class Interpreter {
         }
         else
         {
-            var ns = alias ?? module.Namespace;
-            foreach (var symbol in module.Symbols)
-            {
-                ZenValue value = module.Environment.GetValue(symbol.Name);
-                var name = $"{ns}.{symbol.Name}";
-                environment.Define(true, name, value.Type, false);
-                environment.Assign(name, value);
-            }
+            // here we need to essentially create a object with all the symbols in it.
+            throw new NotImplementedException("Implicit Multi-symbol imports not implemented yet");
         }
 
         return VoidResult.Instance;
@@ -53,24 +48,6 @@ public partial class Interpreter {
 
     public IEvaluationResult Visit(FromImportStmt fromImport)
     {
-        var modulePath = string.Join("/", fromImport.Path);
-        var symbolNames = fromImport.Symbols.Select(s => s.Value);
-
-        // Import the symbols through the Importer
-        Importer.ImportSymbols(modulePath, symbolNames);
-
-        // Copy each imported symbol from its module's environment to the current environment
-        foreach (var name in symbolNames)
-        {
-            var symbol = Importer.ResolveSymbol(name, modulePath);
-            if (symbol != null && symbol.Module.Environment != null)
-            {
-                ZenValue value = symbol.Module.Environment.GetValue(symbol.Name);
-                environment.Define(true, name, value.Type, false);
-                environment.Assign(name, value);
-            }
-        }
-
         return VoidResult.Instance;
     }
 }

@@ -1,28 +1,28 @@
+using Zen.Exection.Import;
+
 namespace Zen.Execution.Import;
 
-/// <summary>
-/// Represents a Zen package, which is a collection of modules under a root namespace.
-/// </summary>
-public class Package
+public class Package : IHasNamespaces, IHasModules
 {
-    /// <summary>
-    /// The root namespace of the package, as defined in package.zen
-    /// </summary>
-    public string RootNamespace { get; }
+    public string Name { get; }
+    public string FullPath { get; }
 
-    /// <summary>
-    /// The filesystem path to the package root
-    /// </summary>
-    public string RootPath { get; }
+    public Dictionary<string, Module> Modules { get; } = [];
+    public Dictionary<string, Namespace> Namespaces { get; } = [];
 
-    /// <summary>
-    /// The modules contained in this package
-    /// </summary>
-    public Dictionary<string, Module> Modules { get; } = new();
-
-    public Package(string rootNamespace, string rootPath)
+    public Package(string name, string fullPath)
     {
-        RootNamespace = rootNamespace;
-        RootPath = rootPath;
+        Name = name;
+        FullPath = fullPath;
+    }
+
+    public void AddNamespace(Namespace @namespace)
+    {
+        Namespaces[@namespace.Name] = @namespace;
+    }
+
+    public void AddModule(string name, Module module)
+    {
+        Modules[name] = module;
     }
 }

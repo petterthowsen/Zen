@@ -193,24 +193,6 @@ Zen features a robust module system that supports packages, namespaces, and impo
 - Modules automatically get their own scope
 - Functions defined in a module close over the module's environment
 
-#### Imports
-Two types of import statements are supported:
-```zen
-// Import entire module (creates namespace)
-import MyPackage/Utils
-
-// Import specific symbols
-from MyPackage/Utils import PrintHello, FormatString
-```
-
-Import features:
-- Modules are loaded lazily when imported
-- Each module is executed only once
-- Imported functions maintain their original module scope
-- Circular dependencies are handled properly
-- Symbols can be imported with aliases
-- Directory modules automatically include all .zen files
-
 ### Type System
 
 Zen features a static type system with type inference. The type system includes:

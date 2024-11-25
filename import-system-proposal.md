@@ -1,241 +1,29 @@
-# Import System Redesign Proposal
+1. Namespace map to directories. Namespaces can nest, just like directories.
+2. A Package maps a root directory to a root namespace. Packages contain namespaces and modules. Top-level namespaces are packages.
+3. A Module is a .zen file that defines 1 or more symbols (classes, functions, possibly more)
 
-## Current Issues
+# Syntax
+- 'import namespace' imports all symbols directly under the given namespace and brings them into the scope.
+- 'import package/namespace1/module/symbol' would import a function or class called 'symbol' from the given namespace.
+- 'import package/namespace/module' imports all symbols from the given module.
+- 'from package/namespace/module import helloFunc'  imports the 'helloFunc' symbol from the given module.
+- 'from package/namespace import module' imports the helloFunc as well as any other symbols from the given module.
+- 'from package/namespace/module import helloFunc, helloClass' imports multiple symbols from a module. 
 
-1. The import system is tightly coupled to the filesystem
-2. No support for embedded resources (standard library)
-3. No configurable search paths ($ZEN_HOME)
-4. Module imports/aliases are stored globally
-5. No abstraction for different module sources
+In some cases, an import statement can point to a directory, or a file. If it points to a directory, the importer will assume the symbol being requested is a file. The importer must handle both cases.
 
-## Proposed Solution
+# Execution
+When the zen runtime executes a .zen file, it should consider it a "main script".
 
-### 1. Module Provider Interface
+When the main script encounters an import statement, we should import the symbols by first seeing if the symbol can be found in the given package/namespace. If it's found, we then execute the module (the .zen file) that defines the symbol. Importantly, modules should be executed in their own scope - and, they can also import other symbols into their scope. When a module is executed due to being imported, the resulting module's own environment will be cached for further use. So subsequent imports to the same module doesn't execute again.
 
-```csharp
-public interface IModuleProvider 
-{
-    // Check if this provider can handle the given module path
-    bool CanProvide(string modulePath);
-    
-    // Get source code for a module
-    ISourceCode GetModuleSource(string modulePath);
-    
-    // List available modules (for directory imports)
-    IEnumerable<string> ListModules(string directoryPath);
-    
-    // Get provider-specific metadata
-    ModuleMetadata GetMetadata(string modulePath);
-}
-```
+Also, we need to make sure cyclic imports are supported.
 
-### 2. Concrete Providers
+# Module Sources
+A script should be able to import modules from three main package sources:
+1. Embedded "built in" packages. These are stored in the Zen runtime and included as embedded resources. They're stored in `execution/builtins` directory - each subdirectory there is considered a built in package.
+2. From installed third-party packages stored somewhere on the system. The path of which should probably be an environment key like ZEN_HOME. Each folder in this directory would be scanned for packages, and each must contain a package.zen file that names that package.
+3. From modules defined by the currently running 'main script', more on this below.
 
-#### FileSystemModuleProvider
-- Handles modules from the local filesystem
-- Root is the directory of the main script
-- Implements current filesystem loading logic
-
-```csharp
-public class FileSystemModuleProvider : IModuleProvider 
-{
-    private readonly string _rootPath;
-    
-    public FileSystemModuleProvider(string rootPath) 
-    {
-        _rootPath = rootPath;
-    }
-    
-    public bool CanProvide(string modulePath) 
-    {
-        var fullPath = Path.Combine(_rootPath, modulePath + ".zen");
-        return File.Exists(fullPath);
-    }
-    
-    // ... other interface implementations
-}
-```
-
-#### EmbeddedResourceModuleProvider
-- Handles standard library modules embedded in the assembly
-- Uses assembly resources for module source code
-
-```csharp
-public class EmbeddedResourceModuleProvider : IModuleProvider 
-{
-    private readonly Assembly _assembly;
-    private readonly string _resourcePrefix;
-    
-    public EmbeddedResourceModuleProvider(Assembly assembly, string resourcePrefix) 
-    {
-        _assembly = assembly;
-        _resourcePrefix = resourcePrefix;
-    }
-    
-    public bool CanProvide(string modulePath) 
-    {
-        var resourcePath = $"{_resourcePrefix}.{modulePath.Replace('/', '.')}.zen";
-        return _assembly.GetManifestResourceStream(resourcePath) != null;
-    }
-    
-    // ... other interface implementations
-}
-```
-
-#### SystemModuleProvider
-- Handles modules from $ZEN_HOME
-- Supports multiple package versions
-- Implements package search logic
-
-```csharp
-public class SystemModuleProvider : IModuleProvider 
-{
-    private readonly string _zenHome;
-    
-    public SystemModuleProvider(string zenHome) 
-    {
-        _zenHome = zenHome;
-    }
-    
-    public bool CanProvide(string modulePath) 
-    {
-        // Check if module exists in any package in $ZEN_HOME
-        var packageName = modulePath.Split('/')[0];
-        return Directory.Exists(Path.Combine(_zenHome, packageName));
-    }
-    
-    // ... other interface implementations
-}
-```
-
-### 3. Module Class Enhancement
-
-```csharp
-public class Module 
-{
-    // Existing properties...
-    
-    // Module-specific imports and aliases
-    private readonly Dictionary<string, Symbol> _imports = new();
-    
-    public void AddImport(string name, Symbol symbol, string? alias = null) 
-    {
-        _imports[alias ?? name] = symbol;
-    }
-    
-    public Symbol? ResolveImport(string name) 
-    {
-        return _imports.GetValueOrDefault(name);
-    }
-}
-```
-
-### 4. Module Resolver
-
-```csharp
-public class ModuleResolver 
-{
-    private readonly List<IModuleProvider> _providers = new();
-    private readonly Dictionary<string, Module> _moduleCache = new();
-    
-    public ModuleResolver(IEnumerable<IModuleProvider> providers) 
-    {
-        _providers.AddRange(providers);
-    }
-    
-    public Module ResolveModule(string modulePath) 
-    {
-        // Check cache first
-        if (_moduleCache.TryGetValue(modulePath, out var cachedModule))
-            return cachedModule;
-            
-        // Find provider that can handle this module
-        var provider = _providers.FirstOrDefault(p => p.CanProvide(modulePath))
-            ?? throw new RuntimeError($"No provider found for module: {modulePath}");
-            
-        // Load module
-        var source = provider.GetModuleSource(modulePath);
-        var metadata = provider.GetMetadata(modulePath);
-        
-        // Create and cache module
-        var module = CreateModule(source, metadata);
-        _moduleCache[modulePath] = module;
-        
-        return module;
-    }
-}
-```
-
-### 5. Updated Importer
-
-```csharp
-public class Importer 
-{
-    private readonly ModuleResolver _resolver;
-    
-    public Importer(Parser parser, Lexer lexer, Interpreter interpreter) 
-    {
-        // Initialize providers
-        var providers = new List<IModuleProvider> 
-        {
-            new EmbeddedResourceModuleProvider(typeof(Importer).Assembly, "Zen.StdLib"),
-            new SystemModuleProvider(Environment.GetEnvironmentVariable("ZEN_HOME") ?? ""),
-            new FileSystemModuleProvider(Directory.GetCurrentDirectory())
-        };
-        
-        _resolver = new ModuleResolver(providers);
-    }
-    
-    public void Import(string modulePath, string? alias = null) 
-    {
-        var module = _resolver.ResolveModule(modulePath);
-        
-        // Module execution remains the same
-        if (!_executedModules.Contains(module.Path)) 
-        {
-            ExecuteModule(module);
-        }
-        
-        // But imports are now stored per-module
-        if (module.IsSingleSymbol) 
-        {
-            var symbol = module.Symbols[0];
-            _currentModule.AddImport(symbol.Name, symbol, alias);
-        } 
-        else 
-        {
-            foreach (var symbol in module.Symbols) 
-            {
-                _currentModule.AddImport($"{alias ?? module.Namespace}.{symbol.Name}", symbol);
-            }
-        }
-    }
-}
-```
-
-## Benefits
-
-1. **Modularity**: Each provider handles its own module source type
-2. **Extensibility**: Easy to add new module sources
-3. **Isolation**: Module-specific imports prevent naming conflicts
-4. **Flexibility**: Configurable search paths and priorities
-5. **Standard Library**: First-class support for embedded modules
-
-## Implementation Steps
-
-1. Create the IModuleProvider interface
-2. Implement FileSystemModuleProvider (refactor existing code)
-3. Add module-specific imports to Module class
-4. Create ModuleResolver
-5. Implement EmbeddedResourceModuleProvider
-6. Implement SystemModuleProvider
-7. Update Importer to use new system
-8. Add tests for new functionality
-
-## Migration Strategy
-
-1. Keep existing filesystem loading as default
-2. Add provider system in parallel
-3. Gradually move functionality to providers
-4. Update tests to cover new cases
-5. Document new import system
+## Main script and Implicit default namespace
+The currently executing package (a 'main script' should be thought of as running in an implicit 'default' package whose root directory is the directory of the executing main script. If a 'package.zen' file exists in this directory, the name would be the name denoted in that file)

@@ -35,20 +35,15 @@ public partial class Interpreter : IGenericVisitor<IEvaluationResult>
     // Event loop for managing async operations
     public readonly EventLoop EventLoop;
 
-    // Importer for managing packages and modules
-    public Importer Importer;
-
-    public Interpreter(EventLoop eventLoop)
+    public readonly Importer Importer;
+    
+    public Interpreter(EventLoop eventLoop, Importer importer)
     {
         environment = globalEnvironment;
         EventLoop = eventLoop;
+        Importer = importer;
         RegisterBuiltins(new Builtins.Core.Typing());
         RegisterBuiltins(new Builtins.Core.Time());
-    }
-
-    public void SetImporter(Importer importer)
-    {
-        Importer = importer;
     }
 
     /// <summary>
