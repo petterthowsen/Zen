@@ -1,29 +1,111 @@
-1. Namespace map to directories. Namespaces can nest, just like directories.
-2. A Package maps a root directory to a root namespace. Packages contain namespaces and modules. Top-level namespaces are packages.
-3. A Module is a .zen file that defines 1 or more symbols (classes, functions, possibly more)
+# Import System Overview
 
-# Syntax
-- 'import namespace' imports all symbols directly under the given namespace and brings them into the scope.
-- 'import package/namespace1/module/symbol' would import a function or class called 'symbol' from the given namespace.
-- 'import package/namespace/module' imports all symbols from the given module.
-- 'from package/namespace/module import helloFunc'  imports the 'helloFunc' symbol from the given module.
-- 'from package/namespace import module' imports the helloFunc as well as any other symbols from the given module.
-- 'from package/namespace/module import helloFunc, helloClass' imports multiple symbols from a module. 
+Zen's import system is composed of Packages, namespaces and modules.
 
-In some cases, an import statement can point to a directory, or a file. If it points to a directory, the importer will assume the symbol being requested is a file. The importer must handle both cases.
+Packages are a root namespace. Packages contain modules and namespaces. Namespaces also contain other sub-namespaces and modules.
+Modules are the .zen files. All top-level classes and functions are exportable public symbols.
 
-# Execution
-When the zen runtime executes a .zen file, it should consider it a "main script".
+## Requirements
 
-When the main script encounters an import statement, we should import the symbols by first seeing if the symbol can be found in the given package/namespace. If it's found, we then execute the module (the .zen file) that defines the symbol. Importantly, modules should be executed in their own scope - and, they can also import other symbols into their scope. When a module is executed due to being imported, the resulting module's own environment will be cached for further use. So subsequent imports to the same module doesn't execute again.
+- Ccyclical/circular dependencies. I.E, module A imports module B and module B imports module A.
+- Aliasing imported symbols.
+- Imported modules (.zen files) must be executed by the interpreter, but only once.
+- Cache the resolutions to improve performance.
 
-Also, we need to make sure cyclic imports are supported.
+## Syntax
+Import statements come in two flavours. 'From Import' and simple 'Import'.
 
-# Module Sources
-A script should be able to import modules from three main package sources:
-1. Embedded "built in" packages. These are stored in the Zen runtime and included as embedded resources. They're stored in `execution/builtins` directory - each subdirectory there is considered a built in package.
-2. From installed third-party packages stored somewhere on the system. The path of which should probably be an environment key like ZEN_HOME. Each folder in this directory would be scanned for packages, and each must contain a package.zen file that names that package.
-3. From modules defined by the currently running 'main script', more on this below.
+From import is in the form: `from [path] import [symbol]`.
 
-## Main script and Implicit default namespace
-The currently executing package (a 'main script' should be thought of as running in an implicit 'default' package whose root directory is the directory of the executing main script. If a 'package.zen' file exists in this directory, the name would be the name denoted in that file)
+Regular import is in the form: `import [path]`.
+
+Aliases can be set, for example `import Package/MyModule/MyFunc as MyCustomFunc`.
+
+
+## Current Partial implementation
+
+We currently have a set of classes that provide the foundation for an import system.
+
+We have classes for Packages, Namespaces and Modules, as well as a ImportResolution class and a AbstractProvider class.
+
+Package, Namespace and Module classes are self-explanatory.
+
+The ImportResolution wraps the result of a Resolution attempt.
+
+Importantly, when import resolution happens, we take care to always build the Package, Namespace and Module instances in an ordered way such that the top-level namespace is created first, then any sub-namespaces or sub-modules and so on.
+
+We never resolve `package/namespace/module` before first resolving `package/namespace` and `package` etc.
+
+The ImportResolution class has helper methods to add namespaces or modules to a given package or namespace.
+
+```csharp
+class Package
+{
+    string Name;
+    string FullPath;
+    Dictionary<string, Module> Modules;
+    Dictionary<string, Namespace> Namespaces;
+
+    Package(string name, string fullPath);
+    void AddNamespace(Namespace @namespace);
+    void AddModule(string name, Module module);
+}
+```
+
+And a namespace class:
+
+```csharp
+class Namespace
+{
+    string Name; // SomeNamespace
+    string FullPath; // e.g MyPackage/SomeNamespace
+    Dictionary<string, Module> Modules;
+    Dictionary<string, Namespace> Namespaces; 
+
+    void AddModule(string name, Module module);
+    void AddNamespace(Namespace @namespace);
+}
+```
+
+```csharp
+class Module
+{
+    string FullPath;
+    string Name;
+    Dictionary<string, Symbol> Symbols;
+}
+```
+
+```csharp
+
+class Importer
+{
+    List<AbstractProvider> Providers;
+
+    Importer(AbstractProvider[] providers);
+    void RegisterProvider(AbstractProvider provider);
+    ...
+}
+```
+
+```csharp
+abstract class AbstractProvider
+{
+    Package? FindPackage(string name);
+    Namespace? FindNamespace(string fullPath);
+    Module? FindModule(string fullPath);
+    Package? ResolvePackage(string name);
+    ImportResolution? Resolve(string fullPath);
+}
+
+```csharp
+class FileSystemProvider : AbstractProvider
+{
+    string[] PackageDirectories;
+
+    FileSystemProvider(string[] packageDirectories);
+    Package? FindPackage(string name);
+    Namespace? FindNamespace(string fullPath);
+    Module? FindModule(string fullPath);
+}
+```

@@ -18,8 +18,18 @@ public partial class Interpreter {
         var modulePath = string.Join("/", import.Path);
         var alias = import.Alias?.Value;
 
+        // an "import" statement may import:
+        // - a package
+        // - a namespace
+        // - a module
+
+        // in the case of a package or namespace, we import all modules directly under that and import all symbols
+        // in the case of a module, it depends on whether the module exports a single symbol or more than one
+        // for single-symbol modules, the symbol will be exported as is
+        // for multi-symbol modules, we 
+
         // Import the module through the Importer
-        Importer.Import(modulePath);
+        ImportResolution = Importer.Resolve(modulePath);
 
         // Get all symbols from the module and copy them to the current environment
         var module = Importer.GetModule(modulePath);
