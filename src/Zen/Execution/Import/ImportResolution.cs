@@ -1,3 +1,5 @@
+using Zen.Exection.Import;
+
 namespace Zen.Execution.Import;
 
 /// <summary>
@@ -74,7 +76,21 @@ public class ModuleResolution : ImportResolution
     }
 }
 
+public class SymbolResolution : ImportResolution
+{
+    public string SubPath { get; }
+    public Symbol Symbol { get; }
 
+    public override dynamic GetResult() => Symbol;
+
+    public SymbolResolution(string fullPath, Symbol symbol) : base(fullPath)
+    {
+        string[] segments = fullPath.Split("/").Skip(1).ToArray();
+        SubPath = string.Join("/", segments);
+        Symbol = symbol;
+    }
+
+}
 
 // Extension methods for the ImportResolution class to make it easier to work with
 public static class ImportResolutionExtensions
@@ -82,6 +98,7 @@ public static class ImportResolutionExtensions
     public static bool IsPackage(this ImportResolution resolution) => resolution is PackageResolution;
     public static bool IsNamespace(this ImportResolution resolution) => resolution is NamespaceResolution;
     public static bool IsModule(this ImportResolution resolution) => resolution is ModuleResolution;
+    public static bool IsSymbol(this ImportResolution resolution) => resolution is SymbolResolution;
 
     public static PackageResolution AsPackage(this ImportResolution resolution) => 
         resolution as PackageResolution ?? throw new InvalidOperationException("Resolution is not a package");
@@ -91,4 +108,7 @@ public static class ImportResolutionExtensions
     
     public static ModuleResolution AsModule(this ImportResolution resolution) => 
         resolution as ModuleResolution ?? throw new InvalidOperationException("Resolution is not a module");
+
+    public static SymbolResolution AsSymbol(this ImportResolution resolution) =>
+        resolution as SymbolResolution ?? throw new InvalidOperationException("Resolution is not a symbol");
 }

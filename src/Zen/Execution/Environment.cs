@@ -78,7 +78,7 @@ public class Environment {
     }
 
     public dynamic? GetValue(string name) {
-        Variable variable = Variables[name];
+        Variable variable = GetVariable(name);
         if (variable.IsObject) {
             return variable.ObjectReference;
         }else {

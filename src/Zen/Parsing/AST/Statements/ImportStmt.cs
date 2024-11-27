@@ -13,6 +13,8 @@ public class ImportStmt : Stmt
     public string[] Path { get; }
     public Token? Alias { get; }
 
+    public string PathString => string.Join("/", Path);
+
     public ImportStmt(Token importToken, string[] path, Token? alias = null)
     {
         ImportToken = importToken;

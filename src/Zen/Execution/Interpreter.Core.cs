@@ -5,6 +5,7 @@ using Zen.Parsing.AST;
 using Zen.Typing;
 using Zen.Execution.EvaluationResult;
 using Zen.Execution.Import;
+using Zen.Execution.Import.Providing;
 
 namespace Zen.Execution;
 
@@ -35,13 +36,13 @@ public partial class Interpreter : IGenericVisitor<IEvaluationResult>
     // Event loop for managing async operations
     public readonly EventLoop EventLoop;
 
-    public readonly Importer Importer;
-    
-    public Interpreter(EventLoop eventLoop, Importer importer)
+    public Importer Importer;
+
+    public Interpreter(EventLoop eventLoop)
     {
         environment = globalEnvironment;
         EventLoop = eventLoop;
-        Importer = importer;
+        
         RegisterBuiltins(new Builtins.Core.Typing());
         RegisterBuiltins(new Builtins.Core.Time());
     }
@@ -94,8 +95,8 @@ public partial class Interpreter : IGenericVisitor<IEvaluationResult>
 
     public void RegisterFunction(string name, ZenUserFunction func)
     {
-        globalEnvironment.Define(true, name, ZenType.Function, false);
-        globalEnvironment.Assign(name, new ZenValue(ZenType.Function, func));
+        environment.Define(true, name, ZenType.Function, false);
+        environment.Assign(name, new ZenValue(ZenType.Function, func));
     }
 
     public void Resolve(Node expr, int depth = 0)

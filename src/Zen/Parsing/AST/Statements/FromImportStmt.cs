@@ -1,3 +1,4 @@
+using Microsoft.VisualBasic;
 using Zen.Common;
 using Zen.Lexing;
 
@@ -13,11 +14,24 @@ public class FromImportStmt : Stmt
     public string[] Path { get; }
     public Token[] Symbols { get; }
 
+    public string PathString => string.Join("/", Path);
+
     public FromImportStmt(Token fromToken, string[] path, Token[] symbols)
     {
         FromToken = fromToken;
         Path = path;
         Symbols = symbols;
+    }
+
+    public List<string> GetSymbolNames()
+    {
+        List<string> names = [];
+
+        foreach (var symbolToken in Symbols) {
+            names.Add(symbolToken.Value);
+        }
+
+        return names;
     }
 
     public override SourceLocation Location => FromToken.Location;

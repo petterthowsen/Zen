@@ -1,0 +1,9 @@
+import MyPackage.Cyclic.A
+import MyPackage.Cyclic.B
+
+var a = new A()
+var b = new B()
+
+a.hello()
+
+b.hello()

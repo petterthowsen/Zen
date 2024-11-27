@@ -51,4 +51,9 @@ public struct ImportPath
         return Path == ((ImportPath)obj).Path;
     }
 
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(Path, Segments, PackageName);
+    }
+
 }

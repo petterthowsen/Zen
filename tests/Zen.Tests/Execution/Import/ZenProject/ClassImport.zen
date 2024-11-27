@@ -1,0 +1,5 @@
+from MyPackage/OOP import Point
+
+var p = new Point(10, 10)
+
+print p.x

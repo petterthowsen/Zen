@@ -1,3 +1,5 @@
+using System.ComponentModel.Design;
+using Zen.Common;
 using Zen.Execution.EvaluationResult;
 using Zen.Execution.Import;
 using Zen.Parsing.AST.Statements;
@@ -13,51 +15,150 @@ public partial class Interpreter {
         return VoidResult.Instance;
     }
 
+
     public IEvaluationResult Visit(ImportStmt import)
     {
         var modulePath = string.Join("/", import.Path);
-        var alias = import.Alias?.Value;
 
         // an "import" statement may import:
-        // - a package
-        // - a namespace
-        // - a module
+        // - a package (E.g 'myPackage')
+        // - a namespace (E.g 'myPackage.someNamespace')
+        // - a module (E.g 'myPackage.UtilFunctions')
+        // We cannot import a symbol - that's done via 'FromImportStmt'.
 
-        // in the case of a package or namespace, we import all modules directly under that and import all symbols
-        // in the case of a module, it depends on whether the module exports a single symbol or more than one
-        // for single-symbol modules, the symbol will be exported as is
-        // for multi-symbol modules, we 
+        // We always import the symbols
 
-        // Import the module through the Importer
-        ImportResolution = Importer.Resolve(modulePath);
+        // Import through the Importer
+        ImportResolution resolution = Importer.ResolveSymbols(modulePath);
 
-        // Get all symbols from the module and copy them to the current environment
-        var module = Importer.GetModule(modulePath);
-        if ( ! module.IsInitialized)
+        if (resolution.IsModule())
         {
-            throw new RuntimeError($"Module {module.Path} has not been executed");
+            var module = resolution.AsModule().Module;
+            
+            // Execute the module if it hasn't been executed yet
+            if (module.State != State.Executed)
+            {
+                Importer.Import(modulePath);
+            }
+
+            ApplyModuleImport(module);
         }
-
-        if (module.Symbols.Count == 1)
+        else if (resolution.Result is IHasModules moduleContainer) // both packages and namespaces can contain modules
         {
-            // todo: throw error if alias is already defined
-            var symbol = module.Symbols[0];
-            var name = alias ?? symbol.Name;
-            ZenValue value = module.Environment.GetValue(symbol.Name);
-            environment.Define(true, name, value.Type, false);
-            environment.Assign(name, value);
-        }
-        else
-        {
-            // here we need to essentially create a object with all the symbols in it.
-            throw new NotImplementedException("Implicit Multi-symbol imports not implemented yet");
+            foreach(var module in moduleContainer.Modules.Values)
+            {
+                ApplyModuleImport(module);
+            }
         }
 
         return VoidResult.Instance;
     }
 
+    private void ApplyNamespaceImport(Namespace @namespace)
+    {
+        foreach (Module module in @namespace.Modules.Values)
+        {
+            ApplyModuleImport(module);
+        }
+    }
+
+    private void ApplyModuleImport(Module module, string[] symbols)
+    {
+        Logger.Instance.Debug($"Applying module import {module.FullPath}, symbols: {string.Join(", ", symbols)}");
+        
+        // Check if any symbols are already defined before executing
+        foreach (string symbol in symbols)
+        {
+            if (environment.Exists(symbol))
+            {
+                throw new RuntimeError($"Cannot import: name '{symbol}' is already defined in this scope");
+            }
+        }
+
+        // Execute the module if it hasn't been executed yet
+        if (module.State != State.Executed)
+        {
+            Importer.Import(module.FullPath);
+        }
+        
+        // Now import the symbols
+        foreach (string symbol in symbols)
+        {
+            if (!module.HasSymbol(symbol))
+            {
+                throw new RuntimeError($"Module '{module.FullPath}' has no exported symbol named '{symbol}'");
+            }
+
+            var alias = symbol;
+
+            // module.HasSymbol says true but let's debug this
+            if ( ! module.environment.Exists(symbol)) {
+                throw new Exception($"module.HasSymbol({symbol}) is true but module.environment.Exists({symbol}) is false!!");
+            }
+
+            ZenValue value = module.environment.GetValue(symbol);
+            environment.Define(true, alias, value.Type, false);
+            environment.Assign(alias, value);
+        }
+    }
+
+    private void ApplyModuleImport(Module module)
+    {     
+        List<string> symbolNames = [];
+        foreach (var symbol in module.Symbols)
+        {
+            symbolNames.Add(symbol.Name);
+        }
+
+        ApplyModuleImport(module, symbolNames.ToArray());
+    }
+
     public IEvaluationResult Visit(FromImportStmt fromImport)
     {
+        var modulePath = string.Join("/", fromImport.Path);
+        var symbols = fromImport.GetSymbolNames();
+        
+        // Resolve the base path
+        ImportResolution resolution = Importer.ResolveSymbols(modulePath);
+
+        if (resolution.IsModule())
+        {
+            // If it's a module, import the specified symbols from it
+            var module = resolution.AsModule().Module;
+            ApplyModuleImport(module, [..symbols]);
+        }
+        else if (resolution.IsNamespace())
+        {
+            // If it's a namespace, try to find modules matching the symbol names
+            foreach (var symbol in symbols)
+            {
+                // First try to find a module with this name
+                var symbolPath = $"{modulePath}/{symbol}";
+                var symbolResolution = Importer.ResolveSymbols(symbolPath);
+                
+                if (symbolResolution.IsModule())
+                {
+                    var module = symbolResolution.AsModule().Module;
+                    
+                    // If this module has only one symbol and it matches its name,
+                    // we can import it directly
+                    if (module.HasSymbol(symbol))
+                    {
+                        ApplyModuleImport(module, new[] { symbol });
+                        continue;
+                    }
+                }
+
+                // If we couldn't find a matching module or it didn't have a matching symbol,
+                // throw an error
+                throw new RuntimeError($"Cannot import '{symbol}' from namespace '{modulePath}'");
+            }
+        }
+        else
+        {
+            throw new RuntimeError($"Cannot import from '{modulePath}': not a module or namespace");
+        }
+
         return VoidResult.Instance;
     }
 }

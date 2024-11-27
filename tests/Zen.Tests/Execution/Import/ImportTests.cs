@@ -1,6 +1,5 @@
 using Xunit.Abstractions;
 using Zen.Common;
-using Zen.Execution.Import.Providers;
 
 namespace Zen.Tests.Execution.Import;
 
@@ -19,9 +18,6 @@ public class ImportTests : TestRunner
             testClassDir,
             "../../../Execution/Import/ZenProject"
         )).Replace("\\", "/");
-
-        // Load the package which will register it with the FileSystemModuleProvider
-        Importer.LoadPackage(_projectPath);
     }
 
     [Fact]
@@ -33,6 +29,28 @@ public class ImportTests : TestRunner
         var result = Execute(source);
 
         Assert.Equal("hello", result?.Trim());
+    }
+
+    [Fact]
+    public void TestClassImport()
+    {
+        // Execute ClassImport.zen which imports OOP/Point.zen class
+        var mainPath = Path.Combine(_projectPath, "ClassImport.zen");
+        var source = new FileSourceCode(mainPath);
+        var result = Execute(source);
+
+        Assert.Equal("10", result?.Trim());
+    }
+
+    [Fact]
+    public void TestCyclicImport()
+    {
+        // Execute Cyclic.zen which imports cyclic/A which in turn depends on B, which depends on A cyclicly
+        var path = Path.Combine(_projectPath, "Cyclic.zen");
+        var source = new FileSourceCode(path);
+        var result = Execute(source);
+
+        Assert.Equal("OK", result);
     }
 
     [Fact]

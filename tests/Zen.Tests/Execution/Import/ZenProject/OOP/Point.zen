@@ -1,0 +1,9 @@
+class Point {
+    x: int
+    y: int
+
+    Point(x: int, y: int) {
+        this.x = x
+        this.y = y
+    }
+}

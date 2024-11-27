@@ -92,18 +92,43 @@ public abstract class AbstractProvider
             }else {
                 if (isLast)
                 {
+                    // if this is the last segment, we'll prioritize modules before namespaces.
                     Module? module = FindModule(currentFullPath);
-                    if (module == null) return null;
 
-                    current.AddModule(module);
-                    current = new ModuleResolution(currentFullPath, module);
+                    if (module != null) {
+                        current.AddModule(module);
+                        current = new ModuleResolution(currentFullPath, module);
+                    }else {
+                        // try namespace
+                        Namespace? ns = FindNamespace(currentFullPath);
+                        
+                        if (ns == null) return null;
+
+                        current.AddNamespace(ns);
+                        current = new NamespaceResolution(currentFullPath, ns);
+                    }
+
+                    // resolve to a symbol?
+                    // perhaps this is the wrong place to but this logic...
+                    //Module module = current.AsModule().Module;
+                    // we can't resolve symbols here since the module's AST has not yet been parsed
                 }
                 else
                 {
+                    // namespace or module
+                    // try namespace
                     Namespace? ns = FindNamespace(currentFullPath);
-                    if (ns == null) return null;
-                    current.AddNamespace(ns);
-                    current = new NamespaceResolution(currentFullPath, ns);
+                    
+                    if (ns != null) {
+                        current.AddNamespace(ns);
+                        current = new NamespaceResolution(currentFullPath, ns);
+                    }else {
+                        Module? module = FindModule(currentFullPath);
+                        current.AddModule(module);
+                        current = new ModuleResolution(currentFullPath, module);
+
+                        if (module == null) return null;
+                    }
                 }
 
                 // cache it

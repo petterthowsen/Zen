@@ -1,18 +1,27 @@
+using Zen.Execution.Import;
 using Zen.Typing;
 
 namespace Zen.Exection.Import;
+
+public enum SymbolType {
+    Class,
+    Function
+}
 
 /// <summary>
 /// Represents an exported class, function, etc.
 /// </summary>
 public class Symbol
 {
-    public string Name;
-    public ZenValue Value;
+    public readonly string Name;
+    public readonly SymbolType Type;
     
-    public Symbol(string name, ZenValue value)
+    public readonly Module Module;
+
+    public Symbol(string name, SymbolType type, Module module)
     {
         Name = name;
-        Value = value;
+        Type = type;
+        Module = module;
     }
 }

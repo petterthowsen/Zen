@@ -10,65 +10,51 @@ namespace Zen.Tests;
 public class TestRunner
 {
     protected readonly ITestOutputHelper Output;
-    protected readonly Lexer Lexer;
-    protected readonly Parser Parser;
-    protected Resolver Resolver;
-    protected Interpreter Interpreter;
-    protected readonly EventLoop EventLoop;
-    protected Importer Importer;
+    protected Runtime Runtime;
+    
+    // Keep these for backward compatibility with existing tests
+    protected Lexer Lexer => Runtime.Lexer;
+    protected Parser Parser => Runtime.Parser;
+    protected Resolver Resolver => Runtime.Resolver;
+    protected Interpreter Interpreter => Runtime.Interpreter;
+    protected EventLoop EventLoop => Runtime.EventLoop;
+    protected Importer Importer => Runtime.Importer;
 
     public TestRunner(ITestOutputHelper output)
     {
         Output = output;
-        Lexer = new Lexer();
-        Parser = new Parser();
-        EventLoop = new EventLoop();
-        EventLoop.Start();
         
+        // Configure logger to use test output
+        Logger.Instance.SetOutput(message => output.WriteLine(message));
+        Logger.Instance.SetDebug(true);
+        
+        Runtime = new Runtime();
+        
+        // Start with a fresh interpreter state
         RestartInterpreter();
     }
 
     protected virtual void RestartInterpreter()
     {
-        // Create interpreter first
-        Interpreter = new Interpreter(EventLoop);
-        
-        // Then create importer with interpreter reference
-        Importer = new Importer(Parser, Lexer, Interpreter);
-        
-        // Finally set importer on interpreter
-        Interpreter.SetImporter(Importer);
-        
-        Resolver = new Resolver(Interpreter);
+        Runtime.EventLoop.Stop();
+        Runtime = new Runtime();
     }
 
     protected string? Execute(ISourceCode source)
     {
-        List<Token> tokens = Lexer.Tokenize(source);
-        var node = Parser.Parse(tokens);
+        // Enable output buffering before executing
+        Runtime.Interpreter.GlobalOutputBufferingEnabled = true;
+        Runtime.Interpreter.GlobalOutputBuffer.Clear();
 
-        if (Parser.Errors.Count > 0)
+        try
         {
-            throw new Exception("Parse errors: " + string.Join("\n", Parser.Errors));
+            return Runtime.Execute(source);
         }
-
-        // Create a module for the code being executed
-        var modulePath = source is FileSourceCode fileSource 
-            ? Path.GetFileNameWithoutExtension(fileSource.FilePath)
-            : "_inline";
-        var module = Module.CreateFileModule(modulePath, [], node);
-
-        // Enable output buffering before executing the module
-        Interpreter.GlobalOutputBufferingEnabled = true;
-        Interpreter.GlobalOutputBuffer.Clear();
-
-        // Execute the module in the global environment.
-        // Subsequent imported modules will be executed in their own environment.
-        Importer.ExecuteModule(module, global: true);
-
-        string output = Interpreter.GlobalOutputBuffer.ToString();
-        Interpreter.GlobalOutputBuffer.Clear();
-        return output;
+        finally
+        {
+            // Clear the buffer after execution
+            Runtime.Interpreter.GlobalOutputBuffer.Clear();
+        }
     }
 
     protected string? Execute(string source) => Execute(new InlineSourceCode(source));

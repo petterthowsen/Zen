@@ -2,6 +2,8 @@ using Zen.Lexing;
 using Zen.Parsing;
 using Zen.Parsing.AST;
 using Zen.Common;
+using Zen.Execution.Import;
+using Zen.Execution.Import.Providing;
 
 namespace Zen.Execution;
 
@@ -16,6 +18,9 @@ public class Runtime
     public readonly EventLoop EventLoop;
     public readonly Resolver Resolver;
     public readonly Interpreter Interpreter;
+    public readonly ModuleHelper ModuleHelper;
+
+    public Importer Importer;
 
     public Runtime()
     {
@@ -26,9 +31,30 @@ public class Runtime
         
         // Create interpreter first
         Interpreter = new Interpreter(EventLoop);
-        
-        // Then create importer with interpreter reference
+
+        // Then create a resolver, with the interpreter
+        // The resolver handles scope resolution and populates the Interpreters.Locals
         Resolver = new Resolver(Interpreter);
+
+        // create importer and module helper
+        Importer = new Importer(Interpreter, Resolver);
+        ModuleHelper = new ModuleHelper(Interpreter);
+
+        Interpreter.Importer = Importer;
+    }
+
+    private string GetPackageName(string? scriptDirectory)
+    {
+        if (scriptDirectory == null) return "main";
+
+        var packagePath = Path.Combine(scriptDirectory, "package.zen");
+        if (!File.Exists(packagePath)) return "main";
+
+        var packageContent = File.ReadAllText(packagePath).Trim();
+        var parts = packageContent.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length != 2 || parts[0] != "package") return "Main";
+
+        return parts[1];
     }
 
     public ProgramNode Parse(ISourceCode sourceCode) => Parser.Parse(Lexer.Tokenize(sourceCode));
@@ -36,29 +62,60 @@ public class Runtime
     public ProgramNode parse(string sourceCode) => Parse(new InlineSourceCode(sourceCode));
 
     /// <summary>
-    /// Execute the given source code.
+    /// Execute source code as a module, setting up the import system
     /// </summary>
-    /// <exception cref="Exception"></exception>
     public string? Execute(ISourceCode source)
     {
-        List<Token> tokens = Lexer.Tokenize(source);
-        var node = Parser.Parse(tokens);
+        // Create a module for the main script
+        string moduleName = source is FileSourceCode fs ? 
+            Path.GetFileNameWithoutExtension(fs.FilePath) : 
+            "__main__";
 
-        if (Parser.Errors.Count > 0)
+        // Get package name from package.zen if it exists
+        string packageName = "Main";
+        if (source is FileSourceCode fileSource)
         {
-            throw new Exception("Parse errors: " + string.Join("\n", Parser.Errors));
-        }
-
-        Resolver.Resolve(node);
-        if (Resolver.Errors.Count > 0)
-        {
-            throw new Exception("Resolver errors: " + string.Join("\n", Resolver.Errors));
+            var directory = Path.GetDirectoryName(fileSource.FilePath);
+            packageName = GetPackageName(directory);
         }
         
-        Interpreter.Interpret(node, true);
-        
-        string output = Interpreter.GlobalOutputBuffer.ToString();
-        return output;
+        var mainModule = new Module(moduleName, source);
+        mainModule.environment = Interpreter.globalEnvironment;
+
+        // Register the main script provider
+        var mainProvider = new MainScriptModuleProvider(mainModule, packageName);
+        Importer.RegisterProvider(mainProvider);
+
+        try
+        {
+            // Parse the module
+            ModuleHelper.Parse(mainModule);
+
+            if (mainModule.AST == null)
+            {
+                throw new Exception("Failed to parse main module");
+            }
+
+            // Resolve scope
+            Resolver.Resolve(mainModule.AST);
+            if (Resolver.Errors.Count > 0)
+            {
+                throw new Exception("Resolver errors: " + string.Join("\n", Resolver.Errors));
+            }
+
+            // Execute the module
+            // We pass true to awaitEvents since this is the main script
+            Interpreter.Interpret(mainModule.AST, awaitEvents: true);
+            
+            string output = Interpreter.GlobalOutputBuffer.ToString();
+            return output;
+        }
+        catch (Exception)
+        {
+            // Clean up the provider on error
+            Importer.Providers.Remove(mainProvider);
+            throw;
+        }
     }
 
     public string? Execute(string sourceCodeText) => Execute(new InlineSourceCode(sourceCodeText));

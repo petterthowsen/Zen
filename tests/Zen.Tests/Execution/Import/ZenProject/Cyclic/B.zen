@@ -1,0 +1,9 @@
+from MyPackage.Cyclic import A
+
+class B {
+    a:A
+
+    hello() {
+        print "hello from B"
+    }
+}

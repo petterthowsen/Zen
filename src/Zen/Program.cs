@@ -75,78 +75,19 @@ public class Program
         }
     }
 
-    protected static void _Execute(string code, Interpreter? interpreter = null) {
-        var lexer = new Lexer();
-        var tokens = lexer.Tokenize(code);
-
-        PrintTokens(tokens);
-
-        if (lexer.Errors.Count > 0) {
-            PrintErrors(lexer.Errors);
-            return;
-        }
-
-        var parser = new Parser();
-        var program = parser.Parse(tokens);
-
-        if (program != null) {
-            PrintAST(program);
-        }
-
-        if (parser.Errors.Count > 0) {
-            PrintErrors(parser.Errors);
-            return;
-        }
-
-        if (program != null) {
-            // execute program
-            interpreter = new Interpreter(new EventLoop());
-            var importer = new Importer(parser, lexer, interpreter);
-            interpreter.SetImporter(importer);
-            Resolver resolver = new(interpreter);
-            
-            try {
-                resolver.Resolve(program);
-
-                if (resolver.Errors.Count > 0) {                    
-                    PrintErrors(resolver.Errors);
-                    return;
-                }
-
-                interpreter.Interpret(program, true);
-            } catch (Exception error) {
-                Console.WriteLine(error);
-            }
-        }
-    }
 
     protected static void Execute(ISourceCode script)
     {
         Console.WriteLine("Executing script " + script);
         Runtime runtime = new();
 
-        if (script is FileSourceCode fileSourceCode) {
-            string path = fileSourceCode.FilePath;
-            
-            // Load the package which will register it with the FileSystemModuleProvider
-            if (runtime.PackageFileExists(path)) {
-                Console.WriteLine($"Found nearby package file for {path}");
-                Package package = runtime.LoadPackage(path);
-            }
-        }
-
-        //runtime.SetCurrentModule(Module.CreateFileModule("_main",[], null));
-        runtime.Execute(script, asModule: true);
+        runtime.Execute(script);
     }
 
     protected static void REPL() {
         Console.WriteLine("Zen REPL v0.1");
         
         Runtime runtime = new();
-
-        Module replModule = Module.CreateFileModule("_repl",[], null);
-
-        runtime.SetCurrentModule(replModule);
 
         while (true) {
             Console.Write(">> ");

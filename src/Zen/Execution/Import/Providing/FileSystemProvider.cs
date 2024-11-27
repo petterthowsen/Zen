@@ -1,3 +1,5 @@
+using Zen.Common;
+
 namespace Zen.Execution.Import.Providing;
 
 /// <summary>
@@ -41,7 +43,7 @@ public class FileSystemProvider : AbstractProvider
         foreach (var root in PackageDirectories) {
             var path = Path.Combine(root, fullPath + ".zen");
             if (File.Exists(path)) {
-                return new Module(fullPath);
+                return new Module(fullPath, new FileSourceCode(path));
             }
         }
 
