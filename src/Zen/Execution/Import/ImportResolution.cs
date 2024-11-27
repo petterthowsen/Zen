@@ -99,6 +99,7 @@ public static class ImportResolutionExtensions
     public static bool IsNamespace(this ImportResolution resolution) => resolution is NamespaceResolution;
     public static bool IsModule(this ImportResolution resolution) => resolution is ModuleResolution;
     public static bool IsSymbol(this ImportResolution resolution) => resolution is SymbolResolution;
+    public static bool HasModules(this ImportResolution resolution) => resolution.Result is IHasModules;
 
     public static PackageResolution AsPackage(this ImportResolution resolution) => 
         resolution as PackageResolution ?? throw new InvalidOperationException("Resolution is not a package");

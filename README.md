@@ -350,9 +350,9 @@ Zen provides an extensible builtin system through the `IBuiltinsProvider` interf
 - - [x] ImportStmt
 - - [x] FromImportStmt
 - - [x] Importer System
-- - - [x] two-phase import with placeholders for cyclic imports
+- - - [x] Two-phase import with placeholders for cyclic imports
 - - - [x] MainScriptProvider that provides files from the current main script package
-- - - [] BuiltinProvider that can provide packages from embedded .zen resource files
+- - - [x] BuiltinProvider that can provide packages from embedded .zen resource files
 - [x] Runtime
 - - [x] Event loop implementation
 - - [x] Async / Await

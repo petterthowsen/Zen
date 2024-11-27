@@ -8,7 +8,7 @@
   </PropertyGroup>
  
   <ItemGroup>
-    <EmbeddedResource Include="Execution/Builtins/System/**" />
+    <EmbeddedResource Include="Execution/Builtins/Packages/**" />
   </ItemGroup>
 
 </Project>

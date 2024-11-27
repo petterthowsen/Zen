@@ -127,7 +127,7 @@ public partial class Interpreter {
             var module = resolution.AsModule().Module;
             ApplyModuleImport(module, [..symbols]);
         }
-        else if (resolution.IsNamespace())
+        else if (resolution.HasModules())
         {
             // If it's a namespace, try to find modules matching the symbol names
             foreach (var symbol in symbols)

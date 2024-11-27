@@ -41,6 +41,9 @@ public class Runtime
         ModuleHelper = new ModuleHelper(Interpreter);
 
         Interpreter.Importer = Importer;
+
+        // add import providers
+        Importer.RegisterProvider(new BuiltinProvider());
     }
 
     private string GetPackageName(string? scriptDirectory)

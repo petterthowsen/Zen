@@ -54,6 +54,19 @@ public class ImportTests : TestRunner
     }
 
     [Fact]
+    public void TestBuiltInImport()
+    {
+        // Execute Main.zen which imports and uses PrintHello
+        var result = Execute(@"
+            from System import Exception
+            var e = new Exception(""test message"")
+            print e.Message
+        ");
+
+        Assert.Equal("test message", result?.Trim());
+    }
+
+    [Fact]
     public void TestAsyncImport()
     {    
         // Execute AsyncMain.zen which imports and uses DelayAndReturn
@@ -96,16 +109,5 @@ public class ImportTests : TestRunner
         Assert.Equal("true", result?.Trim());
     }
 
-    [Fact]
-    public void TestBuiltInImport()
-    {
-        // Execute Main.zen which imports and uses PrintHello
-        var result = Execute(@"
-            from System import Exception
-            var e = new Exception(""test message"")
-            print e.Message
-        ");
-
-        Assert.Equal("test message", result?.Trim());
-    }
+    
 }

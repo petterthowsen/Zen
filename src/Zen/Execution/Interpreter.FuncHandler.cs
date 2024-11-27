@@ -61,7 +61,19 @@ public partial class Interpreter
                 for (int i = 0; i < parameters.Count; i++)
                 {
                     paramEnv.Define(false, parameters[i].Name, parameters[i].Type, parameters[i].Nullable);
-                    paramEnv.Assign(parameters[i].Name, arguments[i]);
+
+                    ZenValue arg = arguments[i];
+
+                    // type check                
+                    if (TypeChecker.IsCompatible(arg.Type, parameters[i].Type) == false) {
+                        throw Error($"{parameters[i].Name} is expected to be a {parameters[i].Type}, not a {arg.Type}!");
+                    }
+
+                    // type convert if needed
+                    arg = TypeConverter.Convert(arg, parameters[i].Type, false);
+
+                    // assign
+                    paramEnv.Assign(parameters[i].Name, arg);
                 }
 
                 // Create inner environment for method body
@@ -111,7 +123,19 @@ public partial class Interpreter
             for (int i = 0; i < parameters.Count; i++)
             {
                 paramEnv.Define(false, parameters[i].Name, parameters[i].Type, parameters[i].Nullable);
-                paramEnv.Assign(parameters[i].Name, arguments[i]);
+
+                ZenValue arg = arguments[i];
+
+                // type check                
+                if (TypeChecker.IsCompatible(arg.Type, parameters[i].Type) == false) {
+                    throw Error($"{parameters[i].Name} is expected to be a {parameters[i].Type}, not a {arg.Type}!");
+                }
+
+                // type convert if needed
+                arg = TypeConverter.Convert(arg, parameters[i].Type, false);
+
+                // assign
+                paramEnv.Assign(parameters[i].Name, arg);
             }
 
             // Create inner environment for method body

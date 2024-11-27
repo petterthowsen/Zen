@@ -95,4 +95,20 @@ hello()
         string? result = Execute("var counter = makeCounter()\nprint counter()");
         Assert.Equal("1", result);
     }
+
+    [Fact]
+    public void TestFuncWithParameters()
+    {
+        RestartInterpreter();
+
+        Execute(@"
+        class Point {
+            x: float
+            Point(x: float, y:float) {
+                this.x = x
+            }
+        }");
+
+        Execute("var p = new Point(1, 2)");
+    }
 }

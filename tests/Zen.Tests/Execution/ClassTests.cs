@@ -90,7 +90,6 @@ public class ClassTests : TestRunner
         Assert.Equal("bob", nameValue.Underlying);
     }
 
-    
     [Fact]
     public void TestConstructor()
     {
