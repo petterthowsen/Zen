@@ -329,8 +329,6 @@ Zen provides an extensible builtin system through the `IBuiltinsProvider` interf
 - New builtin modules can be easily added by implementing IBuiltinsProvider
 
 ## TODO
-- [] Improved error handling
-- - [] make the interpreter track the current token and make the interpreters Error static function use that as the SourceLocation for the error.
 
 - [x] Typing
 - - [x] Nullable types
@@ -348,6 +346,7 @@ Zen provides an extensible builtin system through the `IBuiltinsProvider` interf
 - - [] Constant folding
 - [x] Namespaces, packages & imports
 - - [x] ImportStmt
+- - - [] Make modules automatically import all sibling modules (modules of the same namespace) implicitly.
 - - [x] FromImportStmt
 - - [x] Importer System
 - - - [x] Two-phase import with placeholders for cyclic imports
@@ -356,7 +355,9 @@ Zen provides an extensible builtin system through the `IBuiltinsProvider` interf
 - [x] Runtime
 - - [x] Event loop implementation
 - - [x] Async / Await
-- - [] Exceptions
+- - [] Error Handling
+- - - [] Unified Error Handling and Exception interop with C#
+- - - [] make the interpreter track the current token and make the interpreters Error static function use that as the SourceLocation for the error?
 - - - [] Exception Throwing
 - - - [] try/catch/finally statements
 - [] Collections
