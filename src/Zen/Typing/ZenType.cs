@@ -18,7 +18,7 @@ public class ZenType {
     public static ZenType Array = new("array", [ZenType.String, ZenType.Integer]);
     public static ZenType Map = new("map", [ZenType.String, ZenType.String]);
     public static ZenType Type = new("type"); // Represents type values themselves
-    public static ZenType Promise = new("Promise"); // New: Represents Promise type
+    public static ZenType Promise = new("Promise"); // Represents Promise type
 
     private static readonly Dictionary<string, ZenType> _primitives = new() {
         { "int", Integer },

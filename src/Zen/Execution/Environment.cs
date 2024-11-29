@@ -93,4 +93,9 @@ public class Environment {
     public void Assign(string name, ZenObject value) {
         Variables[name].Assign(value);
     }
+
+    public void Alias(string original, string alias)
+    {
+        Variables[alias] = Variables[original];
+    }
 }

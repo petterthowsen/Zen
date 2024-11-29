@@ -696,4 +696,46 @@ public class ParserTests {
         Assert.Equal("foo", fromImportStmt.Path[0]);
         Assert.Equal("bar", fromImportStmt.Symbols[0].Value);
     }
+
+    
+    [Fact]
+    public void TestBracketGet() {
+        ProgramNode program = Parse("array[index]");
+        Assert.Single(program.Statements);
+        Assert.IsType<ExpressionStmt>(program.Statements[0]);
+
+        ExpressionStmt exprStmt = (ExpressionStmt)program.Statements[0];
+        BracketGet bracketGet = Assert.IsType<BracketGet>(exprStmt.Expression);
+
+        Assert.IsType<Identifier>(bracketGet.Target);
+        Identifier target = (Identifier) bracketGet.Target;
+        Assert.Equal("array", target.Token.Value);
+
+        Assert.IsType<Identifier>(bracketGet.Element);
+        Identifier element = (Identifier) bracketGet.Element;
+        Assert.Equal("index", element.Token.Value);
+    }
+
+    
+    [Fact]
+    public void TestBracketSet() {
+        ProgramNode program = Parse("array[index] = 10");
+        Assert.Single(program.Statements);
+        Assert.IsType<ExpressionStmt>(program.Statements[0]);
+
+        ExpressionStmt exprStmt = (ExpressionStmt)program.Statements[0];
+        BracketSet bracketSet = Assert.IsType<BracketSet>(exprStmt.Expression);
+
+        Assert.IsType<Identifier>(bracketSet.Target);
+        Identifier target = (Identifier) bracketSet.Target;
+        Assert.Equal("array", target.Token.Value);
+
+        Assert.IsType<Identifier>(bracketSet.Element);
+        Identifier element = (Identifier) bracketSet.Element;
+        Assert.Equal("index", element.Token.Value);
+
+        Assert.IsType<Literal>(bracketSet.ValueExpression);
+        Literal literal = (Literal) bracketSet.ValueExpression;
+        Assert.Equal(10, literal.Value.Underlying);
+    }
 }

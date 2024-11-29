@@ -44,4 +44,6 @@ public interface IGenericVisitor<T>
     T Visit(TypeCheck typeCheck);
     T Visit(TypeCast typeCast);
     T Visit(Await await);
+    T Visit(BracketGet bracketGet);
+    T Visit(BracketSet bracketSet);
 }

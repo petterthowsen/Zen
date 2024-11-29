@@ -10,6 +10,8 @@ public class ZenObject {
 
     public Dictionary<string, ZenValue> Properties = [];
 
+    public Dictionary<string, dynamic?> Data = [];
+
     public ZenObject(ZenClass clazz) {
         Class = clazz;
     }

@@ -57,7 +57,7 @@ public class Resolver : IVisitor
             Resolve(module);
             return;
         }
-        
+
         BeginScope();
         Resolve(module);
         EndScope();
@@ -369,6 +369,19 @@ public class Resolver : IVisitor
     {
         Resolve(set.ObjectExpression);
         Resolve(set.ValueExpression);
+    }
+
+    public void Visit(BracketGet bracketGet)
+    {
+        Resolve(bracketGet.Target);
+        Resolve(bracketGet.Element);
+    }
+
+    public void Visit(BracketSet bracketSet)
+    {
+        Resolve(bracketSet.Target);
+        Resolve(bracketSet.Element);
+        Resolve(bracketSet.ValueExpression);
     }
 
     public void Visit(This dis)

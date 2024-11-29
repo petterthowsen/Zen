@@ -3,6 +3,9 @@ using Zen.Lexing;
 
 namespace Zen.Parsing.AST.Expressions;
 
+/// <summary>
+/// parses a 'Expression.Identifier' syntax for getting properties of objects.
+/// </summary>
 public class Get : Expr
 {
     public Expr Expression;

@@ -196,6 +196,18 @@ public IEvaluationResult Visit(Grouping grouping)
         }
     }
 
+    public IEvaluationResult Visit(BracketGet bracketGet)
+    {
+        throw new NotImplementedException();
+    }
+
+    public IEvaluationResult Visit(BracketSet bracketSet)
+    {
+        throw new NotImplementedException();
+    }
+
+    // public IEvaluationResult Visit(BracketSet bracketSet)
+
     public IEvaluationResult Visit(Logical logical)
     {
         IEvaluationResult left = Evaluate(logical.Left);

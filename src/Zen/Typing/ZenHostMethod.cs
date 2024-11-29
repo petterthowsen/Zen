@@ -7,7 +7,7 @@ namespace Zen.Typing;
 public class ZenHostMethod : ZenMethod
 {
 
-    public readonly Func<ZenValue[], ZenValue> Func;
+    public readonly Func<ZenObject, ZenValue[], ZenValue> Func;
 
     public ZenHostMethod(
         bool async,
@@ -15,7 +15,7 @@ public class ZenHostMethod : ZenMethod
         ZenClass.Visibility visibility,
         ZenType returnType,
         List<Parameter> parameters,
-        Func<ZenValue[], ZenValue> func
+        Func<ZenObject, ZenValue[], ZenValue> func
     ) : base(async, name, visibility, returnType, parameters)
     {
         Func = func;
@@ -27,10 +27,7 @@ public class ZenHostMethod : ZenMethod
             throw new Exception($"Function called with {arguments.Length} arguments, but expected {Arity}");
         }
 
-        List<ZenValue> args = new List<ZenValue>(arguments);
-        args.Insert(0, new ZenValue(ZenType.Object, instance));
-
-        return Func([..args]);
+        return Func(instance, arguments);
     }
     public override ZenValue Call(Interpreter interpreter, ZenValue[] arguments)
     {

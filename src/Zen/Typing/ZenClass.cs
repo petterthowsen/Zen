@@ -38,14 +38,14 @@ public class ZenClass {
 
     public ZenTypeClass Type;
 
-    public ZenClass(string name, List<ZenMethod> methods, List<Property> properties) {
+    public ZenClass(string name, List<ZenMethod> methods, List<Property> properties, ZenType[] parameters) {
         Name = name;
         Methods = methods;
         Properties = properties.ToDictionary(x => x.Name, x => x);
-        Type = new ZenTypeClass(this, Name, []);
+        Type = new ZenTypeClass(this, Name, parameters);
     }
 
-    public ZenClass(string name, List<ZenMethod> methods) : this(name, methods, []) {}
+    public ZenClass(string name, List<ZenMethod> methods) : this(name, methods, [], []) {}
 
     public ZenObject CreateInstance(Interpreter interpreter, params ZenValue[] args) {
         ZenType[] argTypes = args.Select(x => x.Type).ToArray();

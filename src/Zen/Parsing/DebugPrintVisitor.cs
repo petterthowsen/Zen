@@ -456,4 +456,38 @@ public class DebugPrintVisitor : IVisitor {
     {
         _sb.Add(packageStmt.ToString());
     }
+
+    public void Visit(BracketGet bracketGet)
+    {
+        _sb.Add(bracketGet.ToString());
+
+        _sb.Add("Target:");
+        _sb.Indent++;
+        bracketGet.Target.Accept(this);
+        _sb.Indent--;
+
+        _sb.Add("Element:");
+        _sb.Indent++;
+        bracketGet.Element.Accept(this);
+        _sb.Indent--;
+    }
+
+    public void Visit(BracketSet bracketSet)
+    {
+        _sb.Add(bracketSet.ToString());
+
+        _sb.Add("Target:");
+        _sb.Indent++;
+        bracketSet.Target.Accept(this);
+        _sb.Indent--;
+
+        _sb.Add("Element:");
+        _sb.Indent++;
+        bracketSet.Element.Accept(this);
+
+        _sb.Add("Value:");
+        _sb.Indent++;
+        bracketSet.ValueExpression.Accept(this);
+        _sb.Indent--;
+    }
 }
