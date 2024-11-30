@@ -12,14 +12,16 @@ public class TypeHint : Expr
     
     public string Name => Token.Value;
     public bool IsParametric => Parameters.Length > 0;
-    public bool IsGeneric => Parameters.Length > 0;
 
     public override SourceLocation Location => Token.Location;
 
-    public TypeHint(Token token, TypeHint[] parameters, bool nullable = false) {
+    public bool IsGeneric = false;
+
+    public TypeHint(Token token, TypeHint[] parameters, bool nullable = false, bool generic = false) {
         Token = token;
         Parameters = parameters;
         Nullable = nullable;
+        IsGeneric = generic;
     }
 
     public TypeHint(Token token, bool nullable = false) {
@@ -32,19 +34,26 @@ public class TypeHint : Expr
     }
 
     public ZenType GetBaseZenType() {
+        // If this is a generic parameter (like T), return ZenType.Type
+        if (IsGeneric) {
+            return ZenType.Type;
+        }
         return ZenType.FromString(Name, Nullable);
     }
 
     public ZenType GetZenType() {
         if (IsParametric) {
-            return new ZenType(Name, Nullable, Parameters.Select(p => p.GetZenType()).ToArray());
+            var paramTypes = Parameters.Select(p => p.GetZenType()).ToArray();
+            return new ZenType(Name, Nullable, paramTypes);
         }
         return GetBaseZenType();
     }
 
     public override bool Equals(object? obj) {
         if (obj is TypeHint other) {
-            return Name == other.Name && Nullable == other.Nullable && Parameters.SequenceEqual(other.Parameters);
+            return Name == other.Name && 
+                   Nullable == other.Nullable && 
+                   Parameters.SequenceEqual(other.Parameters);
         }
         return false;
     }
@@ -68,7 +77,6 @@ public class TypeHint : Expr
         string s = $"TypeHint: {Name}";
         
         if (IsParametric) {
-            s += "<";
             s += "<" + string.Join<TypeHint>(", ", Parameters) + ">";
         }
 

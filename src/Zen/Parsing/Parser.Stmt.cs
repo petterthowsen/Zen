@@ -417,6 +417,16 @@ public partial class Parser
 		}
 
 		Token identifier = Previous;
+        
+        // Parametric Parameters?
+        List<Parameter> parameters = [];
+        if (Match(TokenType.LessThan)) {
+            while( ! Match(TokenType.GreaterThan)) {
+                MaybeSome(TokenType.Whitespace);
+                parameters.Add(ParseParameter());
+                MaybeSome(TokenType.Whitespace);
+            }
+        }
 
 		MaybeSome(TokenType.Whitespace, TokenType.Newline);
 		
@@ -429,12 +439,13 @@ public partial class Parser
 		List<PropertyStmt> properties = [];
 
 		// parse untill we find a close brace
+        string[] generics = parameters.Select((p) => p.Name).ToArray();
 		while ( ! Check(TokenType.CloseBrace) && ! IsAtEnd) {
-			
+            
 			if (CheckMethodDeclaration()) {
-				methods.Add(MethodStatement());
+				methods.Add(MethodStatement(generics));
 			}else {
-				properties.Add(PropertyStatement());
+				properties.Add(PropertyStatement(generics));
 			}
 
 			MaybeSome(TokenType.Whitespace, TokenType.Newline);
@@ -443,7 +454,7 @@ public partial class Parser
 		// close brace
 		Consume(TokenType.CloseBrace, "Expected '}' after block");
 
-		return new ClassStmt(token, identifier, [.. properties], [.. methods]);
+		return new ClassStmt(token, identifier, [.. properties], [.. methods], [.. parameters]);
 	}
 
 	private static readonly string[] methodModifiers = ["async", "public", "protected", "private", "abstract", "override", "final"];
@@ -475,7 +486,7 @@ public partial class Parser
 		return true;
 	}
 
-	protected MethodStmt MethodStatement() {
+	protected MethodStmt MethodStatement(string[] generics) {
 		List<Token> modifiers = [];
 
 		while (Current.Type == TokenType.Keyword && methodModifiers.Contains(Current.Value)) {
@@ -497,18 +508,18 @@ public partial class Parser
 		MaybeSome(TokenType.Whitespace, TokenType.Newline);
 
 		// parameters
-		FuncParameter[] parameters = FuncParameters();
+		FuncParameter[] parameters = FuncParameters(generics);
 
 		// close paren
 		Token closeParen = Consume(TokenType.CloseParen, "Expected ')' after function parameters");
 		MaybeSome(TokenType.Whitespace, TokenType.Newline);
 
 		// return type?
-		TypeHint? returnTypeTypeHint = null;
+		TypeHint? returnTypeTypeHint;
 
 		if (Match(TokenType.Colon)) {
 			MaybeSome(TokenType.Whitespace);
-			returnTypeTypeHint = TypeHint();
+			returnTypeTypeHint = TypeHint(generics);
 			MaybeSome(TokenType.Whitespace);
 		}else {
 			returnTypeTypeHint = new TypeHint(new Token(TokenType.StringLiteral, "void", identifier.Location), false);
@@ -526,7 +537,7 @@ public partial class Parser
 		return new MethodStmt(identifier, returnTypeTypeHint, parameters, block, [..modifiers]);
 	}
 
-	protected PropertyStmt PropertyStatement() {
+	protected PropertyStmt PropertyStatement(string[] generics) {
 		Token[] modifiers = [];
 
 		while (Current.Type == TokenType.Keyword && propertyModifiers.Contains(Current.Value)) {
@@ -550,7 +561,7 @@ public partial class Parser
 
 		if (Match(TokenType.Colon)) {
 			MaybeSome(TokenType.Whitespace);
-			typeHint = TypeHint();
+			typeHint = TypeHint(generics);
 			MaybeSome(TokenType.Whitespace);
 		}
 
@@ -606,11 +617,16 @@ public partial class Parser
 		}
 	}
 
-	protected FuncParameter[] FuncParameters() {
+    protected FuncParameter[] FuncParameters()
+    {
+        return FuncParameters([]);
+    }
+
+	protected FuncParameter[] FuncParameters(string[] generics) {
 		List<FuncParameter> parameters = new List<FuncParameter>();
 		
 		while (!Check(TokenType.CloseParen)) {
-			parameters.Add(FuncParameter());
+			parameters.Add(FuncParameter(generics));
 
 			if (!Match(TokenType.Comma)) {
 				break;
@@ -620,6 +636,32 @@ public partial class Parser
 		}
 
 		return [..parameters];
+	}
+
+	protected FuncParameter FuncParameter(string[] generics) {
+		// identifier [:typehint]? [ = defaultValue]?
+
+		// identifier
+		Token identifier = Consume(TokenType.Identifier, "Expected identifier after 'func' keyword");
+		MaybeSome(TokenType.Whitespace);
+
+		// typehint?
+		TypeHint? typeHint = null;
+		if (Match(TokenType.Colon)) {
+			MaybeSome(TokenType.Whitespace);
+			typeHint = TypeHint(generics);
+			MaybeSome(TokenType.Whitespace);
+		}
+
+		// defaultValue?
+		Expr? defaultValue = null;
+		if (Match(TokenType.Assign)) {
+			MaybeSome(TokenType.Whitespace);
+			defaultValue = Expression();
+			MaybeSome(TokenType.Whitespace);
+		}
+
+		return new FuncParameter(identifier, typeHint, defaultValue);
 	}
 
 	protected ReturnStmt ReturnStatement() {
@@ -635,31 +677,4 @@ public partial class Parser
 
 		return new ReturnStmt(token, expr?? null);
 	}
-
-	protected FuncParameter FuncParameter() {
-		// identifier [:typehint]? [ = defaultValue]?
-
-		// identifier
-		Token identifier = Consume(TokenType.Identifier, "Expected identifier after 'func' keyword");
-		MaybeSome(TokenType.Whitespace);
-
-		// typehint?
-		TypeHint? typeHint = null;
-		if (Match(TokenType.Colon)) {
-			MaybeSome(TokenType.Whitespace);
-			typeHint = TypeHint();
-			MaybeSome(TokenType.Whitespace);
-		}
-
-		// defaultValue?
-		Expr? defaultValue = null;
-		if (Match(TokenType.Assign)) {
-			MaybeSome(TokenType.Whitespace);
-			defaultValue = Expression();
-			MaybeSome(TokenType.Whitespace);
-		}
-
-		return new FuncParameter(identifier, typeHint, defaultValue);
-	}
-
 }

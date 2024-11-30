@@ -516,6 +516,42 @@ public class ParserTests {
         Assert.Equal("test", classStmt.Methods[0].Identifier.Value);
     }
 
+    [Fact]
+    public void TestParametricClassDeclaration() {
+        ProgramNode program = Parse("class Test<T> { }");
+        Assert.Single(program.Statements);
+        Assert.IsType<ClassStmt>(program.Statements[0]);
+
+        ClassStmt classStmt = (ClassStmt)program.Statements[0];
+        Assert.Equal("Test", classStmt.Identifier.Value);
+        Assert.Single(classStmt.Parameters);
+        Assert.Equal("T", classStmt.Parameters[0].Type.Name);
+    }
+
+    [Fact]
+    public void TestParametricClassDeclarationWithDefaultValue() {
+        ProgramNode program = Parse("class Test<S:int = 99> { }");
+        Assert.Single(program.Statements);
+        Assert.IsType<ClassStmt>(program.Statements[0]);
+
+        ClassStmt classStmt = (ClassStmt)program.Statements[0];
+        Assert.Equal("Test", classStmt.Identifier.Value);
+        Assert.Single(classStmt.Parameters);
+        Assert.Equal("S", classStmt.Parameters[0].Name);
+        
+        //check S
+        Parameter S = classStmt.Parameters[0];
+        Assert.Equal("S", S.Name);
+
+        // Check the type hint and default value
+        TypeHint typeHint = S.Type;
+        Assert.Equal("int", typeHint.Name);
+        Assert.False(typeHint.Nullable);
+
+        Assert.IsType<Literal>(S.DefaultValue);
+        Literal defaultValue = (Literal) S.DefaultValue!;
+        Assert.Equal(99, defaultValue.Value.Underlying);
+    }
     
     [Fact]
     public void TestInstantiationExpression() {
@@ -556,7 +592,34 @@ public class ParserTests {
         Assert.IsType<Literal>(call.Arguments[0]);
     }
 
-      [Fact]
+    
+    [Fact]
+    public void TestInstantiationExpressionWithGenericParameters() {
+        ProgramNode program = Parse("var obj = new Object<string>()");
+
+        Assert.Single(program.Statements);
+        Assert.IsType<VarStmt>(program.Statements[0]);
+
+        VarStmt varStmt = (VarStmt)program.Statements[0];
+
+        Assert.Equal("obj", varStmt.Identifier.Value);
+
+        Assert.IsType<Instantiation>(varStmt.Initializer);
+
+        Instantiation instantiation = (Instantiation)varStmt.Initializer!;
+
+        Assert.Single(instantiation.Parameters);
+        Assert.IsType<Parameter>(instantiation.Parameters[0]);
+        Parameter param = (Parameter) instantiation.Parameters[0];
+        Assert.Equal("string", param.Name);
+        TypeHint typeHint = param.Type;
+        Assert.Equal("string", typeHint.Name);
+        Assert.False(typeHint.Nullable);
+        ZenType zenType = typeHint.GetZenType();
+        Assert.Equal(ZenType.String, zenType);
+    }
+
+    [Fact]
     public void TestTypeCheckExpression() {
         ProgramNode program = Parse("x is string");
         Assert.Single(program.Statements);

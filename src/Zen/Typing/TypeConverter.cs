@@ -1,11 +1,20 @@
+using Zen.Common;
 using Zen.Execution;
 
 namespace Zen.Typing;
 
 public static class TypeConverter {
     public static ZenValue Convert(ZenValue value, ZenType targetType, bool TypeCheck = false) {
+        Logger.Instance.Debug($"Converting value of type {value.Type} to {targetType}");
+
+        // If target is a generic parameter (T), return the value as-is
+        if (targetType.Name == "T") {
+            Logger.Instance.Debug("Target is generic parameter T, returning value as-is");
+            return value;
+        }
+
         if (value.Type == targetType) return value;
-        if (TypeCheck && ! TypeChecker.IsCompatible(value.Type, targetType)) {
+        if (TypeCheck && !TypeChecker.IsCompatible(value.Type, targetType)) {
             throw new RuntimeError($"Cannot convert from {value.Type} to {targetType}", Common.ErrorType.TypeError, null);
         }
 
@@ -86,10 +95,8 @@ public static class TypeConverter {
             return new ZenValue(ZenType.String, value.Underlying!.ToString());
         }else if (value.Type == ZenType.String) {
             return value;
+        }else {
+            return new ZenValue(ZenType.String, value.Stringify());
         }
-
-        throw new RuntimeError($"Cannot convert from {value.Type} to string", Common.ErrorType.TypeError, null);
     }
-
-
 }

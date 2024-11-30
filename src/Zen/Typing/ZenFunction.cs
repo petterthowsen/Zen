@@ -1,5 +1,6 @@
 using Environment = Zen.Execution.Environment;
 using Interpreter = Zen.Execution.Interpreter;
+using Zen.Parsing.AST.Expressions;
 
 namespace Zen.Typing;
 
@@ -10,12 +11,14 @@ public abstract class ZenFunction : ICallable {
         public readonly ZenType Type { get; init; }
         public readonly bool Nullable { get; init; }
         public readonly ZenValue? DefaultValue { get; init; }
+        public readonly TypeHint? OriginalTypeHint { get; init; }  // Store original type hint for resolving generics
 
         public Parameter(string name, ZenType type) {
             Name = name;
             Type = type;
             Nullable = true;
             DefaultValue = null;
+            OriginalTypeHint = null;
         }
 
         public Parameter(string name, ZenType type, bool nullable) : this(name, type) {
@@ -27,25 +30,41 @@ public abstract class ZenFunction : ICallable {
             Nullable = nullable;
             DefaultValue = defaultValue;
         }
+
+        public Parameter(String name, ZenType type, bool nullable, ZenValue? defaultValue, TypeHint? originalTypeHint) {
+            Name = name;
+            Type = type;
+            Nullable = nullable;
+            DefaultValue = defaultValue;
+            OriginalTypeHint = originalTypeHint;
+        }
     }
 
     public int Arity => Parameters.Count;
     
     public bool Async = false;
 
-    private readonly ZenType _returnType;
-    public ZenType ReturnType => _returnType;
+    public ZenType ReturnType { get; set; }
+    public TypeHint? ReturnTypeHint { get; set; }  // Store original return type hint for resolving generics
     public List<Parameter> Parameters;
 
     public Environment? Closure = null;
 
     public ZenFunction(bool async, ZenType returnType, List<Parameter> parameters) {
-        _returnType = returnType;
+        ReturnType = returnType;
         Parameters = parameters;
         Async = async;
     }
 
     public ZenFunction(bool async, ZenType returnType, List<Parameter> parameters, Environment closure) : this(async, returnType, parameters) {
+        Async = async;
+        Closure = closure;
+    }
+
+    public ZenFunction(bool async, ZenType returnType, TypeHint? returnTypeHint, List<Parameter> parameters, Environment? closure = null) {
+        ReturnType = returnType;
+        ReturnTypeHint = returnTypeHint;
+        Parameters = parameters;
         Async = async;
         Closure = closure;
     }

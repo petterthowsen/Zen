@@ -44,6 +44,7 @@ public interface IVisitor
     void Visit(This dis);
     void Visit(TypeCheck typeCheck);
     void Visit(TypeCast typeCast);
+    void Visit(Parameter parameter);
     void Visit(Await await);
     void Visit(BracketGet bracketGet);
     void Visit(BracketSet bracketSet);

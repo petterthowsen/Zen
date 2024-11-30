@@ -490,4 +490,9 @@ public class DebugPrintVisitor : IVisitor {
         bracketSet.ValueExpression.Accept(this);
         _sb.Indent--;
     }
+
+    public void Visit(Parameter typeHintParam)
+    {
+        _sb.Add(typeHintParam.ToString());
+    }
 }

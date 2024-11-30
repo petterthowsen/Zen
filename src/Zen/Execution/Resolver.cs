@@ -88,6 +88,17 @@ public class Resolver : IVisitor
         currentFunction = type;
 
         BeginScope();
+
+        // If this is a method, make class parameters available in its scope
+        if (type == FunctionType.METHOD || type == FunctionType.CONSTRUCTOR) {
+            // The class parameters are already in the parent scope (from Visit(ClassStmt))
+            // We need to copy them into the method's scope
+            var classScope = scopes.Skip(1).First();  // Parent scope is the class scope
+            foreach (var param in classScope.Where(p => p.Key != "this")) {
+                scopes.Peek().Add(param.Key, true);
+            }
+        }
+
         foreach (var parameter in funcStmt.Parameters) {
             Declare(parameter.Identifier);
             Define(parameter.Identifier);
@@ -333,11 +344,15 @@ public class Resolver : IVisitor
         BeginScope();
         scopes.Peek().Add("this", true);
 
+        // Make class parameters available in method scopes
+        foreach (var param in classStmt.Parameters) {
+            scopes.Peek().Add(param.Name, true);
+        }
+
         foreach (MethodStmt method in classStmt.Methods) {
             FunctionType declaration = FunctionType.METHOD;
             if (method.Identifier.Value == classStmt.Identifier.Value) {
                 declaration = FunctionType.CONSTRUCTOR;
-                
             }
             ResolveFunction(method, declaration);
         }
@@ -399,6 +414,18 @@ public class Resolver : IVisitor
         Resolve(typeCast.Expression);
     }
 
+    public void Visit(Parameter parameter)
+    {
+        // Resolve the type hint
+        Resolve(parameter.Type);
+
+        // For value constraints, resolve the default value if present
+        if (!parameter.IsTypeParameter && parameter.DefaultValue != null)
+        {
+            Resolve(parameter.DefaultValue);
+        }
+    }
+
     public void Visit(Await await)
     {
         Resolve(await.Expression);
@@ -453,4 +480,5 @@ public class Resolver : IVisitor
     {
         // handled by the Importer
     }
+
 }

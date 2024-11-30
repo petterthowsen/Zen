@@ -1,4 +1,5 @@
 // Interpreter.FuncHandler.cs
+using Zen.Common;
 using Zen.Execution.EvaluationResult;
 using Zen.Parsing.AST;
 using Zen.Typing;
@@ -7,6 +8,24 @@ namespace Zen.Execution;
 
 public partial class Interpreter
 {
+    public ZenValue CallObject(ZenObject obj, string methodName, ZenType returnType, ZenValue[] args)
+    {
+        ZenMethod method;
+        obj.Class.HasMethodHierarchically(methodName, returnType, [], out method);
+
+        if (method == null) {
+            throw Error($"{obj.Class} has no method {methodName}!");
+        }
+
+        BoundMethod boundMethod = method.Bind(obj);
+        return CallFunction(boundMethod, args).Value;
+    }
+
+    public ZenValue CallObject(ZenObject obj, string methodName, ZenType returnType)
+    {
+        return CallObject(obj, methodName, returnType, []);
+    }
+
     public IEvaluationResult CallFunction(ZenFunction function, ZenValue[] arguments)
     {
         if (function is ZenHostFunction hostFunc)
@@ -65,6 +84,7 @@ public partial class Interpreter
                     ZenValue arg = arguments[i];
 
                     // type check                
+                    Logger.Instance.Debug($"Type check in async function - Argument: {arg.Type}, Parameter: {parameters[i].Type}");
                     if (TypeChecker.IsCompatible(arg.Type, parameters[i].Type) == false) {
                         throw Error($"{parameters[i].Name} is expected to be a {parameters[i].Type}, not a {arg.Type}!");
                     }
@@ -127,15 +147,19 @@ public partial class Interpreter
                 ZenValue arg = arguments[i];
 
                 // type check                
+                Logger.Instance.Debug($"Type check in sync function - Argument: {arg.Type}, Parameter: {parameters[i].Type}");
                 if (TypeChecker.IsCompatible(arg.Type, parameters[i].Type) == false) {
                     throw Error($"{parameters[i].Name} is expected to be a {parameters[i].Type}, not a {arg.Type}!");
                 }
 
-                // type convert if needed
-                arg = TypeConverter.Convert(arg, parameters[i].Type, false);
-
-                // assign
-                paramEnv.Assign(parameters[i].Name, arg);
+                // For generic parameters, assign directly without conversion
+                if (parameters[i].Type.IsGeneric) {
+                    paramEnv.Assign(parameters[i].Name, arg);
+                } else {
+                    // For non-generic parameters, convert if needed
+                    arg = TypeConverter.Convert(arg, parameters[i].Type, false);
+                    paramEnv.Assign(parameters[i].Name, arg);
+                }
             }
 
             // Create inner environment for method body

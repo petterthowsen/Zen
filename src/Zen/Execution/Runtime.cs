@@ -69,6 +69,8 @@ public class Runtime
     /// </summary>
     public string? Execute(ISourceCode source)
     {
+        EventLoop.Start();
+
         // Create a module for the main script
         string moduleName = source is FileSourceCode fs ? 
             Path.GetFileNameWithoutExtension(fs.FilePath) : 
@@ -117,6 +119,7 @@ public class Runtime
         {
             // Clean up the provider on error
             Importer.Providers.Remove(mainProvider);
+            EventLoop.Stop();
             throw;
         }
     }

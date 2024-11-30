@@ -1,6 +1,7 @@
 namespace Zen.Typing;
 
 public class ZenType {
+    public static ZenType Type = new("type"); // Represents type values themselves
     public static ZenType Keyword = new("keyword");
     public static ZenType Any = new("any");
     public static ZenType Object = new("Object");
@@ -15,9 +16,6 @@ public class ZenType {
     public static ZenType String = new("string");
     public static ZenType Null = new("null");
     public static ZenType Void = new("void");
-    public static ZenType Array = new("array", [ZenType.String, ZenType.Integer]);
-    public static ZenType Map = new("map", [ZenType.String, ZenType.String]);
-    public static ZenType Type = new("type"); // Represents type values themselves
     public static ZenType Promise = new("Promise"); // Represents Promise type
 
     private static readonly Dictionary<string, ZenType> _primitives = new() {
@@ -29,10 +27,9 @@ public class ZenType {
         { "string", String },
         { "null", Null },
         { "void", Void },
-        { "array", Array },
-        { "map", Map },
         { "func", Function },
         { "Promise", Promise },
+        { "any", Any },
     };
 
     public static bool Exists(string name) => _primitives.ContainsKey(name);
@@ -56,6 +53,8 @@ public class ZenType {
     public bool IsParametric => Parameters.Length > 0;
     public bool IsPromise => this == Promise || (IsParametric && Name == "Promise"); // New: Check if type is Promise
 
+    public bool IsGeneric = false;
+
     public ZenType(string name, params ZenType[] parameters) {
         Name = name;
         Parameters = parameters;
@@ -74,6 +73,8 @@ public class ZenType {
 
     // Returns true if this type can be assigned a value of the given type
     public bool IsAssignableFrom(ZenType other) {
+        if (other == this) return true;
+
         // Any type can be assigned to Any
         if (this == Any) {
             return true;

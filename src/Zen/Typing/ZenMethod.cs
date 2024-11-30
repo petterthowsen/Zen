@@ -1,3 +1,4 @@
+using Zen.Common;
 using Zen.Execution;
 using Environment = Zen.Execution.Environment;
 
@@ -20,8 +21,27 @@ public abstract class ZenMethod : ZenFunction
 
     public BoundMethod Bind(ZenObject instance) {
         Environment environment = new Environment(Closure);
-        environment.Define(true, "this", ZenType.Object, false);
-        environment.Assign("this", new ZenValue(ZenType.Object, instance));
+        
+        // assign 'this' as the instance with its specific type
+        environment.Define(true, "this", instance.Type, false);
+        environment.Assign("this", new ZenValue(instance.Type, instance));
+
+        // Make parameters available in the method's environment
+        foreach (var parameter in instance.Class.Parameters) {
+            var paramValue = instance.GetParameter(parameter.Name);
+            
+            // For type parameters, use the concrete type from the value
+            ZenType paramType;
+            if (parameter.Type.IsGeneric) {
+                paramType = (ZenType)paramValue.Underlying!;
+            } else {
+                paramType = parameter.Type;
+            }
+
+            environment.Define(true, parameter.Name, paramType, false);
+            environment.Assign(parameter.Name, paramValue);
+            Logger.Instance.Debug($"Assigning class parameter {parameter.Name} to {paramValue} for bound method.");
+        }
 
         return new BoundMethod(instance, this, environment);
     }

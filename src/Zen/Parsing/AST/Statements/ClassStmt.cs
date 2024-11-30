@@ -1,5 +1,6 @@
 using Zen.Common;
 using Zen.Lexing;
+using Zen.Parsing.AST.Expressions;
 
 namespace Zen.Parsing.AST.Statements;
 
@@ -10,15 +11,17 @@ public class ClassStmt : Stmt
 
     public PropertyStmt[] Properties = [];
     public MethodStmt[] Methods = [];
+    public Parameter[] Parameters = [];
 
     public override SourceLocation Location => Token.Location;
 
-    public ClassStmt(Token token, Token identifier, PropertyStmt[] properties, MethodStmt[] methods)
+    public ClassStmt(Token token, Token identifier, PropertyStmt[] properties, MethodStmt[] methods, Parameter[] parameters)
     {
         Token = token;
         Identifier = identifier;
         Properties = properties;
         Methods = methods;
+        Parameters = parameters;
     }
 
     public override void Accept(IVisitor visitor)

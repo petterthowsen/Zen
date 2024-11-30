@@ -50,7 +50,7 @@ public class ImportTests : TestRunner
         var source = new FileSourceCode(path);
         var result = Execute(source);
 
-        Assert.Equal("OK", result);
+        Assert.Equal("hello from Ahello from B", result);
     }
 
     [Fact]

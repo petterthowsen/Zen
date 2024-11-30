@@ -1,4 +1,5 @@
-// Interpreter.ExpressionVisitor.cs
+using System.Linq.Expressions;
+using Zen.Common;
 using Zen.Execution.EvaluationResult;
 using Zen.Parsing.AST;
 using Zen.Parsing.AST.Expressions;
@@ -137,10 +138,8 @@ public IEvaluationResult Visit(Grouping grouping)
     public IEvaluationResult Visit(Get get) {
         IEvaluationResult result = Evaluate(get.Expression);
 
-        if (result.Type == ZenType.Object)
+        if (result.Value.Underlying is ZenObject instance)
         {
-            ZenObject instance = (ZenObject)result.Value.Underlying!;
-            
             // is it a method?
             ZenMethod? method;
             instance.HasMethodHierarchically(get.Identifier.Value, out method);
@@ -150,8 +149,8 @@ public IEvaluationResult Visit(Grouping grouping)
                 return (ValueResult) method.Bind(instance);
             }
 
-            if ( ! instance.HasProperty(get.Identifier.Value)) {
-                throw Error($"Undefined property '{get.Identifier.Value}' on object of type '{result.Type}'", get.Identifier.Location, Common.ErrorType.UndefinedProperty);
+            if (!instance.HasProperty(get.Identifier.Value)) {
+                throw Error($"Undefined property '{get.Identifier.Value}' on object of type '{instance.Type}'", get.Identifier.Location, Common.ErrorType.UndefinedProperty);
             }
 
             return (ValueResult) instance.GetProperty(get.Identifier.Value);
@@ -170,20 +169,27 @@ public IEvaluationResult Visit(Grouping grouping)
         // get the object
         ZenValue objectValue = objectExpression.Value;
 
-        if (objectValue.Type == ZenType.Object)
+        if (objectValue.Underlying is ZenObject instance)
         {
-            // get the object instance
-            ZenObject instance = (ZenObject)objectValue.Underlying!;
-
-            if ( ! instance.HasProperty(propertyName)) {
-                throw Error($"Undefined property '{propertyName}' on object of type '{objectValue.Type}'", set.Identifier.Location, Common.ErrorType.UndefinedProperty);
+            if (!instance.HasProperty(propertyName)) {
+                throw Error($"Undefined property '{propertyName}' on object of type '{instance.Type}'", set.Identifier.Location, Common.ErrorType.UndefinedProperty);
             }
 
             // evaluate the value expression
             IEvaluationResult valueExpression = Evaluate(set.ValueExpression);
 
+            // Get the property's type and value's type for comparison
+            ZenValue propertyValue = instance.GetProperty(propertyName);
+            
+            // Check type compatibility including type parameters
+            if (!TypeChecker.IsCompatible(valueExpression.Value.Type, propertyValue.Type))
+            {
+                throw Error($"Cannot assign value of type '{valueExpression.Value.Type}' to target of type '{propertyValue.Type}'", 
+                    set.Identifier.Location, Common.ErrorType.TypeError);
+            }
+
             // perform assignment
-            ZenValue newValue = PerformAssignment(set.Operator, instance.GetProperty(propertyName), valueExpression.Value);
+            ZenValue newValue = PerformAssignment(set.Operator, propertyValue, valueExpression.Value);
 
             // set the property
             instance.SetProperty(propertyName, newValue);
@@ -196,14 +202,75 @@ public IEvaluationResult Visit(Grouping grouping)
         }
     }
 
-    public IEvaluationResult Visit(BracketGet bracketGet)
+  public IEvaluationResult Visit(BracketGet bracketGet)
     {
-        throw new NotImplementedException();
+        IEvaluationResult target = Evaluate(bracketGet.Target);
+        IEvaluationResult element = Evaluate(bracketGet.Element);
+
+        if (target.Value.Underlying is not ZenObject instance)
+        {
+            throw Error($"Cannot use bracket access on non-object type '{target.Type}'", bracketGet.Location);
+        }
+
+        // Call the get method
+        ZenMethod? method;
+        instance.HasMethodHierarchically("get", out method);
+
+        if (method == null)
+        {
+            throw Error($"Object does not support bracket access (missing 'get' method)", bracketGet.Location);
+        }
+
+        return (ValueResult)instance.Call(this, method, [new ZenValue(instance.Type, instance), element.Value]);
     }
 
     public IEvaluationResult Visit(BracketSet bracketSet)
     {
-        throw new NotImplementedException();
+        IEvaluationResult target = Evaluate(bracketSet.Target);
+        IEvaluationResult element = Evaluate(bracketSet.Element);
+        IEvaluationResult value = Evaluate(bracketSet.ValueExpression);
+
+        if (target.Value.Underlying is not ZenObject instance)
+        {
+            throw Error($"Cannot use bracket access on non-object type '{target.Type}'", bracketSet.Location);
+        }
+
+        // Call the set method
+        ZenMethod? method;
+        instance.HasMethodHierarchically("set", out method);
+
+        if (method == null)
+        {
+            throw Error($"Object does not support bracket assignment (missing 'set' method)", bracketSet.Location);
+        }
+
+        return (ValueResult)instance.Call(this, method, [target.Value, element.Value, value.Value]);
+    }
+
+    public IEvaluationResult Visit(Parameter parameter)
+    {
+        // For type parameters, just evaluate the type
+        if (parameter.IsTypeParameter)
+        {
+            return Evaluate(parameter.Type);
+        }
+
+        // For value constraints, evaluate both type and default value if present
+        IEvaluationResult type = Evaluate(parameter.Type);
+        
+        if (parameter.DefaultValue != null)
+        {
+            IEvaluationResult defaultValue = Evaluate(parameter.DefaultValue);
+            
+            // Verify default value matches the type
+            if (!TypeChecker.IsCompatible(defaultValue.Type, type.Type))
+            {
+                throw Error($"Default value of type '{defaultValue.Type}' is not compatible with parameter type '{type.Type}'", 
+                    parameter.Location);
+            }
+        }
+
+        return type;
     }
 
     // public IEvaluationResult Visit(BracketSet bracketSet)
@@ -363,18 +430,109 @@ public IEvaluationResult Visit(Grouping grouping)
         ZenValue value = clazzResult.Value;
         ZenClass clazz = (ZenClass) value.Underlying!;
 
-        //TODO: gather arguments
+        Logger.Instance.Debug($"Class parameters: {string.Join(", ", clazz.Parameters.Select(p => $"{p.Name} (Type: {p.Type})"))}");
+        Logger.Instance.Debug($"Instantiation parameters: {string.Join(", ", instantiation.Parameters.Select(p => p.ToString()))}");
+
+        // Evaluate constructor arguments
         List<ZenValue> arguments = [];
         foreach (var argument in call.Arguments)
         {
             arguments.Add(Evaluate(argument).Value);
         }
 
-        // create new instance
-        ZenObject instance = clazz.CreateInstance(this, [.. arguments]);
+        // Evaluate parameters and build parameter values dictionary
+        Dictionary<string, ZenValue> paramValues = [];
+        
+        // If no parameters provided but class has type parameters,
+        // use 'any' as default type parameter
+        if (instantiation.Parameters.Count == 0 && clazz.Parameters.Count > 0)
+        {
+            Logger.Instance.Debug("No parameters needed.");
+        }
+        else
+        {
+            Logger.Instance.Debug($"Processing {instantiation.Parameters.Count} parameters");
 
-        // wrap it in a ZenValue
-        ZenValue result = new ZenValue(ZenType.Object, instance);
+            int paramIndex = 0;
+            foreach (ZenClass.Parameter param in clazz.Parameters)
+            {
+                if (paramIndex >= instantiation.Parameters.Count) {
+                    // provides default value ?
+                    if (param.DefaultValue.IsNull() == false) {
+                        ZenValue val = (ZenValue) param.DefaultValue;
+                        paramValues[param.Name] = val;
+                    }else {
+                        throw Error($"{clazz.Name} expects a '{param.Name}' parameter.!", 
+                            instantiation.Location);
+                    }
+                }else {
+                    Expr valueExpr = instantiation.Parameters[paramIndex];
+                    IEvaluationResult paramResult = Evaluate(valueExpr);
+                    
+                    // For type parameters (like T)
+                    if (param.IsTypeParameter) {
+                        // If it's a TypeResult
+                        if (paramResult is TypeResult typeResult) {
+                            paramValues[param.Name] = typeResult.Value;
+                        }
+                        // If it's a variable that holds a type (like 'string')
+                        else if (paramResult is VariableResult varResult && varResult.Value.Type == ZenType.Type) {
+                            paramValues[param.Name] = varResult.Value;
+                        }
+                        // If it's a class type
+                        else if (paramResult.Type == ZenType.Class) {
+                            ZenClass resultingClass = paramResult.Value.Underlying!;
+                            var baseType = new ZenTypeClass(resultingClass, resultingClass.Name);
+                            paramValues[param.Name] = new ZenValue(ZenType.Type, baseType);
+                        }
+                        else {
+                            throw Error($"{clazz.Name} expects parameter '{param.Name}' to be a Type. You passed a {paramResult.Type}!", 
+                                valueExpr.Location, ErrorType.TypeError);
+                        }
+                    }
+                    // For value parameters (like SIZE:int)
+                    else {
+                        ZenValue val = paramResult.Value;
+                        
+                        // type check the value
+                        if (!param.Type.IsAssignableFrom(val.Type)) {
+                            throw Error($"{clazz.Name} expects parameter '{param.Name}' to be a {param.Type}. You passed a '{val.Type}'!",
+                                valueExpr.Location, ErrorType.TypeError);
+                        }
+    
+                        paramValues[param.Name] = val;
+                    }
+                }
+                paramIndex++;
+            }
+
+            // Check if we have all required parameters
+            foreach (ZenClass.Parameter param in clazz.Parameters)
+            {
+                if (!paramValues.ContainsKey(param.Name))
+                {
+                    Logger.Instance.Debug($"Missing parameter {param.Name}");
+                    if (param.DefaultValue.IsNull() == false)
+                    {
+                        paramValues[param.Name] = param.DefaultValue;
+                        Logger.Instance.Debug($"Using default value for {param.Name}: {param.DefaultValue}");
+                    }
+                    else
+                    {
+                        throw Error($"No value provided for parameter '{param.Name}' and it has no default value", 
+                            instantiation.Location);
+                    }
+                }
+            }
+        }
+
+        Logger.Instance.Debug($"Final parameter values: {string.Join(", ", paramValues.Select(kv => $"{kv.Key}: {kv.Value}"))}");
+
+        // create new instance with both constructor args and parameter values
+        ZenObject instance = clazz.CreateInstance(this, [.. arguments], paramValues);
+
+        // wrap it in a ZenValue with the instance's specific type
+        ZenValue result = new ZenValue(instance.Type, instance);
 
         // return as ValueResult (IEvaluationResult)
         return (ValueResult) result;
@@ -382,21 +540,26 @@ public IEvaluationResult Visit(Grouping grouping)
 
     public IEvaluationResult Visit(TypeHint typeHint)
     {
-        // check if the base type is a primitive type under ZenType
+        // For primitive types like 'string', return a TypeResult with the base type
         if (typeHint.IsPrimitive()) {
-            return (TypeResult) typeHint.GetBaseZenType();
-        }else {
-            // TypeHint refers to a class?
-            VariableResult variable = LookUpVariable(typeHint.Name, typeHint);
-
-            if (variable.Type == ZenType.Class) {
-                ZenClass clazz = (ZenClass) variable.Value.Underlying!;
-
-                return (TypeResult) clazz.Type;
-            }
+            var baseType = typeHint.GetBaseZenType();
+            return new TypeResult(baseType);
         }
 
-        return (TypeResult) typeHint.GetBaseZenType();
+        // For class types, look up the class and return its type
+        VariableResult variable = LookUpVariable(typeHint.Name, typeHint);
+        if (variable.Type == ZenType.Class) {
+            ZenClass clazz = (ZenClass)variable.Value.Underlying!;
+            return new TypeResult(clazz.Type);
+        }
+
+        // For generic parameters (like T), return ZenType.Type
+        if (typeHint.IsGeneric) {
+            return new TypeResult(ZenType.Type);
+        }
+
+        // For unknown types, return the base type
+        return new TypeResult(typeHint.GetBaseZenType());
     }
 
     public IEvaluationResult Visit(TypeCheck typeCheck)

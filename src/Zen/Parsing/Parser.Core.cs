@@ -195,9 +195,9 @@ public partial class Parser
 
 	private void Maybe(params TokenType[] types) {
 		MaybeOneOrMore(types, false);
-	}
+            }
 
-	private void AtleastOne(TokenType type) {
+            private void AtleastOne(TokenType type) {
 		if (MaybeSome(type) == 0) {
 			throw Error($"Expected at least one {type}");
 		}
@@ -210,9 +210,9 @@ public partial class Parser
 			// Skip any whitespace tokens if ignoreWhiteSpace is true
 			while (ignoreWhiteSpace && Peek(offset).Type == TokenType.Whitespace) {
 				offset += 1;
-			}
+        }
 
-			// Check if the current token matches the expected type
+        // Check if the current token matches the expected type
 			if (Peek(offset).Type == type) {
 				offset += 1;
 			} else {
@@ -268,59 +268,88 @@ public partial class Parser
 			}
 		}
 		return false;
-	}
+    }
 
-	private TypeHint TypeHint(bool silent = false) {
-		if ( ! Match(TokenType.Identifier, TokenType.Keyword)) {
-			throw Error($"Expected type name (identifier or keyword) for type hint", ErrorType.SyntaxError);
-		}
+private Parameter ParseParameter() {
+    // Parse parameter name
+    if (!Match(TokenType.Identifier, TokenType.Keyword)) {
+        throw Error($"Expected parameter name (identifier or keyword)", ErrorType.SyntaxError);
+    }
+    string name = Previous.Value;
+    MaybeSome(TokenType.Whitespace);
 
-		Token token = Previous;
+    // Check if it's a value constraint (has colon)
+    bool isTypeParameter = !Match(TokenType.Colon);
+    if (isTypeParameter) {
+        // It's a type parameter like "T"
+        // Create a TypeHint marked as generic
+        return new Parameter(name, new TypeHint(Previous, [], false, true), null);
+    }
 
-		List<TypeHint> parameters = [];
+    // It's a value constraint like max: int
+    MaybeSome(TokenType.Whitespace);
+    TypeHint type = TypeHint();
+    MaybeSome(TokenType.Whitespace);
 
-		// generic?
-		if (Match(TokenType.LessThan)) {
-			// parameters
-			MaybeSome(TokenType.Whitespace);
+    // Check for default value
+    Expr? defaultValue = null;
+    if (Match(TokenType.Assign)) {
+        MaybeSome(TokenType.Whitespace);
+        defaultValue = Primary(); // Only allow literal values as defaults
+        MaybeSome(TokenType.Whitespace);
+    }
 
+    return new Parameter(name, type, defaultValue, false);
+}
 
-			// make sure we have at least one parameter
-			if ( ! Check(TokenType.Identifier, TokenType.Keyword)) {
-				throw Error($"Expected at least one identifier or keyword after '<'", ErrorType.SyntaxError);
-			}
+    private TypeHint TypeHint()
+    {
+        return TypeHint([]);
+    }
 
-			parameters.Add(TypeHint());
+    /// <summary>
+    /// Parses a type hint, E.g 'int', 'Array<string>', or 'MyClass'
+    /// </summary>
+    /// <param name="genericTypes">Will create a generic type parameters when encountering identifiers matching the given names.</param>
+    /// <returns></returns>
+    private TypeHint TypeHint(string[] genericTypes) {
+        if (!Match(TokenType.Identifier, TokenType.Keyword)) {
+            throw Error($"Expected type name (identifier or keyword) for type hint", ErrorType.SyntaxError);
+        }
 
-			MaybeSome(TokenType.Whitespace);
+        Token token = Previous;
+        List<TypeHint> parameters = [];
 
-			// parse more parameters separated by comma
-			while ( Match(TokenType.Comma) ) {
-				MaybeSome(TokenType.Whitespace);
+        bool generic = genericTypes.Contains(token.Value);
 
-				if ( ! Check(TokenType.Identifier, TokenType.Keyword)) {
-					throw Error($"Expected at least one identifier or keyword after ','", ErrorType.SyntaxError);
-				}
+        if (Match(TokenType.LessThan)) {
+            // parameters
+            MaybeSome(TokenType.Whitespace);
 
-				parameters.Add(TypeHint());
+            // make sure we have at least one parameter
+            parameters.Add(TypeHint());
+            MaybeSome(TokenType.Whitespace);
 
-				MaybeSome(TokenType.Whitespace);
-			}
+            // parse more parameters separated by comma
+            while (Match(TokenType.Comma)) {
+                MaybeSome(TokenType.Whitespace);
+                parameters.Add(TypeHint());
+                MaybeSome(TokenType.Whitespace);
+            }
 
-			Consume(TokenType.GreaterThan, "Expected '>' after generic type parameters");
+            Consume(TokenType.GreaterThan, "Expected '>' after generic type parameters");
+            MaybeSome(TokenType.Whitespace);
+        }
 
-			MaybeSome(TokenType.Whitespace);
-		}
+        //nullable?
+        bool nullable = false;
+        if (Match(TokenType.QuestionMark)) {
+            MaybeSome(TokenType.Whitespace);
+            nullable = true;
+        }
 
-		//nullable?
-		bool nullable = false;
-		if (Match(TokenType.QuestionMark)) {
-			MaybeSome(TokenType.Whitespace);
-			nullable = true;
-		}
-
-		return new TypeHint(token, [.. parameters], nullable);
-	}
+        return new TypeHint(token, [.. parameters], nullable, generic);
+    }
 
 	protected ExpressionStmt ExpressionStatement() {
 		Expr expr = Expression();
@@ -509,7 +538,7 @@ public partial class Parser
                 MaybeSome(TokenType.Whitespace);
                 Expr expr = Unary();
                 return new TypeCast(leftParen, type, expr);
-}
+            }
             catch {
                 // If parsing as type hint fails, restore index and treat as grouping
                 _index = savedIndex;
@@ -538,12 +567,53 @@ public partial class Parser
         if (MatchKeyword("new"))
         {
             Token newKeyword = Previous;
-
             MaybeSome(TokenType.Whitespace);
 
-            Call call = (Call) Call(); // Use Call to handle potential nested calls or nested instantiations
-            
-            return new Instantiation(newKeyword, call);
+            // Parse the class name and any type parameters
+            Expr classExpr = Primary();
+            List<Expr> parameters = [];
+
+            // Check for type/value parameters
+            if (Match(TokenType.LessThan))
+            {
+                MaybeSome(TokenType.Whitespace);
+
+                // Parse first parameter
+                parameters.Add(Primary());
+                MaybeSome(TokenType.Whitespace);
+
+                // Parse additional parameters
+                while (Match(TokenType.Comma))
+                {
+                    MaybeSome(TokenType.Whitespace);
+                    parameters.Add(Primary());
+                    MaybeSome(TokenType.Whitespace);
+                }
+
+                Consume(TokenType.GreaterThan, "Expected '>' after type parameters");
+                MaybeSome(TokenType.Whitespace);
+            }
+
+            // Parse constructor arguments
+            List<Expr> arguments = [];
+            if (Match(TokenType.OpenParen))
+            {
+                MaybeSome(TokenType.Whitespace);
+
+                if (!Check(TokenType.CloseParen))
+                {
+                    do
+                    {
+                        MaybeSome(TokenType.Whitespace);
+                        arguments.Add(Expression());
+                        MaybeSome(TokenType.Whitespace);
+                    } while (Match(TokenType.Comma));
+                }
+
+                Consume(TokenType.CloseParen, "Expected ')' after constructor arguments");
+            }
+
+            return new Instantiation(newKeyword, new Call(newKeyword, classExpr, [..arguments]), parameters);
         }
 
         return Call();

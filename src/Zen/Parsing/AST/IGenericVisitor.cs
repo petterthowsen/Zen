@@ -33,6 +33,7 @@ public interface IGenericVisitor<T>
     T Visit(Unary unary);
     T Visit(Literal literal);
     T Visit(TypeHint typeHint);
+    T Visit(Parameter typeHintParam);
     T Visit(Identifier identifier);
     T Visit(Assignment assignment);
     T Visit(Logical logical);

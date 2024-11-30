@@ -2,6 +2,7 @@ using Zen.Common;
 using Zen.Execution.EvaluationResult;
 using Zen.Lexing;
 using Zen.Parsing.AST;
+using Zen.Parsing.AST.Expressions;
 using Zen.Parsing.AST.Statements;
 using Zen.Typing;
 
@@ -95,13 +96,20 @@ public partial class Interpreter
 
         ZenValue value = expResult.Value;
 
+        string str;
+        if (value.Type == ZenType.Object) {
+            str = CallObject(value.Underlying!, "ToString", ZenType.String).Underlying!;
+        }else {
+            str = TypeConverter.Convert(value, ZenType.String).Underlying!;
+        }
+
         if (GlobalOutputBufferingEnabled)
         {
-            GlobalOutputBuffer.Append(value.Stringify());
+            GlobalOutputBuffer.Append(str);
         }
         else
         {
-            Console.WriteLine(value.Stringify());
+            Console.WriteLine(str);
         }
 
         return (ValueResult)ZenValue.Void;
@@ -379,7 +387,20 @@ public partial class Interpreter
             methods.Add(method);
         }
 
-        return new ZenClass(classStmt.Identifier.Value, methods, properties);
+        // parameters
+        List<ZenClass.Parameter> genericParameters = [];
+
+        foreach (Parameter parameter in classStmt.Parameters) {
+            ZenValue? defaultValue = null;
+            if (parameter.DefaultValue != null) {
+                defaultValue = Evaluate(parameter.DefaultValue!).Value;
+            }
+
+            ZenClass.Parameter param = new ZenClass.Parameter(parameter.Name, parameter.Type.GetZenType(), defaultValue);
+            genericParameters.Add(param);
+        }
+
+        return new ZenClass(classStmt.Identifier.Value, methods, properties, genericParameters);
     }
 
     public IEvaluationResult Visit(ClassStmt classStmt)

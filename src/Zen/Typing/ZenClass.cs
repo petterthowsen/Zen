@@ -1,5 +1,6 @@
 using Zen.Common;
 using Zen.Execution;
+using Zen.Parsing.AST.Expressions;
 
 namespace Zen.Typing;
 
@@ -7,13 +8,12 @@ public class ZenClass {
 
     public static readonly ZenClass Master = new ZenClass("Master", [
         // methods
-        new ZenHostMethod(false, "ToString", Visibility.Public, ZenType.String, [], (ZenValue[] args) => {
-            ZenObject instance = ((ZenValue) args[0]).Underlying!;
+        new ZenHostMethod(false, "ToString", Visibility.Public, ZenType.String, [], (ZenObject instance, ZenValue[] args) => {
             return new ZenValue(ZenType.String, "Object(" + instance.Class.Name + ")");
         }),
     ], [
         // properties
-    ]);
+    ], []);
 
     public enum Visibility {
         Public,
@@ -21,61 +21,240 @@ public class ZenClass {
         Protected
     }
 
-    public struct Property(string name, ZenType type, ZenValue defaultValue, Visibility visibility = Visibility.Public) {
-        public string Name = name;
-        public ZenType Type = type;
-        public ZenValue Default = defaultValue;
-        public Visibility Visibility = visibility;
+    public struct Property {
+        public string Name;
+        public ZenType Type;
+        public ZenValue Default;
+        public Visibility Visibility;
+
+        public bool IsGeneric => Type.IsGeneric;
+
+        public Property(string name, ZenType type, ZenValue defaultValue, Visibility visibility = Visibility.Public) {
+            Name = name;
+            Type = type;
+            Default = defaultValue;
+            Visibility = visibility;
+        }
+    }
+
+    public struct Parameter {
+        public string Name;
+        public ZenType Type;
+        public ZenValue DefaultValue;
+
+        public bool IsTypeParameter => Type == ZenType.Type;
+        public bool IsValueParameter => !IsTypeParameter;
+
+        public Parameter(string name, ZenType type, ZenValue? defaultValue = null) {
+            Name = name;
+            Type = type;  // Keep the original type (ZenType.Type for type parameters)
+            
+            if (defaultValue != null) {
+                DefaultValue = (ZenValue) defaultValue;
+            }
+            else if (IsTypeParameter) {
+                // For type parameters, default to ZenType.Any
+                DefaultValue = new ZenValue(ZenType.Type, ZenType.Any);
+            }
+            else {
+                DefaultValue = ZenValue.Null;
+            }
+        }
+
+        public bool ValidateValue(ZenValue value) {
+            if (IsTypeParameter) {
+                // For type parameters, value must be a ZenType.Type
+                // and its underlying value must be a ZenType
+                return value.Type == ZenType.Type && value.Underlying is ZenType;
+            }
+            return Type.IsAssignableFrom(value.Type);
+        }
     }
 
     public string Name;
-
     public ZenClass SuperClass = Master;
-
     public List<ZenMethod> Methods = [];
-
     public Dictionary<string, Property> Properties = [];
-
     public ZenTypeClass Type;
+    public List<Parameter> Parameters = [];
 
-    public ZenClass(string name, List<ZenMethod> methods, List<Property> properties, ZenType[] parameters) {
+    public ZenClass(string name, List<ZenMethod> methods, List<Property> properties, List<Parameter> parameters) {
         Name = name;
         Methods = methods;
         Properties = properties.ToDictionary(x => x.Name, x => x);
-        Type = new ZenTypeClass(this, Name, parameters);
+        Parameters = parameters;
+
+        var parameterTypeList = parameters.Select(p => p.Type).ToArray();
+        Type = new ZenTypeClass(this, Name, parameterTypeList);
     }
 
     public ZenClass(string name, List<ZenMethod> methods) : this(name, methods, [], []) {}
 
-    public ZenObject CreateInstance(Interpreter interpreter, params ZenValue[] args) {
+    public Dictionary<string, ZenType> ResolveTypeParameters(Dictionary<string, ZenValue> paramValues) {
+        var substitutions = new Dictionary<string, ZenType>();
+        
+        foreach (var param in Parameters) {
+            if (!param.IsTypeParameter) continue;
+            
+            if (paramValues.TryGetValue(param.Name, out var value)) {
+                Logger.Instance.Debug($"Adding substitution {param.Name} -> {value.Underlying}");
+                substitutions[param.Name] = (ZenType)value.Underlying!;
+            }
+        }
+        
+        return substitutions;
+    }
+
+    public ZenType SubstituteType(ZenType original, Dictionary<string, ZenType> substitutions) {
+        // If this is a generic type parameter (like T), look up its substitution by name
+        if (original.IsGeneric) {
+            // Look up by the type's name directly
+            if (substitutions.TryGetValue(original.Name, out var concrete)) {
+                return concrete;
+            }
+        }
+        
+        // If it's a parametric type, substitute its parameters
+        if (original.IsParametric) {
+            var newParams = original.Parameters.Select(p => SubstituteType(p, substitutions)).ToArray();
+            return new ZenType(original.Name, original.IsNullable, newParams);
+        }
+        
+        return original;
+    }
+
+    public void ValidateParameters(Dictionary<string, ZenValue> paramValues) {
+        foreach (Parameter param in Parameters) {
+            if (!paramValues.ContainsKey(param.Name)) {
+                if (param.DefaultValue.IsNull()) {
+                    throw Interpreter.Error($"No value provided for parameter '{param.Name}' and it has no default value");
+                }
+                paramValues[param.Name] = param.DefaultValue;
+            }
+            else {
+                var paramValue = paramValues[param.Name];
+                if (!param.ValidateValue(paramValue)) {
+                    var expectedType = param.IsTypeParameter ? "Type" : param.Type.ToString();
+                    throw Interpreter.Error($"Invalid value for parameter '{param.Name}'. Expected {expectedType}, got {paramValue.Type}");
+                }
+            }
+        }
+    }
+
+    public ZenObject CreateInstance(Interpreter interpreter, ZenValue[] args, Dictionary<string, ZenValue> paramValues) {
+        ValidateParameters(paramValues);
+
         ZenType[] argTypes = args.Select(x => x.Type).ToArray();
 
-        // has a compatable constructor?
         HasOwnConstructor(argTypes, out var constructor);
-
         if (constructor == null && args.Length > 0) {
             throw Interpreter.Error("No valid constructor found for class " + Name);
         }
 
         ZenObject instance = new ZenObject(this);
 
-        // add properties
-        foreach (Property property in Properties.Values) {
-            instance.Properties.Add(property.Name, property.Default);
+        var typeSubstitutions = ResolveTypeParameters(paramValues);
+
+        foreach (var param in paramValues) {
+            instance.SetParameter(param.Key, param.Value);
         }
 
-        // call the constructor
-        // (required calls to super constructors are checked at compile time)
-        if (constructor == null) {
-            return instance;
+        instance.Type = new ZenTypeClass(this, Name, typeSubstitutions.Values.ToArray());
+
+        foreach (var property in Properties) {
+            if (property.Value.IsGeneric) {
+                string genericParamName = property.Value.Type.Name;
+                if (typeSubstitutions.TryGetValue(genericParamName, out var concreteType)) {
+                    Logger.Instance.Debug($"Substituting property {property.Key} type from {property.Value.Type} to {concreteType}");
+                    instance.Properties.Add(property.Key, new ZenValue(concreteType, property.Value.Default.Underlying));
+                } else {
+                    instance.Properties.Add(property.Key, property.Value.Default);
+                }
+            } else {
+                instance.Properties.Add(property.Key, property.Value.Default);
+            }
         }
 
-        interpreter.CallUserFunction(constructor!.Bind(instance), args);
+        foreach (var method in Methods) {
+            bool needsConcrete = Parameters.Count > 0;
 
-        // verify that all non-nullable properties have been initialized
-        foreach (Property property in Properties.Values) {
-            if (instance.GetProperty(property.Name).IsNull()) {
-                throw Interpreter.Error("Non-nullable Property " + property.Name + " must be set in the constructor.", null, ErrorType.TypeError);
+            if (needsConcrete) {
+                ZenType concreteReturnType = method.ReturnType;
+
+                if (method.ReturnTypeHint != null) {
+                    TypeHint returnTypeHint = method.ReturnTypeHint!;
+                    concreteReturnType = typeSubstitutions[returnTypeHint.Name];
+                }
+                
+                var concreteParams = method.Parameters.Select(p => {
+                    if (p.Type.IsGeneric) {
+                        string genericParamName = p.Type.Name;
+                        var concreteType = typeSubstitutions[genericParamName];
+                        Logger.Instance.Debug($"Substituting parameter {p.Name} type from {p.Type} to {concreteType}");
+                        return new ZenFunction.Parameter(p.Name, concreteType, false);
+                    }
+                    return p;
+                }).ToList();
+
+                if (method is ZenHostMethod hostMethod) {
+                    instance.Methods.Add(new ZenHostMethod(
+                        method.Async,
+                        method.Name,
+                        method.Visibility,
+                        concreteReturnType,
+                        concreteParams,
+                        hostMethod.Func,
+                        hostMethod.Closure
+                    ));
+                }
+                else if (method is ZenUserMethod userMethod) {
+                    instance.Methods.Add(new ZenUserMethod(
+                        method.Async,
+                        method.Name,
+                        method.Visibility,
+                        concreteReturnType,
+                        concreteParams,
+                        userMethod.Block,
+                        userMethod.Closure
+                    ));
+                }
+            }
+        }
+
+        if (constructor != null) {
+            var concreteConstructor = constructor;
+            if (Parameters.Count > 0) {
+                var concreteParams = constructor.Parameters.Select(p => {
+                    if (p.Type.IsGeneric) {
+                        string genericParamName = p.Type.Name;
+                        var concreteType = typeSubstitutions[genericParamName];
+                        Logger.Instance.Debug($"Substituting constructor parameter {p.Name} type from {p.Type} to {concreteType}");
+                        return new ZenFunction.Parameter(p.Name, concreteType, false);
+                    }
+                    return p;
+                }).ToList();
+
+                if (constructor is ZenUserMethod userMethod) {
+                    concreteConstructor = new ZenUserMethod(
+                        constructor.Async,
+                        constructor.Name,
+                        constructor.Visibility,
+                        constructor.ReturnType,
+                        concreteParams,
+                        userMethod.Block,
+                        userMethod.Closure
+                    );
+                }
+            }
+
+            var boundMethod = concreteConstructor.Bind(instance);
+            Logger.Instance.Debug($"Calling constructor with parameters: {string.Join(", ", boundMethod.Parameters.Select(p => $"{p.Name}: {p.Type}"))}");
+            interpreter.CallUserFunction(boundMethod, args);
+
+            foreach (Property property in Properties.Values) {
+                if (instance.GetProperty(property.Name).IsNull()) {
+                    throw Interpreter.Error("Non-nullable Property " + property.Name + " must be set in the constructor.", null, ErrorType.TypeError);
+                }
             }
         }
 

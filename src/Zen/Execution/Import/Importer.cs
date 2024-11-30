@@ -150,7 +150,7 @@ public class Importer
                     Logger.Instance.Debug($"Declaring class: {className}");
                     
                     module.environment.Define(true, className, ZenType.Class, false);
-                    var emptyClass = new ZenClass(className, [], []);
+                    var emptyClass = new ZenClass(className, [], [], []);
                     module.environment.Assign(className, new ZenValue(ZenType.Class, emptyClass));
                 }
                 else if (stmt is FuncStmt funcStmt)

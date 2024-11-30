@@ -45,6 +45,7 @@ public partial class Interpreter : IGenericVisitor<IEvaluationResult>
         
         RegisterBuiltins(new Builtins.Core.Typing());
         RegisterBuiltins(new Builtins.Core.Time());
+        RegisterBuiltins(new Builtins.Core.Array());
     }
 
     /// <summary>
