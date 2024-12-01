@@ -84,7 +84,7 @@ public class ArrayTests : TestRunner
             arr.push(2)
             arr.push(3)
         ");
-        var result = Execute("print arr");
+        var result = Execute("print arr.ToString()");
         Assert.Equal("[1, 2, 3]", result);
     }
 

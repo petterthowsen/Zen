@@ -26,7 +26,13 @@ public class Typing : IBuiltinsProvider
         interp.globalEnvironment.Define(true, "null", ZenType.Null, false);
         interp.globalEnvironment.Assign("null", new ZenValue(ZenType.Null, null));
 
+        interp.globalEnvironment.Define(true, "void", ZenType.Void, false);
+        interp.globalEnvironment.Assign("void", ZenValue.Void);
+
         // register built in types
+        interp.globalEnvironment.Define(true, "any", ZenType.Type, false);
+        interp.globalEnvironment.Assign("any", new ZenValue(ZenType.Type, ZenType.Any));
+
         interp.globalEnvironment.Define(true, "int", ZenType.Type, false);
         interp.globalEnvironment.Assign("int", new ZenValue(ZenType.Type, ZenType.Integer));
 
@@ -45,13 +51,16 @@ public class Typing : IBuiltinsProvider
         interp.globalEnvironment.Define(true, "bool", ZenType.Type, false);
         interp.globalEnvironment.Assign("bool", new ZenValue(ZenType.Type, ZenType.Boolean));
 
-        interp.globalEnvironment.Define(true, "function", ZenType.Type, false);
-        interp.globalEnvironment.Assign("function", new ZenValue(ZenType.Type, ZenType.Function));
+        interp.globalEnvironment.Define(true, "func", ZenType.Type, false);
+        interp.globalEnvironment.Assign("func", new ZenValue(ZenType.Type, ZenType.Function));
 
         interp.globalEnvironment.Define(true, "object", ZenType.Type, false);
         interp.globalEnvironment.Assign("object", new ZenValue(ZenType.Type, ZenType.Object));
 
         interp.globalEnvironment.Define(true, "class", ZenType.Type, false);
         interp.globalEnvironment.Assign("class", new ZenValue(ZenType.Type, ZenType.Class));
+
+        interp.globalEnvironment.Define(true, "Promise", ZenType.Type, false);
+        interp.globalEnvironment.Assign("Promise", new ZenValue(ZenType.Type, ZenType.Promise));
     }
 }

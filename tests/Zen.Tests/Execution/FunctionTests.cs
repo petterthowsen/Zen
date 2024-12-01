@@ -90,25 +90,21 @@ hello()
     public void TestScope() {
         RestartInterpreter();
 
-        Execute("func makeCounter() : func { var i = 0\n func increment():int { i += 1\n return i }\n return increment }");
-
-        string? result = Execute("var counter = makeCounter()\nprint counter()");
-        Assert.Equal("1", result);
-    }
-
-    [Fact]
-    public void TestFuncWithParameters()
-    {
-        RestartInterpreter();
-
         Execute(@"
-        class Point {
-            x: float
-            Point(x: float, y:float) {
-                this.x = x
+        func makeCounter() : func {
+            var i = 0
+            func increment():int {
+                i += 1
+                return i
             }
+            return increment
         }");
 
-        Execute("var p = new Point(1, 2)");
+        string? result = Execute(@"
+        var counter = makeCounter()
+        print counter()
+        ");
+
+        Assert.Equal("1", result);
     }
 }

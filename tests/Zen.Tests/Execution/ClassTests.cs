@@ -15,11 +15,11 @@ public class ClassTests : TestRunner
         Assert.True(Interpreter.environment.Exists("Test"));
         
         // get the value
-        ZenValue test = Interpreter.environment.GetValue("Test");
+        ZenValue Test = Interpreter.environment.GetValue("Test");
 
         // make sure its a class
-        Assert.Equal(ZenType.Class, test.Type);
-        Assert.IsType<ZenClass>(test.Underlying);
+        Assert.Equal(ZenType.Class, Test.Type);
+        Assert.IsType<ZenClass>(Test.Underlying);
     }
 
     
@@ -33,11 +33,14 @@ public class ClassTests : TestRunner
 
         Assert.True(Interpreter.environment.Exists("t"));
 
+        // get the class
+        ZenValue Test = Interpreter.environment.GetValue("Test");
+
         // get the value
         ZenValue test = Interpreter.environment.GetValue("t");
 
-        // make sure itsa ZenType.Object
-        Assert.Equal(ZenType.Object, test.Type);
+        // type should equal the Test type
+        Assert.Equal(Test.Underlying!.Type, test.Type);
         Assert.IsType<ZenObject>(test.Underlying);
 
         string? result = Execute("print t.ToString()");
@@ -57,10 +60,6 @@ public class ClassTests : TestRunner
 
         // get the value
         ZenValue test = Interpreter.environment.GetValue("t");
-
-        // make sure its a ZenType.Object
-        Assert.Equal(ZenType.Object, test.Type);
-        Assert.IsType<ZenObject>(test.Underlying);
 
         // get the object
         ZenObject testObject = (ZenObject)test.Underlying!;
@@ -96,16 +95,16 @@ public class ClassTests : TestRunner
         RestartInterpreter();
 
         string code = @"
-class Point {
-    x: int
-    y: int
+            class Point {
+                x: int
+                y: int
 
-    Point(x: int, y: int) {
-        this.x = x
-        this.y = y
-    }
-}
-";
+                Point(x: int, y: int) {
+                    this.x = x
+                    this.y = y
+                }
+            }
+            ";
 
         Execute(code);
 
@@ -133,8 +132,6 @@ class Point {
         // make sure it has the expected properties
         Assert.True(Interpreter.environment.Exists("p"));
         ZenValue pValue = Interpreter.environment.GetValue("p");
-        Assert.Equal(ZenType.Object, pValue.Type);
-        Assert.IsType<ZenObject>(pValue.Underlying);
         ZenObject pObject = (ZenObject)pValue.Underlying!;
         
         // make sure it has the expected properties

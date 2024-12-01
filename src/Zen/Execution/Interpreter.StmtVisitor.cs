@@ -286,7 +286,7 @@ public partial class Interpreter
         throw new ReturnException(result, returnStmt.Location);
     }
 
-    protected ZenUserFunction ParseFunctionStatement(FuncStmt funcStmt, Environment? closure = null)
+    protected ZenUserFunction EvaluateFunctionStatement(FuncStmt funcStmt, Environment? closure = null)
     {
         closure ??= environment;
 
@@ -299,19 +299,33 @@ public partial class Interpreter
             parameters.Add(funcParamResult.Parameter);
         }
 
-        return new ZenUserFunction(funcStmt.Async, funcStmt.ReturnType.GetZenType(), parameters, funcStmt.Block, closure);
+        ZenType returnType = ZenType.Void;
+        returnType = Evaluate(funcStmt.ReturnType).Type;
+
+        return new ZenUserFunction(funcStmt.Async, returnType, parameters, funcStmt.Block, closure);
     }
 
     public IEvaluationResult Visit(FuncStmt funcStmt)
     {
-        ZenUserFunction zenFunction = ParseFunctionStatement(funcStmt);
+        ZenUserFunction zenFunction = EvaluateFunctionStatement(funcStmt);
 
         RegisterFunction(funcStmt.Identifier.Value, zenFunction);
 
         return (ValueResult)ZenValue.Void;
     }
 
-    protected ZenClass ParseClassStatement(ClassStmt classStmt)
+    public IEvaluationResult Visit(ClassStmt classStmt)
+    {
+        environment.Define(true, classStmt.Identifier.Value, ZenType.Class, false);
+
+        ZenClass clazz = EvaluateClassStatement(classStmt);
+
+        environment.Assign(classStmt.Identifier.Value, new ZenValue(ZenType.Class, clazz));
+
+        return (ValueResult)ZenValue.Void;
+    }
+
+    protected ZenClass EvaluateClassStatement(ClassStmt classStmt)
     {
         // create the Properties
         List<ZenClass.Property> properties = [];
@@ -329,7 +343,11 @@ public partial class Interpreter
 
                 if (property.TypeHint != null)
                 {
-                    type = property.TypeHint.GetZenType();
+                    if (property.TypeHint.IsGeneric) {
+                        type = new ZenType(property.TypeHint.Name, property.TypeHint.Nullable, generic: true);
+                    }else {
+                        type = Evaluate(property.TypeHint).Type;
+                    }
 
                     if ( ! TypeChecker.IsCompatible(defaultValue.Type, type))
                     {
@@ -341,8 +359,13 @@ public partial class Interpreter
                     throw Error($"Property '{property.Identifier.Value}' must have a type hint", property.Identifier.Location, Common.ErrorType.SyntaxError);
                 }
 
-                type = property.TypeHint.GetZenType();
-                defaultValue = new ZenValue(type);
+                if (property.TypeHint.IsGeneric) {
+                    type = new ZenType(property.TypeHint.Name, property.TypeHint.Nullable, generic: true);
+                }else {
+                    // type = property.TypeHint.GetZenType();
+                    type = Evaluate(property.TypeHint).Type;
+                    defaultValue = new ZenValue(type, null);
+                }
             }
 
             ZenClass.Visibility visibility = ZenClass.Visibility.Public;
@@ -376,6 +399,12 @@ public partial class Interpreter
             ZenClass.Visibility visibility = ZenClass.Visibility.Public;
             ZenType returnType = ZenType.Void;
 
+            if (methodStmt.ReturnType.IsGeneric) {
+                returnType = new ZenType(methodStmt.ReturnType.Name, methodStmt.ReturnType.Nullable, generic: true);
+            }else {
+                returnType = Evaluate(methodStmt.ReturnType).Type;
+            }
+
             // method parameters
             List<ZenFunction.Argument> parameters = [];
 
@@ -403,17 +432,6 @@ public partial class Interpreter
         }
 
         return new ZenClass(classStmt.Identifier.Value, methods, properties, genericParameters);
-    }
-
-    public IEvaluationResult Visit(ClassStmt classStmt)
-    {
-        environment.Define(true, classStmt.Identifier.Value, ZenType.Class, false);
-
-        ZenClass clazz = ParseClassStatement(classStmt);
-
-        environment.Assign(classStmt.Identifier.Value, new ZenValue(ZenType.Class, clazz));
-
-        return (ValueResult)ZenValue.Void;
     }
 
     public IEvaluationResult Visit(PropertyStmt propertyStmt)

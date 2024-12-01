@@ -67,6 +67,13 @@ public class ZenType {
         Parameters = parameters;
     }
 
+    public ZenType(string name, bool nullable, bool generic)
+    {
+        Name = name;
+        IsNullable = nullable;
+        IsGeneric = generic;
+    }
+
     public ZenType MakeNullable() {
         return new ZenType(Name, true, Parameters);
     }

@@ -405,7 +405,12 @@ public IEvaluationResult Visit(Grouping grouping)
 
         if (funcParameter.TypeHint != null)
         {
-            type = funcParameter.TypeHint.GetZenType();
+            if (funcParameter.TypeHint.IsGeneric) {
+                type = new ZenType(funcParameter.TypeHint.Name, funcParameter.TypeHint.Nullable, generic: true);
+            }else {
+                type = Evaluate(funcParameter.TypeHint).Type;
+            }
+
             nullable = funcParameter.TypeHint.Nullable;
         }
 

@@ -51,17 +51,19 @@ public class GenericsTest : TestRunner
     {
         var result = Execute(@"
         class Container<T> {
-            value: T
-            Container(v: T) {
-                this.value = v
+            instance: T
+            
+            Container(inst: T) {
+                this.instance = inst
             }
-            get(): T {
-                return this.value
+            
+            Get(): T {
+                return this.instance
             }
         }
         
         var strBox = new Container<string>(""hello"")
-        print strBox.get()
+        print strBox.Get()
         ");
         
         Assert.Equal("hello", result);

@@ -106,24 +106,6 @@ public class ZenClass {
         return substitutions;
     }
 
-    public ZenType SubstituteType(ZenType original, Dictionary<string, ZenType> substitutions) {
-        // If this is a generic type parameter (like T), look up its substitution by name
-        if (original.IsGeneric) {
-            // Look up by the type's name directly
-            if (substitutions.TryGetValue(original.Name, out var concrete)) {
-                return concrete;
-            }
-        }
-        
-        // If it's a parametric type, substitute its parameters
-        if (original.IsParametric) {
-            var newParams = original.Parameters.Select(p => SubstituteType(p, substitutions)).ToArray();
-            return new ZenType(original.Name, original.IsNullable, newParams);
-        }
-        
-        return original;
-    }
-
     public void ValidateParameters(Dictionary<string, ZenValue> paramValues) {
         foreach (Parameter param in Parameters) {
             if (!paramValues.ContainsKey(param.Name)) {
@@ -150,29 +132,41 @@ public class ZenClass {
             Logger.Instance.Debug($"{param.Key} = {param.Value}");
         }
 
-        ValidateParameters(paramValues);
-
-        ZenObject instance = new ZenObject(this);
-
-        var typeSubstitutions = ResolveTypeParameters(paramValues);
-
+        // validate the generic parameters
+        ValidateParameters(paramValues);    
+        
+        // create the instance
+        ZenObject instance = new(this);
+        
+        // store the concrete parameter values on the instance
         foreach (var param in paramValues) {
             instance.SetParameter(param.Key, param.Value);
         }
+        
+        // todo: remove this, we're already setting these on the instance.Parameters
+        var typeSubstitutions = ResolveTypeParameters(paramValues);
 
-        instance.Type = new ZenTypeClass(this, Name, typeSubstitutions.Values.ToArray());
+        // create the concrete type, I.E ClassName<T> becomes ClassName<string> etc.
+        instance.Type = new ZenTypeClass(this, Name, [..typeSubstitutions.Values]);
 
-        foreach (var property in Properties) {
-            if (property.Value.IsGeneric) {
-                string genericParamName = property.Value.Type.Name;
-                if (typeSubstitutions.TryGetValue(genericParamName, out var concreteType)) {
-                    Logger.Instance.Debug($"Substituting property {property.Key} type from {property.Value.Type} to {concreteType}");
-                    instance.Properties.Add(property.Key, new ZenValue(concreteType, property.Value.Default.Underlying));
-                } else {
-                    instance.Properties.Add(property.Key, property.Value.Default);
+        // set properties
+        foreach (Property property in Properties.Values) {
+            if (property.Type.IsGeneric) {
+                string genericParamName = property.Type.Name;
+                if (instance.HasParameter(genericParamName)) {
+                    Logger.Instance.Debug($"Property '{property.Name}' uses generic type '{genericParamName}'.");
+                    
+                    // resolve the concrete type
+                    ZenType concreteType = instance.GetParameter(genericParamName).Underlying!;
+                    
+                    Logger.Instance.Debug($"Property {property.Name} substituted from generic {genericParamName} to {concreteType}");
+                    instance.Properties.Add(property.Name, new ZenValue(concreteType, property.Default.Underlying));
+                }else {
+                    throw Interpreter.Error($"Property {property.Name} uses an unknown parametric type {property.Type}. This sholdn't happen!");
                 }
-            } else {
-                instance.Properties.Add(property.Key, property.Value.Default);
+            }else {
+                Logger.Instance.Debug($"Property '{property.Name}' is just a {property.Type}.");
+                instance.Properties.Add(property.Name, property.Default);
             }
         }
 
@@ -181,21 +175,27 @@ public class ZenClass {
             bool needsConcrete = Parameters.Count > 0;
 
             if (needsConcrete) {
+                Logger.Instance.Debug($"Concretizing {method.Name}...");
+                // todo: fix this
                 ZenType concreteReturnType = method.ReturnType;
 
-                if (method.ReturnTypeHint != null) {
+                if (method.ReturnTypeHint != null && method.ReturnTypeHint.IsGeneric) {
                     TypeHint returnTypeHint = method.ReturnTypeHint!;
-                    concreteReturnType = typeSubstitutions[returnTypeHint.Name];
+                    concreteReturnType = instance.GetParameter(returnTypeHint.Name).Type;
                 }
                 
-                var concreteParams = method.Arguments.Select(p => {
-                    if (p.Type.IsGeneric) {
-                        string genericParamName = p.Type.Name;
-                        var concreteType = typeSubstitutions[genericParamName];
-                        Logger.Instance.Debug($"Substituting parameter {p.Name} type from {p.Type} to {concreteType}");
-                        return new ZenFunction.Argument(p.Name, concreteType, false);
+                var concreteArguments = method.Arguments.Select(arg => {
+                    if (arg.Type.IsGeneric) {
+                        string genericParamName = arg.Type.Name;
+                        
+                        ZenType concreteType = instance.GetParameter(genericParamName).Underlying!;
+
+                        Logger.Instance.Debug($"Substituting parameter {arg.Name} from {arg.Type} to {concreteType}");
+                        return new ZenFunction.Argument(arg.Name, concreteType, false);
+                    }else {
+                        Logger.Instance.Debug($"Parameter {arg.Name} is just a {arg.Type}.");
                     }
-                    return p;
+                    return arg;
                 }).ToList();
 
                 if (method is ZenHostMethod hostMethod) {
@@ -204,7 +204,7 @@ public class ZenClass {
                         method.Name,
                         method.Visibility,
                         concreteReturnType,
-                        concreteParams,
+                        concreteArguments,
                         hostMethod.Func,
                         hostMethod.Closure
                     ));
@@ -215,7 +215,7 @@ public class ZenClass {
                         method.Name,
                         method.Visibility,
                         concreteReturnType,
-                        concreteParams,
+                        concreteArguments,
                         userMethod.Block,
                         userMethod.Closure
                     ));
@@ -223,10 +223,11 @@ public class ZenClass {
             }
         }
         
-        // find constructor
+        // find constructor: note that we access the instance here, to make sure we also check the concretized versions if any.
+        // it'll fallback to class methods for non-generic methods.
         ZenType[] argTypes = args.Select(x => x.Type).ToArray();
 
-        HasOwnConstructor(argTypes, out var constructor);
+        instance.HasOwnConstructor(argTypes, out var constructor);
         if (constructor == null && args.Length > 0) {
             throw Interpreter.Error("No valid constructor found for class " + Name);
         }
