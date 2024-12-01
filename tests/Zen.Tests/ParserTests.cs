@@ -609,7 +609,7 @@ public class ParserTests {
         Instantiation instantiation = (Instantiation)varStmt.Initializer!;
 
         Assert.Single(instantiation.Parameters);
-        Assert.IsType<Parameter>(instantiation.Parameters[0]);
+        Assert.IsType<Identifier>(instantiation.Parameters[0]);
         Parameter param = (Parameter) instantiation.Parameters[0];
         Assert.Equal("string", param.Name);
         TypeHint typeHint = param.Type;

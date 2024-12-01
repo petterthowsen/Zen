@@ -6,6 +6,7 @@ public class ZenType {
     public static ZenType Any = new("any");
     public static ZenType Object = new("Object");
     public static ZenType Class = new("Class");
+    public static ZenType Interface = new("Interface");
     public static ZenType Function = new("func");
     public static ZenType BoundMethod = new("BoundMethod");
     public static ZenType Integer = new("int");

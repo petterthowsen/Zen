@@ -7,7 +7,7 @@ public class Instantiation : Expr {
     
     public Token Token;
     public Call Call;
-    public List<Expr> Parameters = []; // Can be TypeHint or value expressions
+    public List<Expr> Parameters = [];
 
     public override SourceLocation Location => Call.Location;
 
