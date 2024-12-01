@@ -124,10 +124,12 @@ public abstract class AbstractProvider
                         current = new NamespaceResolution(currentFullPath, ns);
                     }else {
                         Module? module = FindModule(currentFullPath);
-                        current.AddModule(module);
-                        current = new ModuleResolution(currentFullPath, module);
-
-                        if (module == null) return null;
+                        if (module != null) {
+                            current.AddModule(module);
+                            current = new ModuleResolution(currentFullPath, module);
+                        }else {
+                            return null;
+                        }
                     }
                 }
 

@@ -48,7 +48,7 @@ public partial class Interpreter
 
     public IEvaluationResult CallUserFunction(BoundMethod bound, ZenValue[] arguments) {
         if (bound.Method is ZenUserMethod userMethod) {
-            return CallUserFunction(userMethod.Async, bound.Closure, userMethod.Block, bound.Parameters, bound.ReturnType, arguments);
+            return CallUserFunction(userMethod.Async, bound.Closure, userMethod.Block, bound.Arguments, bound.ReturnType, arguments);
         }
         else if (bound.Method is ZenHostMethod hostMethod) {
             return (ValueResult) hostMethod.Call(this, bound.Instance, arguments);
@@ -59,10 +59,10 @@ public partial class Interpreter
 
     public IEvaluationResult CallUserFunction(ZenUserFunction function, ZenValue[] arguments)
     {
-        return CallUserFunction(function.Async, function.Closure, function.Block, function.Parameters, function.ReturnType, arguments);
+        return CallUserFunction(function.Async, function.Closure, function.Block!, function.Arguments, function.ReturnType, arguments);
     }
 
-    public IEvaluationResult CallUserFunction(bool async, Environment? closure, Block block, List<ZenFunction.Parameter> parameters, ZenType returnType, ZenValue[] arguments)
+    public IEvaluationResult CallUserFunction(bool async, Environment? closure, Block block, List<ZenFunction.Argument> arguments, ZenType returnType, ZenValue[] argValues)
     {
         // If this is an async function
         if (async)
@@ -75,25 +75,25 @@ public partial class Interpreter
             {
                 Environment previousEnvironment = environment;
 
-                // Create outer environment for parameters
+                // Create outer environment for Arguments
                 Environment paramEnv = new Environment(closure);
-                for (int i = 0; i < parameters.Count; i++)
+                for (int i = 0; i < arguments.Count; i++)
                 {
-                    paramEnv.Define(false, parameters[i].Name, parameters[i].Type, parameters[i].Nullable);
+                    paramEnv.Define(false, arguments[i].Name, arguments[i].Type, arguments[i].Nullable);
 
-                    ZenValue arg = arguments[i];
+                    ZenValue argValue = argValues[i];
 
                     // type check                
-                    Logger.Instance.Debug($"Type check in async function - Argument: {arg.Type}, Parameter: {parameters[i].Type}");
-                    if (TypeChecker.IsCompatible(arg.Type, parameters[i].Type) == false) {
-                        throw Error($"{parameters[i].Name} is expected to be a {parameters[i].Type}, not a {arg.Type}!");
+                    Logger.Instance.Debug($"Function argument {i} expects {arguments[i].Type}. Checking if compatible with {argValue.Type}");
+                    if (TypeChecker.IsCompatible(argValue.Type, arguments[i].Type) == false) {
+                        throw Error($"{arguments[i].Name} is expected to be a {arguments[i].Type}, not a {argValue.Type}!");
                     }
 
                     // type convert if needed
-                    arg = TypeConverter.Convert(arg, parameters[i].Type, false);
+                    argValue = TypeConverter.Convert(argValue, arguments[i].Type, false);
 
                     // assign
-                    paramEnv.Assign(parameters[i].Name, arg);
+                    paramEnv.Assign(arguments[i].Name, argValue);
                 }
 
                 // Create inner environment for method body
@@ -138,28 +138,25 @@ public partial class Interpreter
             // For non-async functions, execute synchronously
             Environment previousEnvironment = environment;
 
-            // Create outer environment for parameters
+            // Create outer environment for Arguments
             Environment paramEnv = new Environment(closure);
-            for (int i = 0; i < parameters.Count; i++)
+            for (int i = 0; i < arguments.Count; i++)
             {
-                paramEnv.Define(false, parameters[i].Name, parameters[i].Type, parameters[i].Nullable);
+                paramEnv.Define(false, arguments[i].Name, arguments[i].Type, arguments[i].Nullable);
 
-                ZenValue arg = arguments[i];
+                    ZenValue argValue = argValues[i];
 
-                // type check                
-                Logger.Instance.Debug($"Type check in sync function - Argument: {arg.Type}, Parameter: {parameters[i].Type}");
-                if (TypeChecker.IsCompatible(arg.Type, parameters[i].Type) == false) {
-                    throw Error($"{parameters[i].Name} is expected to be a {parameters[i].Type}, not a {arg.Type}!");
-                }
+                    // type check                
+                    Logger.Instance.Debug($"Function argument {i} expects {arguments[i].Type}. Checking if compatible with {argValue.Type}");
+                    if (TypeChecker.IsCompatible(argValue.Type, arguments[i].Type) == false) {
+                        throw Error($"{arguments[i].Name} is expected to be a {arguments[i].Type}, not a {argValue.Type}!");
+                    }
 
-                // For generic parameters, assign directly without conversion
-                if (parameters[i].Type.IsGeneric) {
-                    paramEnv.Assign(parameters[i].Name, arg);
-                } else {
-                    // For non-generic parameters, convert if needed
-                    arg = TypeConverter.Convert(arg, parameters[i].Type, false);
-                    paramEnv.Assign(parameters[i].Name, arg);
-                }
+                    // type convert if needed
+                    argValue = TypeConverter.Convert(argValue, arguments[i].Type, false);
+
+                    // assign
+                    paramEnv.Assign(arguments[i].Name, argValue);
             }
 
             // Create inner environment for method body

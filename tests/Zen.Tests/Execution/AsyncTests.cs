@@ -108,7 +108,7 @@ public class AsyncTests : TestRunner
         Interpreter.RegisterAsyncHostFunction(
             "delay",
             ZenType.Integer,
-            [new ZenFunction.Parameter("ms", ZenType.Integer, false)],
+            [new ZenFunction.Argument("ms", ZenType.Integer, false)],
             async (args) =>
             {
                 int ms = (int)args[0].Underlying;

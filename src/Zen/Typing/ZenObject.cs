@@ -36,15 +36,15 @@ public class ZenObject {
 
     public void HasOwnMethod(string name, ZenType returnType, ZenType[] argTypes, out ZenMethod? method) {
         // First check concrete methods
-        foreach (var m in Methods) {
+        foreach (ZenMethod m in Methods) {
             if (m.Name == name && m.ReturnType == returnType) {
-                if (m.Parameters.Count != argTypes.Length) {
+                if (m.Arguments.Count != argTypes.Length) {
                     continue;
                 }
 
                 bool match = true;
                 for (int i = 0; i < argTypes.Length; i++) {
-                    if (m.Parameters[i].Type != argTypes[i]) {
+                    if (m.Arguments[i].Type != argTypes[i]) {
                         match = false;
                         break;
                     }

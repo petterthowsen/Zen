@@ -10,7 +10,7 @@ public class TypeHint : Expr
     public TypeHint[] Parameters = [];
     public bool Nullable = false;
     
-    public string Name => Token.Value;
+    public string Name;
     public bool IsParametric => Parameters.Length > 0;
 
     public override SourceLocation Location => Token.Location;
@@ -19,6 +19,7 @@ public class TypeHint : Expr
 
     public TypeHint(Token token, TypeHint[] parameters, bool nullable = false, bool generic = false) {
         Token = token;
+        Name = Token.Value;
         Parameters = parameters;
         Nullable = nullable;
         IsGeneric = generic;
@@ -26,6 +27,7 @@ public class TypeHint : Expr
 
     public TypeHint(Token token, bool nullable = false) {
         Token = token;
+        Name = Token.Value;
         Nullable = nullable;
     }
 

@@ -9,7 +9,6 @@ using Zen.Typing;
 
 public partial class Parser
 {
-
 	private PackageStmt PackageStatement() {
 		Token token = Previous;
 		AtleastOne(TokenType.Whitespace);

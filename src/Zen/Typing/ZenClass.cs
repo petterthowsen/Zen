@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Zen.Common;
 using Zen.Execution;
 using Zen.Parsing.AST.Expressions;
@@ -65,7 +66,7 @@ public class ZenClass {
             if (IsTypeParameter) {
                 // For type parameters, value must be a ZenType.Type
                 // and its underlying value must be a ZenType
-                return value.Type == ZenType.Type && value.Underlying is ZenType;
+                return value.Type == ZenType.Type;
             }
             return Type.IsAssignableFrom(value.Type);
         }
@@ -142,14 +143,14 @@ public class ZenClass {
     }
 
     public ZenObject CreateInstance(Interpreter interpreter, ZenValue[] args, Dictionary<string, ZenValue> paramValues) {
-        ValidateParameters(paramValues);
+        Logger.Instance.Debug($"Creating instance of {Name}...");
 
-        ZenType[] argTypes = args.Select(x => x.Type).ToArray();
-
-        HasOwnConstructor(argTypes, out var constructor);
-        if (constructor == null && args.Length > 0) {
-            throw Interpreter.Error("No valid constructor found for class " + Name);
+        Logger.Instance.Debug("Using generic parameters:");
+        foreach (var param in paramValues) {
+            Logger.Instance.Debug($"{param.Key} = {param.Value}");
         }
+
+        ValidateParameters(paramValues);
 
         ZenObject instance = new ZenObject(this);
 
@@ -175,6 +176,7 @@ public class ZenClass {
             }
         }
 
+        // concretize all methods that reference generic parameters
         foreach (var method in Methods) {
             bool needsConcrete = Parameters.Count > 0;
 
@@ -186,12 +188,12 @@ public class ZenClass {
                     concreteReturnType = typeSubstitutions[returnTypeHint.Name];
                 }
                 
-                var concreteParams = method.Parameters.Select(p => {
+                var concreteParams = method.Arguments.Select(p => {
                     if (p.Type.IsGeneric) {
                         string genericParamName = p.Type.Name;
                         var concreteType = typeSubstitutions[genericParamName];
                         Logger.Instance.Debug($"Substituting parameter {p.Name} type from {p.Type} to {concreteType}");
-                        return new ZenFunction.Parameter(p.Name, concreteType, false);
+                        return new ZenFunction.Argument(p.Name, concreteType, false);
                     }
                     return p;
                 }).ToList();
@@ -220,44 +222,30 @@ public class ZenClass {
                 }
             }
         }
+        
+        // find constructor
+        ZenType[] argTypes = args.Select(x => x.Type).ToArray();
 
+        HasOwnConstructor(argTypes, out var constructor);
+        if (constructor == null && args.Length > 0) {
+            throw Interpreter.Error("No valid constructor found for class " + Name);
+        }
+        
+        // call constructor
         if (constructor != null) {
-            var concreteConstructor = constructor;
-            if (Parameters.Count > 0) {
-                var concreteParams = constructor.Parameters.Select(p => {
-                    if (p.Type.IsGeneric) {
-                        string genericParamName = p.Type.Name;
-                        var concreteType = typeSubstitutions[genericParamName];
-                        Logger.Instance.Debug($"Substituting constructor parameter {p.Name} type from {p.Type} to {concreteType}");
-                        return new ZenFunction.Parameter(p.Name, concreteType, false);
-                    }
-                    return p;
-                }).ToList();
-
-                if (constructor is ZenUserMethod userMethod) {
-                    concreteConstructor = new ZenUserMethod(
-                        constructor.Async,
-                        constructor.Name,
-                        constructor.Visibility,
-                        constructor.ReturnType,
-                        concreteParams,
-                        userMethod.Block,
-                        userMethod.Closure
-                    );
-                }
-            }
-
-            var boundMethod = concreteConstructor.Bind(instance);
-            Logger.Instance.Debug($"Calling constructor with parameters: {string.Join(", ", boundMethod.Parameters.Select(p => $"{p.Name}: {p.Type}"))}");
+            var boundMethod = constructor!.Bind(instance);
+            Logger.Instance.Debug($"Calling constructor with arguments: {string.Join(", ", boundMethod.Arguments.Select(p => $"{p.Name}: {p.Type}"))}");
             interpreter.CallUserFunction(boundMethod, args);
+        }
 
-            foreach (Property property in Properties.Values) {
-                if (instance.GetProperty(property.Name).IsNull()) {
-                    throw Interpreter.Error("Non-nullable Property " + property.Name + " must be set in the constructor.", null, ErrorType.TypeError);
-                }
+        // verify non-nullable properties are set
+        foreach (Property property in Properties.Values) {
+            if (instance.GetProperty(property.Name).IsNull()) {
+                throw Interpreter.Error("Non-nullable Property " + property.Name + " must be set in the constructor.", null, ErrorType.TypeError);
             }
         }
 
+        // return the instance
         return instance;
     }
 
@@ -268,18 +256,22 @@ public class ZenClass {
     public void HasOwnMethod(string name, ZenType returnType, ZenType[] argTypes, out ZenMethod? method) {
         foreach (var m in Methods) {
             if (m.Name == name && m.ReturnType == returnType) {
-                if (m.Parameters.Count != argTypes.Length) {
+                if (m.Arguments.Count != argTypes.Length) {
                     continue;
                 }
 
+                bool matching = true;
                 for (int i = 0; i < argTypes.Length; i++) {
-                    if (m.Parameters[i].Type != argTypes[i]) {
-                        continue;
+                    if (m.Arguments[i].Type != argTypes[i]) {
+                        matching = false;
+                        break;
                     }
                 }
 
-                method = m;
-                return;
+                if (matching) {
+                    method = m;
+                    return;
+                }
             }
         }
 

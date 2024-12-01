@@ -93,10 +93,10 @@ public class ArrayTests : TestRunner
     {
         throw new NotImplementedException("This method freezes the runtime...");
 
-        RestartInterpreter();
-        Execute("var arr = new Array<any>()");
-        var result = Assert.Throws<RuntimeError>(() => Execute("arr[0]"));
-        Assert.Contains("Array index out of bounds", result.Message);
+        // RestartInterpreter();
+        // Execute("var arr = new Array<any>()");
+        // var result = Assert.Throws<RuntimeError>(() => Execute("arr[0]"));
+        // Assert.Contains("Array index out of bounds", result.Message);
     }
 
     [Fact]
@@ -116,11 +116,11 @@ public class ArrayTests : TestRunner
     public void TestArrayTypeChecking()
     {
         throw new NotImplementedException("This method freezes the runtime...");
-        
-        RestartInterpreter();
-        Execute("var arr = new Array<int>()");
-        var result = Assert.Throws<RuntimeError>(() => Execute("arr.push('hello')"));
-        Assert.Contains("Cannot pass argument of type 'string' to parameter of type 'int'", result.Message);
+
+        // RestartInterpreter();
+        // Execute("var arr = new Array<int>()");
+        // var result = Assert.Throws<RuntimeError>(() => Execute("arr.push('hello')"));
+        // Assert.Contains("Cannot pass argument of type 'string' to parameter of type 'int'", result.Message);
     }
 
     [Fact]

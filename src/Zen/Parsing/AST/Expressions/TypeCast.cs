@@ -4,6 +4,9 @@ using Zen.Typing;
 
 namespace Zen.Parsing.AST.Expressions;
 
+/// <summary>
+/// Represents a type cast in the form of (TypeHint) Expr
+/// </summary>
 public class TypeCast : Expr
 {
     public Token Token; // Left parenthesis token for error reporting

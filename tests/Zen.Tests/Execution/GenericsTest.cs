@@ -39,7 +39,11 @@ public class GenericsTest : TestRunner
 
         // standalone "T" is inferred to be a ZenType.Type - I.E a Type, not a integer constraint or other type.
         Assert.Equal(ZenType.Type, T.Type);
-        Assert.True(T.Type.IsGeneric);
+
+        // for *Type* parameters the default value is "any"
+        // for non-Type parameters (int etc) the default value is Null
+        Assert.Equal(ZenType.Type, T.DefaultValue.Type);
+        Assert.Equal(ZenType.Any, T.DefaultValue.Underlying);
     }
 
     [Fact]

@@ -14,10 +14,12 @@ public class TypeTests : TestRunner
     {
         RestartInterpreter();
 
+        string? result;
+
         Execute("var a = 5");
         Execute("var b = null");
 
-        string? result = Execute("print a is int");
+        result = Execute("print a is int");
         Assert.Equal("true", result);
 
         result = Execute("print a is int?");
@@ -30,6 +32,16 @@ public class TypeTests : TestRunner
         Assert.Equal("false", result);
     }
 
+        [Fact]
+    public void TestTypeCheckClass() {
+        RestartInterpreter();
+
+        Execute("class Point { x: int y: int }");
+        Execute("var p = new Point()");
+        string? result = Execute("print p is Point");
+        Assert.Equal("true", result);
+    }
+
     [Fact]
     public void TestTypeCast() {
         RestartInterpreter();
@@ -40,13 +52,4 @@ public class TypeTests : TestRunner
         Assert.Equal("3", result);
     }
 
-    [Fact]
-    public void TestTypeCastClass() {
-        RestartInterpreter();
-
-        Execute("class Point { x: int y: int }");
-        Execute("var p = new Point()");
-        string? result = Execute("print p is Point");
-        Assert.Equal("true", result);
-    }
 }

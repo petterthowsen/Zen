@@ -6,16 +6,39 @@ namespace Zen.Execution.EvaluationResult;
 /// Represents the result of evaluating a TypeHint expression.
 /// </summary>
 public readonly struct TypeResult : IEvaluationResult {
-    public ZenType Type { get; init; }
-    public ZenValue Value { get; } = ZenValue.Void;
+
+    // the actual type
+    public ZenType Type { get; init; } // the type
+
+    // 
+    public ZenValue Value { get; } = ZenValue.Void; // this is always a ZenType
+    
     public bool IsTruthy() => true;
     public bool IsCallable() => false;
 
     public bool IsClass() => Type is ZenTypeClass;
 
-    public TypeResult(ZenType type)
+    public TypeResult(ZenType type, bool nullable = false)
     {
         Type = type;
+        if (nullable && Type.IsNullable == false) {
+            Type = Type.MakeNullable();
+        }
+        Value = new ZenValue(ZenType.Type, Type);
+    }
+
+    public TypeResult(ZenValue value, bool nullable = false)
+    {
+        if (value.Type == ZenType.Type) {
+            Type = value.Underlying!;
+        }else {
+            Type = value.Type;
+        }
+
+        if (nullable && Type.IsNullable == false) {
+            Type = Type.MakeNullable();
+        }
+
         Value = new ZenValue(ZenType.Type, Type);
     }
 

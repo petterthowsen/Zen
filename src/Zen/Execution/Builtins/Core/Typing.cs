@@ -10,7 +10,7 @@ public class Typing : IBuiltinsProvider
     public void RegisterBuiltins(Interpreter interp)
     {
         // 'type' returns the type of a value as a ZenValue of type ZenType.Type
-        interp.RegisterHostFunction("type", ZenType.Type, [new ZenFunction.Parameter("val", ZenType.Any)], (ZenValue[] args) =>
+        interp.RegisterHostFunction("type", ZenType.Type, [new ZenFunction.Argument("val", ZenType.Any)], (ZenValue[] args) =>
         {
             ZenValue val = args[0];
             return new ZenValue(ZenType.Type, val.Type);

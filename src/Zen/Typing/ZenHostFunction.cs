@@ -7,17 +7,17 @@ public class ZenHostFunction : ZenFunction {
 
     public readonly Func<ZenValue[], ZenValue> Func;
 
-    public ZenHostFunction(bool async, ZenType returnType, List<Parameter> parameters, Func<ZenValue[], ZenValue> func, Environment closure) : base(async, returnType, parameters, closure) {
+    public ZenHostFunction(bool async, ZenType returnType, List<Argument> arguments, Func<ZenValue[], ZenValue> func, Environment closure) : base(async, returnType, arguments, closure) {
         Func = func;
     }
 
-    public override ZenValue Call(Interpreter interpreter, ZenValue[] arguments)
+    public override ZenValue Call(Interpreter interpreter, ZenValue[] argValues)
     {
-        if (arguments.Length < Arity) {
-            throw new Exception($"Function called with {arguments.Length} arguments, but expected {Arity}");
+        if (argValues.Length < Arity) {
+            throw new Exception($"Function called with {argValues.Length} argument values, but expected {Arity}");
         }
 
-        return Func(arguments);
+        return Func(argValues);
     }
 
     public override string ToString() {

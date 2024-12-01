@@ -14,9 +14,9 @@ public class ZenHostMethod : ZenMethod
         string name,
         ZenClass.Visibility visibility,
         ZenType returnType,
-        List<Parameter> parameters,
+        List<Argument> arguments,
         Func<ZenObject, ZenValue[], ZenValue> func
-    ) : base(async, name, visibility, returnType, parameters)
+    ) : base(async, name, visibility, returnType, arguments)
     {
         Func = func;
     }
@@ -26,24 +26,24 @@ public class ZenHostMethod : ZenMethod
         string name,
         ZenClass.Visibility visibility,
         ZenType returnType,
-        List<Parameter> parameters,
+        List<Argument> arguments,
         Func<ZenObject, ZenValue[], ZenValue> func,
         Environment? closure
-    ) : base(async, name, visibility, returnType, parameters)
+    ) : base(async, name, visibility, returnType, arguments)
     {
         Func = func;
         Closure = closure;
     }
 
-    public ZenValue Call(Interpreter interpreter, ZenObject instance, ZenValue[] arguments)
+    public ZenValue Call(Interpreter interpreter, ZenObject instance, ZenValue[] argValues)
     {
-        if (arguments.Length < Arity) {
-            throw new Exception($"Function called with {arguments.Length} arguments, but expected {Arity}");
+        if (argValues.Length < Arity) {
+            throw new Exception($"Function called with {argValues.Length} arguments, but expected {Arity}");
         }
 
-        return Func(instance, arguments);
+        return Func(instance, argValues);
     }
-    public override ZenValue Call(Interpreter interpreter, ZenValue[] arguments)
+    public override ZenValue Call(Interpreter interpreter, ZenValue[] argValues)
     {
         throw new Exception("Methods must be called with a ZenObject instance");
     }

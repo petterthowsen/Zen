@@ -355,13 +355,13 @@ public IEvaluationResult Visit(Grouping grouping)
             ZenFunction function = (ZenFunction)callee.Value.Underlying!;
 
             // check number of arguments is at least equal to the number of non-nullable parameters
-            if (call.Arguments.Length < function.Parameters.Count(p => !p.Nullable))
+            if (call.Arguments.Length < function.Arguments.Count(p => !p.Nullable))
             {
                 throw Error($"Not enough arguments for function", null, Common.ErrorType.RuntimeError);
             }
 
             // check number of arguments is at most equal to the number of parameters
-            if (call.Arguments.Length > function.Parameters.Count)
+            if (call.Arguments.Length > function.Arguments.Count)
             {
                 throw Error($"Too many arguments for function", null, Common.ErrorType.RuntimeError);
             }
@@ -377,7 +377,7 @@ public IEvaluationResult Visit(Grouping grouping)
             // check that the types of the arguments are compatible with the types of the parameters
             for (int i = 0; i < call.Arguments.Length; i++)
             {
-                ZenFunction.Parameter parameter = function.Parameters[i];
+                ZenFunction.Argument parameter = function.Arguments[i];
                 ZenValue argument = argumentValues[i];
 
                 if (!TypeChecker.IsCompatible(argument.Type, parameter.Type))
@@ -410,7 +410,7 @@ public IEvaluationResult Visit(Grouping grouping)
         }
 
 
-        ZenFunction.Parameter parameter = new(name, type, nullable);
+        ZenFunction.Argument parameter = new(name, type, nullable);
 
         return (FunctionParameterResult)parameter;
     }
@@ -541,43 +541,38 @@ public IEvaluationResult Visit(Grouping grouping)
     public IEvaluationResult Visit(TypeHint typeHint)
     {
         // For primitive types like 'string', return a TypeResult with the base type
-        if (typeHint.IsPrimitive()) {
-            var baseType = typeHint.GetBaseZenType();
-            return new TypeResult(baseType);
-        }
+        // don't need to do this, as all primtiives are global variables, see below...
+        // if (typeHint.IsPrimitive()) {
+        //     var baseType = typeHint.GetBaseZenType();
+        //     return new TypeResult(baseType);
+        // }
 
+        // Look up if this resolves to a known type.
         // For class types, look up the class and return its type
         VariableResult variable = LookUpVariable(typeHint.Name, typeHint);
         if (variable.Type == ZenType.Class) {
             ZenClass clazz = (ZenClass)variable.Value.Underlying!;
-            return new TypeResult(clazz.Type);
+            ZenType type = clazz.Type;
+            if (typeHint.Nullable)
+            {
+                type = type.MakeNullable();
+            }
+            return new TypeResult(type, typeHint.Nullable);
+        }else {
+            return new TypeResult(variable.Value, typeHint.Nullable); // variable.Type == ZenType.Type while variable.value is ZenType.String|Int etc
         }
-
-        // For generic parameters (like T), return ZenType.Type
-        if (typeHint.IsGeneric) {
-            return new TypeResult(ZenType.Type);
-        }
-
-        // For unknown types, return the base type
-        return new TypeResult(typeHint.GetBaseZenType());
     }
 
     public IEvaluationResult Visit(TypeCheck typeCheck)
     {
         IEvaluationResult exprResult = Evaluate(typeCheck.Expression);
-        ZenType sourceType;
+        ZenType sourceType = exprResult.Type;
         ZenClass? sourceClass = null;
 
-        // if it's a variable, we need to get the type of the current value - not the type of the variable
-        if (exprResult is VariableResult variableResult) {
-            // if it's an object, get the class
-            sourceType = variableResult.Value.Type;
-            if (sourceType == ZenType.Object) {
-                ZenObject sourceObject = (ZenObject)variableResult.Value.Underlying!;
-                sourceClass = sourceObject.Class;
-            }
-        }else {
-            sourceType = exprResult.Type;
+        // if it's an object, get the class
+        if (sourceType == ZenType.Object) {
+            ZenObject sourceObject = (ZenObject)exprResult.Value.Underlying!;
+            sourceClass = sourceObject.Class;
         }
 
         // If the expression evaluates to a type, it's a type-to-type comparison which we don't allow
@@ -586,7 +581,6 @@ public IEvaluationResult Visit(Grouping grouping)
             throw Error($"Invalid type check: 'is' operator cannot be used for type-to-type comparisons. Use '==' instead.", 
                 typeCheck.Token.Location, Common.ErrorType.TypeError);
         }
-
         
         // If the expression evaluates to a class, it's a class comparison
         if (sourceClass != null) {
@@ -608,7 +602,10 @@ public IEvaluationResult Visit(Grouping grouping)
                 return (ValueResult) ZenValue.False;
             }
         }else {
-            ZenType targetType = typeCheck.Type.GetZenType();
+            // get target
+            TypeResult targetTypeResult = (TypeResult) Evaluate(typeCheck.Type);
+            ZenType targetType = targetTypeResult.Type;
+            
             // we're comparing a value to a type
             bool isCompatible = targetType.IsAssignableFrom(sourceType);
             if (isCompatible) {
@@ -622,7 +619,8 @@ public IEvaluationResult Visit(Grouping grouping)
     public IEvaluationResult Visit(TypeCast typeCast)
     {
         IEvaluationResult exprResult = Evaluate(typeCast.Expression);
-        ZenType targetType = typeCast.Type.GetZenType();
+        TypeResult targetTypeResult = (TypeResult) Evaluate(typeCast.Type);
+        ZenType targetType = targetTypeResult.Type;
 
         try
         {

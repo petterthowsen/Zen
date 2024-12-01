@@ -57,14 +57,14 @@ public partial class Interpreter : IGenericVisitor<IEvaluationResult>
         builtinsProvider.RegisterBuiltins(this);
     }
 
-    public void RegisterHostFunction(string name, ZenType returnType, List<ZenFunction.Parameter> parameters, Func<ZenValue[], ZenValue> func)
+    public void RegisterHostFunction(string name, ZenType returnType, List<ZenFunction.Argument> parameters, Func<ZenValue[], ZenValue> func)
     {
         var hostFunc = new ZenHostFunction(false, returnType, parameters, func, globalEnvironment);
         globalEnvironment.Define(true, name, ZenType.Function, false);
         globalEnvironment.Assign(name, new ZenValue(ZenType.Function, hostFunc));
     }
 
-    public void RegisterAsyncHostFunction(string name, ZenType returnType, List<ZenFunction.Parameter> parameters, Func<ZenValue[], Task<ZenValue>> func)
+    public void RegisterAsyncHostFunction(string name, ZenType returnType, List<ZenFunction.Argument> parameters, Func<ZenValue[], Task<ZenValue>> func)
     {
         var hostFunc = new ZenHostFunction(true, returnType, parameters, args =>
         {
@@ -88,7 +88,7 @@ public partial class Interpreter : IGenericVisitor<IEvaluationResult>
         globalEnvironment.Assign(name, new ZenValue(ZenType.Function, hostFunc));
     }
 
-    public void RegisterFunction(bool async, string name, ZenType returnType, List<ZenFunction.Parameter> parameters, Block block, Environment? closure = null)
+    public void RegisterFunction(bool async, string name, ZenType returnType, List<ZenFunction.Argument> parameters, Block block, Environment? closure = null)
     {
         var userFunc = new ZenUserFunction(async, returnType, parameters, block, closure ?? globalEnvironment);
         RegisterFunction(name, userFunc);

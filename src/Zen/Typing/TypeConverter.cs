@@ -8,10 +8,10 @@ public static class TypeConverter {
         Logger.Instance.Debug($"Converting value of type {value.Type} to {targetType}");
 
         // If target is a generic parameter (T), return the value as-is
-        if (targetType.Name == "T") {
-            Logger.Instance.Debug("Target is generic parameter T, returning value as-is");
-            return value;
-        }
+        // if (targetType.Name == "T") {
+        //     Logger.Instance.Debug("Target is generic parameter T, returning value as-is");
+        //     return value;
+        // }
 
         if (value.Type == targetType) return value;
         if (TypeCheck && !TypeChecker.IsCompatible(value.Type, targetType)) {

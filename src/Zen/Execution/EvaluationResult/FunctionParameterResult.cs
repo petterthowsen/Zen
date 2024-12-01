@@ -8,12 +8,12 @@ namespace Zen.Execution.EvaluationResult;
 /// </summary>
 public class FunctionParameterResult : IEvaluationResult
 {
-    public ZenFunction.Parameter Parameter;
+    public ZenFunction.Argument Parameter;
 
     public ZenType Type => Parameter.Type;
     public ZenValue Value => ZenValue.Void;
     public bool IsCallable() => false;
     public bool IsTruthy() => true;
 
-    public static implicit operator FunctionParameterResult(ZenFunction.Parameter parameter) => new() { Parameter = parameter };
+    public static implicit operator FunctionParameterResult(ZenFunction.Argument parameter) => new() { Parameter = parameter };
 }

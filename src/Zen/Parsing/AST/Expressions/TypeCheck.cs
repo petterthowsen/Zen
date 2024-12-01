@@ -1,9 +1,11 @@
 using Zen.Common;
 using Zen.Lexing;
-using Zen.Typing;
 
 namespace Zen.Parsing.AST.Expressions;
 
+/// <summary>
+/// Represents a type check in the form: Expr is Expr
+/// </summary>
 public class TypeCheck : Expr
 {
     public Expr Expression { get; }

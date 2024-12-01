@@ -6,14 +6,14 @@ namespace Zen.Typing;
 
 public abstract class ZenFunction : ICallable {
 
-    public struct Parameter {
+    public struct Argument {
         public readonly string Name { get; init; }
         public readonly ZenType Type { get; init; }
         public readonly bool Nullable { get; init; }
         public readonly ZenValue? DefaultValue { get; init; }
         public readonly TypeHint? OriginalTypeHint { get; init; }  // Store original type hint for resolving generics
 
-        public Parameter(string name, ZenType type) {
+        public Argument(string name, ZenType type) {
             Name = name;
             Type = type;
             Nullable = true;
@@ -21,17 +21,17 @@ public abstract class ZenFunction : ICallable {
             OriginalTypeHint = null;
         }
 
-        public Parameter(string name, ZenType type, bool nullable) : this(name, type) {
+        public Argument(string name, ZenType type, bool nullable) : this(name, type) {
             Nullable = nullable;
             DefaultValue = ZenValue.Null;
         }
 
-        public Parameter(String name, ZenType type, bool nullable, ZenValue defaultValue) : this(name, type) {
+        public Argument(string name, ZenType type, bool nullable, ZenValue defaultValue) : this(name, type) {
             Nullable = nullable;
             DefaultValue = defaultValue;
         }
 
-        public Parameter(String name, ZenType type, bool nullable, ZenValue? defaultValue, TypeHint? originalTypeHint) {
+        public Argument(string name, ZenType type, bool nullable, ZenValue? defaultValue, TypeHint? originalTypeHint) {
             Name = name;
             Type = type;
             Nullable = nullable;
@@ -40,36 +40,36 @@ public abstract class ZenFunction : ICallable {
         }
     }
 
-    public int Arity => Parameters.Count;
+    public int Arity => Arguments.Count;
     
     public bool Async = false;
 
     public ZenType ReturnType { get; set; }
     public TypeHint? ReturnTypeHint { get; set; }  // Store original return type hint for resolving generics
-    public List<Parameter> Parameters;
+    public List<Argument> Arguments;
 
     public Environment? Closure = null;
 
-    public ZenFunction(bool async, ZenType returnType, List<Parameter> parameters) {
+    public ZenFunction(bool async, ZenType returnType, List<Argument> arguments) {
         ReturnType = returnType;
-        Parameters = parameters;
+        Arguments = arguments;
         Async = async;
     }
 
-    public ZenFunction(bool async, ZenType returnType, List<Parameter> parameters, Environment closure) : this(async, returnType, parameters) {
+    public ZenFunction(bool async, ZenType returnType, List<Argument> parameters, Environment closure) : this(async, returnType, parameters) {
         Async = async;
         Closure = closure;
     }
 
-    public ZenFunction(bool async, ZenType returnType, TypeHint? returnTypeHint, List<Parameter> parameters, Environment? closure = null) {
+    public ZenFunction(bool async, ZenType returnType, TypeHint? returnTypeHint, List<Argument> arguments, Environment? closure = null) {
         ReturnType = returnType;
         ReturnTypeHint = returnTypeHint;
-        Parameters = parameters;
+        Arguments = arguments;
         Async = async;
         Closure = closure;
     }
     
-    public abstract ZenValue Call(Interpreter interpreter, ZenValue[] arguments);
+    public abstract ZenValue Call(Interpreter interpreter, ZenValue[] argumentValues);
 
     public override string ToString() {
         return $"Function";

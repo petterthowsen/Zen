@@ -98,9 +98,11 @@ public partial class Interpreter
 
         string str;
         if (value.Type == ZenType.Object) {
+            // custom ToString method
             str = CallObject(value.Underlying!, "ToString", ZenType.String).Underlying!;
         }else {
-            str = TypeConverter.Convert(value, ZenType.String).Underlying!;
+            // use the underlying ToString
+            str = value.Stringify();
         }
 
         if (GlobalOutputBufferingEnabled)
@@ -289,7 +291,7 @@ public partial class Interpreter
         closure ??= environment;
 
         // function parameters
-        List<ZenFunction.Parameter> parameters = [];
+        List<ZenFunction.Argument> parameters = [];
 
         for (int i = 0; i < funcStmt.Parameters.Length; i++)
         {
@@ -375,7 +377,7 @@ public partial class Interpreter
             ZenType returnType = ZenType.Void;
 
             // method parameters
-            List<ZenFunction.Parameter> parameters = [];
+            List<ZenFunction.Argument> parameters = [];
 
             for (int i = 0; i < methodStmt.Parameters.Length; i++)
             {

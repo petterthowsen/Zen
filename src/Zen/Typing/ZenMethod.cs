@@ -9,7 +9,7 @@ public abstract class ZenMethod : ZenFunction
     public string Name;
     public ZenClass.Visibility Visibility;
 
-    public ZenMethod(bool async, string name, ZenClass.Visibility visibility, ZenType returnType, List<ZenFunction.Parameter> parameters) : base(async, returnType, parameters) {
+    public ZenMethod(bool async, string name, ZenClass.Visibility visibility, ZenType returnType, List<Argument> arguments) : base(async, returnType, arguments) {
         Name = name;
         Visibility = visibility;
     }

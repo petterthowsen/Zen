@@ -8,11 +8,11 @@ public class ZenUserFunction : ZenFunction {
 
     public Block? Block;
 
-    public ZenUserFunction(bool async, ZenType returnType, List<Parameter> parameters, Block? block, Environment? closure) : base(async, returnType, parameters, closure) {
+    public ZenUserFunction(bool async, ZenType returnType, List<Argument> arguments, Block? block, Environment? closure) : base(async, returnType, arguments, closure) {
         Block = block;
     }
 
-    public override ZenValue Call(Interpreter interpreter, ZenValue[] arguments) {
+    public override ZenValue Call(Interpreter interpreter, ZenValue[] argValues) {
         if (Block == null)
         {
             throw new Exception("Cannot call placeholder function - implementation not yet available");

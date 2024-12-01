@@ -96,16 +96,16 @@ public class Array : IBuiltinsProvider
             
             // Bracket access methods
             new ZenHostMethod(false, "get", ZenClass.Visibility.Public, ZenType.Any, 
-                [new ZenFunction.Parameter("index", ZenType.Integer)], get),
+                [new ZenFunction.Argument("index", ZenType.Integer)], get),
             new ZenHostMethod(false, "set", ZenClass.Visibility.Public, ZenType.Void,
                 [
-                    new ZenFunction.Parameter("index", ZenType.Integer),
-                    new ZenFunction.Parameter("value", ZenType.Any)
+                    new ZenFunction.Argument("index", ZenType.Integer),
+                    new ZenFunction.Argument("value", ZenType.Any)
                 ], set),
             
             // Array manipulation methods
             new ZenHostMethod(false, "push", ZenClass.Visibility.Public, ZenType.Void,
-                [new ZenFunction.Parameter("item", ZenType.Any)], push),
+                [new ZenFunction.Argument("item", ZenType.Any)], push),
             new ZenHostMethod(false, "pop", ZenClass.Visibility.Public, ZenType.Any, [], pop),
             
             // toString method
