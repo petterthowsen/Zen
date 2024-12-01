@@ -299,7 +299,7 @@ public IEvaluationResult Visit(Grouping grouping)
     public IEvaluationResult Visit(Await await)
     {
         // Evaluate the expression being awaited
-        IEvaluationResult result = Evaluate(await.Expression);
+        IEvaluationResult result = Evaluate(@await.Expression);
         
         // Get the value
         ZenValue value = result.Value;
@@ -308,7 +308,7 @@ public IEvaluationResult Visit(Grouping grouping)
         if (value.Underlying is not ZenPromise promise)
         {
             throw Error($"Cannot await non-promise value of type '{value.Type}'", 
-                await.Location, Common.ErrorType.TypeError);
+                @await.Location, Common.ErrorType.TypeError);
         }
 
         // Wait for the promise to complete and get its result
@@ -342,7 +342,7 @@ public IEvaluationResult Visit(Grouping grouping)
         catch (Exception ex)
         {
             throw Error($"Promise rejected with error: {ex.Message}", 
-                await.Location, Common.ErrorType.RuntimeError);
+                @await.Location, Common.ErrorType.RuntimeError);
         }
     }
 

@@ -131,7 +131,7 @@ public class ArrayTests : TestRunner
             var arr = new Array<int>()
             arr.push(1)
             arr.push(2)
-            var x: int = arr[0] // Should work since array elements are ints
+            var x: int = arr[0]
         ");
     }
 

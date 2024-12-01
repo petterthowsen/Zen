@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Zen.Common;
 using Zen.Typing;
 
 namespace Zen.Execution;
@@ -54,6 +55,10 @@ public class EventLoop
             {
                 task();
             }
+            catch (Exception ex) {
+                // Log or handle the error
+                Logger.Instance.Error($"Error in event loop task: {ex}");
+            }
             finally
             {
                 Interlocked.Decrement(ref _taskCount);
@@ -69,6 +74,10 @@ public class EventLoop
             try
             {
                 await asyncTask();
+            }
+            catch (Exception ex) {
+                // Log or handle the error
+                Logger.Instance.Error($"Error in event loop task: {ex}");
             }
             finally
             {
@@ -112,7 +121,7 @@ public class EventLoop
                 catch (Exception ex)
                 {
                     // Log or handle the error
-                    Console.WriteLine($"Error in event loop task: {ex}");
+                    Logger.Instance.Error($"Error in event loop task: {ex}");
                 }
             }
             else
@@ -140,6 +149,7 @@ public class EventLoop
             }
             catch (Exception ex)
             {
+                Logger.Instance.Error(ex.Message);
                 promise.Reject(new ZenValue(ZenType.String, ex.Message));
             }
         });

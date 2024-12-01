@@ -87,6 +87,8 @@ public class Program
     protected static void REPL() {
         Console.WriteLine("Zen REPL v0.1");
         
+        Logger.Instance.SetDebug(true);
+
         Runtime runtime = new();
 
         while (true) {
