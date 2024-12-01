@@ -21,7 +21,6 @@ public class Program
             {
                 Console.WriteLine("Oops! Unhandled Exception!");
                 Console.WriteLine(ex.ToString()); // Print the full exception details
-                Console.WriteLine("This is a problem with the Zen Runtime. Sorry!");
             }
 
             // Perform any additional cleanup if needed

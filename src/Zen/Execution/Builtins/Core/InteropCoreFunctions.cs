@@ -8,8 +8,8 @@ public class InteropCoreFunctions : IBuiltinsProvider
     public void RegisterBuiltins(Interpreter interpreter)
     {
         interpreter.RegisterAsyncHostFunction(
-            "callDotNetAsync",
-            ZenType.Promise, // Returns a Promise
+            "CallDotNetAsync",
+            ZenType.String, // Returns a String
             new List<ZenFunction.Argument>
             {
                 new("target", ZenType.String),

@@ -314,30 +314,9 @@ public IEvaluationResult Visit(Grouping grouping)
         // Wait for the promise to complete and get its result
         try 
         {
-            // Create a new promise that will be resolved when the task completes
-            var waitPromise = new ZenPromise(environment, promise.ResultType);
-            var completed = false;
-            var promiseResult = ZenValue.Void;
-
-            // Add callbacks to handle resolution/rejection
-            promise.Then(() => 
-            {
-                promiseResult = promise.AsTask().GetAwaiter().GetResult();
-                completed = true;
-            });
-
-            promise.Catch(() => 
-            {
-                completed = true;
-            });
-
-            // Wait for the promise to complete
-            while (!completed)
-            {
-                Thread.Sleep(1);
-            }
-
-            return (ValueResult)promiseResult;
+            // Await the task directly and get the result
+            ZenValue promiseResult = promise.AsTask().GetAwaiter().GetResult();
+            return  (ValueResult) promiseResult;
         }
         catch (Exception ex)
         {

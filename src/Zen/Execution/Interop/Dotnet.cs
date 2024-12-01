@@ -1,3 +1,4 @@
+using System.Reflection;
 using Zen.Common;
 using Zen.Typing;
 
@@ -8,8 +9,6 @@ public class Dotnet
 
     public static async Task<ZenValue> CallDotNetAsync(ZenValue[] args)
     {
-        throw new Exception("err");
-
         if (args.Length < 2)
             throw new ArgumentException("CallDotNetAsync requires at least two arguments: target and method name.");
 
@@ -18,49 +17,81 @@ public class Dotnet
 
         Logger.Instance.Debug($"Attempting to call method {methodName} on {targetName}...");
 
-        // Resolve the method target
-        object? target = null;
         Type? targetType = Type.GetType(targetName);
         if (targetType == null)
         {
-            Logger.Instance.Debug($"Type '{targetName}' not found.");
             throw new ArgumentException($"Type '{targetName}' not found.");
         }
 
-        // Convert Zen arguments to .NET
+        // Convert Zen arguments to .NET and infer parameter types
         var methodArgs = args.Skip(2).Select(arg => ToDotNet(arg)).ToArray();
-        Logger.Instance.Debug($"Method arguments: {string.Join(", ", methodArgs.Select(a => a?.ToString() ?? "null"))}");
+       // Infer parameter types as System.Type[]
+        var parameterTypes = methodArgs
+            .Select(arg => arg?.GetType() ?? typeof(object))
+            .Cast<Type>()
+            .ToArray();
 
-        var method = targetType.GetMethod(methodName);
-        Logger.Instance.Debug("HELLO!");
+        Logger.Instance.Debug($"Inferred parameter types: {string.Join(", ", parameterTypes.Select(pt => pt.Name))}");
+
+        var methods = targetType.GetMethods(BindingFlags.Static | BindingFlags.Public)
+            .Where(m => m.Name == methodName && m.GetParameters().Length == parameterTypes.Length + 1)
+            .ToList();
+
+        // Find a method that matches exactly or with an additional CancellationToken
+        var method = methods.FirstOrDefault(m =>
+        {
+            var parameters = m.GetParameters();
+            return parameters.Take(parameterTypes.Length)
+                .Select(p => p.ParameterType)
+                .SequenceEqual(parameterTypes) &&
+                parameters.LastOrDefault()?.ParameterType == typeof(CancellationToken);
+        });
+
         if (method == null)
         {
-            Logger.Instance.Debug($"Method '{methodName}' not found on type '{targetName}'.");
-            throw new ArgumentException($"Method '{methodName}' not found on type '{targetName}'.");
-        }
-        Logger.Instance.Debug($"Invoking method {methodName}...");
-
-        // Invoke asynchronously if it returns a Task
-        var result = method.Invoke(target, methodArgs);
-        if (result is Task task)
-        {
-            await task.ConfigureAwait(false);
-
-            if (task.GetType().IsGenericType)
+            method = targetType.GetMethod(methodName, BindingFlags.Static | BindingFlags.Public, null, parameterTypes, null);
+            if (method == null)
             {
-                // For Task<T>
-                var taskResult = ((dynamic)task).Result;
-                Logger.Instance.Debug($"Task completed. Result: {taskResult}");
-                return ToZen(taskResult);
+                Logger.Instance.Debug($"Available methods on {targetType.FullName}:");
+                foreach (var m in targetType.GetMethods(BindingFlags.Static | BindingFlags.Public))
+                {
+                    Logger.Instance.Debug($"- {m.Name}({string.Join(", ", m.GetParameters().Select(p => p.ParameterType.Name))})");
+                }
+                throw new ArgumentException($"No matching method found for {methodName} with parameter types {string.Join<Type>(", ", parameterTypes)}");
             }
-
-            // For Task
-            Logger.Instance.Debug($"Task completed with no result.");
-            return ZenValue.Null;
+        }
+        else
+        {
+            // Append CancellationToken.None if the method expects it
+            Logger.Instance.Debug($"Appending CancellationToken.None to arguments for method: {method.Name}");
+            methodArgs = methodArgs.Append(CancellationToken.None).ToArray();
         }
 
-        return ZenValue.Null;
+        Logger.Instance.Debug($"Resolved method: {method.Name}");
+
+        try
+        {
+            var result = method.Invoke(null, methodArgs);
+            if (result is Task task)
+            {
+                await task.ConfigureAwait(false);
+
+                if (task.GetType().IsGenericType)
+                {
+                    var taskResult = ((dynamic)task).Result;
+                    return ToZen(taskResult);
+                }
+                return ZenValue.Null;
+            }
+            throw new Exception("Method does not return a Task.");
+        }
+        catch (Exception ex)
+        {
+            Logger.Instance.Debug($"Error invoking method {methodName} on {targetName}: {ex.Message}");
+            throw;
+        }
     }
+
 
     /// <summary>
     /// Converts a .NET object to a ZenValue

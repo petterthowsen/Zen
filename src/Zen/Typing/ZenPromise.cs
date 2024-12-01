@@ -65,28 +65,62 @@ public class ZenPromise
         }
     }
 
-    public ZenPromise Then(Action callback)
+public ZenPromise Then(Action callback)
+{
+    if (_isResolved)
     {
-        if (_isResolved)
+        try
         {
             callback();
         }
-        else
+        catch (Exception ex)
         {
-            _thenCallbacks.Add(callback);
+            Console.WriteLine($"Unhandled exception in Then callback: {ex.Message}");
         }
-        return this;
     }
+    else
+    {
+        _thenCallbacks.Add(() =>
+        {
+            try
+            {
+                callback();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Unhandled exception in Then callback: {ex.Message}");
+            }
+        });
+    }
+    return this;
+}
 
     public ZenPromise Catch(Action callback)
     {
         if (_isRejected)
         {
-            callback();
+            try
+            {
+                callback();
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Error($"Unhandled exception in Catch callback: {ex.Message}");
+            }
         }
         else
         {
-            _catchCallbacks.Add(callback);
+            _catchCallbacks.Add(() =>
+            {
+                try
+                {
+                    callback();
+                }
+                catch (Exception ex)
+                {
+                    Logger.Instance.Error($"Unhandled exception in Catch callback: {ex.Message}");
+                }
+            });
         }
         return this;
     }
