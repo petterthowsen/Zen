@@ -8,13 +8,9 @@ public class ZenClassProxy : ZenClass
 
     public Type Target;
 
-    private List<Func<ZenObject, ZenValue[], ZenValue>> methodFuncs = [];
-
-    public ZenClassProxy(Type dotnetClass) : base("", [], [], [])
+    public ZenClassProxy(Type dotnetClass) : base(dotnetClass.Name, [], [], [])
     {
         Target = dotnetClass;
-        Name = dotnetClass.Name;
-        Type = new ZenTypeClass(this, Name);//superfluous?
     }
 
     public override ZenMethod? GetOwnConstructor(ZenType[] argTypes)
