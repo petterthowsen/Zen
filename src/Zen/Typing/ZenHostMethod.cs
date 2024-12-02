@@ -43,8 +43,13 @@ public class ZenHostMethod : ZenMethod
 
         return Func(instance, argValues);
     }
+
     public override ZenValue Call(Interpreter interpreter, ZenValue[] argValues)
     {
         throw new Exception("Methods must be called with a ZenObject instance");
+    }
+
+    public new BoundMethod Bind(ZenObject instance) {
+        return new BoundMethod(instance, this);
     }
 }

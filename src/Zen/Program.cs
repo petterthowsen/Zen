@@ -7,7 +7,6 @@ using Zen.Execution;
 using Zen.Lexing;
 using Zen.Parsing;
 using Zen.Parsing.AST;
-using Zen.Execution.Import;
 
 public class Program
 {
@@ -40,6 +39,7 @@ public class Program
             SysEnv.Exit(0);
         };
 
+        Logger.Instance.SetDebug(true);
 
         // check args:
         // if empty, start REPL

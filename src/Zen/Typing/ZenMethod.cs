@@ -19,7 +19,7 @@ public abstract class ZenMethod : ZenFunction
         throw new Exception("Methods must be called with a ZenObject instance");
     }
 
-    public BoundMethod Bind(ZenObject instance) {
+    public virtual BoundMethod Bind(ZenObject instance) {
         Environment environment = new Environment(Closure);
         
         // assign 'this' as the instance with its specific type

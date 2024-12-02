@@ -1,5 +1,6 @@
 // Interpreter.FuncHandler.cs
 using Zen.Common;
+using Zen.Execution.Builtins.Core;
 using Zen.Execution.EvaluationResult;
 using Zen.Parsing.AST;
 using Zen.Typing;
@@ -10,8 +11,7 @@ public partial class Interpreter
 {
     public ZenValue CallObject(ZenObject obj, string methodName, ZenType returnType, ZenValue[] args)
     {
-        ZenMethod method;
-        obj.Class.HasMethodHierarchically(methodName, returnType, [], out method);
+        ZenMethod? method = obj.Class.GetMethodHierarchically(methodName, returnType, []);
 
         if (method == null) {
             throw Error($"{obj.Class} has no method {methodName}!");
@@ -52,6 +52,8 @@ public partial class Interpreter
         }
         else if (bound.Method is ZenHostMethod hostMethod) {
             return (ValueResult) hostMethod.Call(this, bound.Instance, arguments);
+        }else if (bound.Method is ZenMethodProxy methodProxy) {
+            return (ValueResult) methodProxy.Call(this, bound.Instance, arguments);
         }
 
         return VoidResult.Instance;

@@ -231,7 +231,7 @@ public class ZenClass {
         // it'll fallback to class methods for non-generic methods.
         ZenType[] argTypes = args.Select(x => x.Type).ToArray();
 
-        instance.HasOwnConstructor(argTypes, out var constructor);
+        var constructor = instance.GetOwnConstructor(argTypes);
         if (constructor == null && args.Length > 0) {
             throw Interpreter.Error("No valid constructor found for class " + Name);
         }
@@ -254,11 +254,16 @@ public class ZenClass {
         return instance;
     }
 
-    public void HasOwnConstructor(ZenType[] argTypes, out ZenMethod? method) {
-        HasOwnMethod(Name, ZenType.Void, argTypes, out method);
+    public bool HasOwnConstructor(ZenType[] argTypes) {
+        return GetOwnMethod(Name, ZenType.Void, argTypes) != null;
     }
 
-    public void HasOwnMethod(string name, ZenType returnType, ZenType[] argTypes, out ZenMethod? method) {
+    public virtual ZenMethod? GetOwnConstructor(ZenType[] argTypes)
+    {
+        return GetOwnMethod(Name, ZenType.Void, argTypes);
+    }
+
+    public virtual ZenMethod? GetOwnMethod(string name, ZenType returnType, ZenType[] argTypes) {
         foreach (var m in Methods) {
             if (m.Name == name && TypeChecker.IsCompatible(returnType, m.ReturnType)) {
                 if (m.Arguments.Count != argTypes.Length) {
@@ -275,54 +280,89 @@ public class ZenClass {
                 }
 
                 if (matching) {
-                    method = m;
-                    return;
+                    return m;
                 }
             }
         }
 
-        method = null;
+        return null;
     }
 
-    public void HasOwnMethod(string name, out ZenMethod? method) {
+    public virtual ZenMethod? GetOwnMethod(string name)
+    {
         foreach (var m in Methods) {
             if (m.Name == name) {
-                method = m;
-                return;
+                return m;
             }
         }
 
-        method = null;
+        return null;
     }
 
-    public void HasMethodHierarchically(string name, ZenType returnType, ZenType[] argTypes, out ZenMethod? method) {
-        HasOwnMethod(name, returnType, argTypes, out method);
-        if (method != null) {
-            return;
-        }
-
-        if (this == Master) {
-            return;
-        }
-
-        SuperClass.HasMethodHierarchically(name, returnType, argTypes, out method);
+    public bool HasOwnMethod(string name, ZenType returnType, ZenType[] argTypes) {
+        return GetOwnMethod(name, returnType, argTypes) != null;
     }
 
-    public void HasMethodHierarchically(string name, out ZenMethod? method) {
-        HasOwnMethod(name, out method);
-        if (method != null) {
-            return;
+    public bool HasOwnMethod(string name) {
+        foreach (var m in Methods) {
+            if (m.Name == name) {
+                return true;
+            }
         }
 
+        return false;
+    }
+
+    public bool HasMethodHierarchically(string name, ZenType returnType, ZenType[] argTypes) {
+        if (HasOwnMethod(name, returnType, argTypes)) return true;
+
         if (this == Master) {
-            return;
+            return false;
+        }
+
+        return SuperClass.HasMethodHierarchically(name, returnType, argTypes);
+    }
+
+    public bool HasMethodHierarchically(string name) {
+        if (HasOwnMethod(name)) return true;
+
+        if (this == Master) {
+            return false;
         }else {
-            SuperClass.HasMethodHierarchically(name, out method);
+            return SuperClass.HasMethodHierarchically(name);
+        }
+    }
+    
+    public ZenMethod? GetMethodHierarchically(string name, ZenType returnType, ZenType[] argTypes)
+    {
+        var method = GetOwnMethod(name, returnType, argTypes);
+        if (method != null) {
+            return method;
+        }
+
+        if (this == Master) {
+            return null;
+        }else {
+            return SuperClass.GetMethodHierarchically(name, returnType, argTypes);
+        }
+    }
+
+    public ZenMethod? GetMethodHierarchically(string name)
+    {
+        var method = GetOwnMethod(name);
+        if (method != null) {
+            return method;
+        }
+
+        if (this == Master) {
+            return null;
+        }else {
+            return SuperClass.GetMethodHierarchically(name);
         }
     }
 
     public bool IsAssignableFrom(ZenClass other) {
-        return this == other || this.SuperClass == other || this.SuperClass.IsAssignableFrom(other);
+        return this == other || SuperClass == other || SuperClass.IsAssignableFrom(other);
     }
 
     public bool Implements(ZenInterface @interface)
@@ -346,8 +386,7 @@ public class ZenClass {
         // make sure all interfaces are satisfied
         foreach (ZenInterface @interface in Interfaces) {
             foreach(ZenAbstractMethod abstractMethod in @interface.Methods) {
-                ZenMethod? concreteMethod;
-                HasMethodHierarchically(abstractMethod.Name, abstractMethod.ReturnType, abstractMethod.Arguments.Select(x => x.Type).ToArray(), out concreteMethod);
+                ZenMethod? concreteMethod = GetMethodHierarchically(abstractMethod.Name, abstractMethod.ReturnType, abstractMethod.Arguments.Select(x => x.Type).ToArray());
                 if (concreteMethod == null) {
                     throw Interpreter.Error("Class " + Name + " does not implement interface method " + abstractMethod);
                 }

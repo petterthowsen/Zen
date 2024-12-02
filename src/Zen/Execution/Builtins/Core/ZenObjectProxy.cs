@@ -1,36 +1,57 @@
+using System.Reflection;
+using Zen.Common;
 using Zen.Typing;
 
 namespace Zen.Execution.Builtins.Core;
 
+// TODO:
+// when creating a proxy object for a class, get or create the Class and Type and cache them for future use.
 public class ZenObjectProxy : ZenObject
 {
-    public static ZenClass ZenObjectProxyClass = new ZenClass("ZenObjectProxy",
-    [
-        // Methods
-        
-    ],
-    [
-        // Properties
-    
-    ],
-    [
-        // Parameters
-    ]);
-
     public object Target { get; }
 
-    public ZenObjectProxy(object target) : base(ZenObjectProxyClass)
+    public ZenObjectProxy(object target, ZenClassProxy proxyClass) : base(proxyClass)
     {
         Target = target;
     }
+    
+    public override bool HasProperty(string name) {
+        PropertyInfo? property = Target.GetType().GetProperty(name);
+        return property != null;
+    }
 
-    public ZenValue CallMethod(string methodName, params ZenValue[] args)
-    {
-        var method = Target.GetType().GetMethod(methodName);
-        if (method == null)
-            throw new Exception($"Method {methodName} not found on {Target.GetType()}");
+    public override void SetProperty(string name, ZenValue value) {
+        PropertyInfo? property = Target.GetType().GetProperty(name);
 
-        var result = method.Invoke(Target, args.Select(a => Dotnet.ToDotNet(a)).ToArray());
-        return Interop.ToZen(result!);
+        if (property == null) {
+            throw Interpreter.Error($"Property {name} not found on {Class.Name}");
+        }
+
+        // Get the property's type
+        Type propertyType = property.PropertyType;
+        ZenType propertyTypeZen = Interop.ToZen(propertyType);
+
+        Logger.Instance.Debug($"Setting property {name} of type {propertyTypeZen} to value of type {value.Type}");
+
+        // Check type compatibility
+        if (!TypeChecker.IsCompatible(value.Type, propertyTypeZen)) {
+            throw Interpreter.Error($"Cannot assign value of type '{value.Type}' to target of type '{propertyTypeZen}'");
+        }
+
+        property.SetValue(Target, Interop.ToDotNet(value));
+    }
+
+    public override ZenValue GetProperty(string name) {
+        PropertyInfo? property = Target.GetType().GetProperty(name);
+
+        if (property == null) {
+            throw Interpreter.Error($"Property {name} not found on {Target.GetType().FullName}");
+        }
+
+        // Get the property's value
+        object? propertyValue = property.GetValue(Target);
+
+        // Convert the property value to a ZenValue
+        return Interop.ToZen(propertyValue);
     }
 }

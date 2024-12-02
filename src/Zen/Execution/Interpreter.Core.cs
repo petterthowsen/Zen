@@ -5,7 +5,6 @@ using Zen.Parsing.AST;
 using Zen.Typing;
 using Zen.Execution.EvaluationResult;
 using Zen.Execution.Import;
-using Zen.Execution.Import.Providing;
 
 namespace Zen.Execution;
 
@@ -44,9 +43,9 @@ public partial class Interpreter : IGenericVisitor<IEvaluationResult>
         EventLoop = eventLoop;
         
         RegisterBuiltins(new Builtins.Core.Typing());
-        RegisterBuiltins(new Builtins.Core.Time());
-        RegisterBuiltins(new Builtins.Core.Array());
         RegisterBuiltins(new Builtins.Core.Interop());
+        //RegisterBuiltins(new Builtins.Core.Time());
+        //RegisterBuiltins(new Builtins.Core.Array());
     }
 
     /// <summary>

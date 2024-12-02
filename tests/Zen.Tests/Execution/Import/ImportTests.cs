@@ -54,7 +54,7 @@ public class ImportTests : TestRunner
     }
 
     [Fact]
-    public void TestBuiltInImport()
+    public void TestImportClassModuleFromSystemPackage()
     {
         // Execute Main.zen which imports and uses PrintHello
         var result = Execute(@"
@@ -64,6 +64,18 @@ public class ImportTests : TestRunner
         ");
 
         Assert.Equal("test message", result?.Trim());
+    }
+
+    [Fact]
+    public void TestImportModuleFromSystem_Time()
+    {
+        string? result = Execute(@"
+        from System/Time import CurrentTimeMillis
+        print CurrentTimeMillis()
+        ");
+        
+        Assert.NotNull(result);
+        Assert.True(result.Length > 0);
     }
 
     [Fact]

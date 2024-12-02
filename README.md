@@ -12,7 +12,7 @@ At a glance, Zen
 - Functions and closures as first-class citizens.
 - Runs in a single-threaded event loop similar to Node JS and supports async/await as syntactic sugar over promises.
 - Fully cross platform across Windows, Mac and Linux.
-- C and C# Interop
+- C# Interop
 
 ## Installing
 
@@ -336,9 +336,9 @@ Zen provides an extensible builtin system through the `IBuiltinsProvider` interf
 - - [x] Type comparison using 'is'
 - - [] Union types, like type number = int|float
 - [x] Classes
-- - [] Interfaces
-- - - [] interface declaration statement
-- - - [] class support for interfaces via `implements` keyword
+- - [x] Interfaces
+- - - [x] interface declaration statement
+- - - [x] class support for interfaces via `implements` keyword
 - - [] super() for calling parent constructor
 - - - [] missing super() construcor call should cause Resolver to throw an error
 - - [] super.method() for calling any parent method?
@@ -360,6 +360,8 @@ Zen provides an extensible builtin system through the `IBuiltinsProvider` interf
 - - - [] make the interpreter track the current token and make the interpreters Error static function use that as the SourceLocation for the error?
 - - - [] Exception Throwing
 - - - [] try/catch/finally statements
+- - - [] stack traces
 - [] Collections
 - - [] Array class and Bracket Access using array[index]
 - - [] Map class for storing key-value pairs, with support for bracket access
+- [] Dotnet Interop

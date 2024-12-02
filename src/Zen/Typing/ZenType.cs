@@ -5,6 +5,7 @@ public class ZenType {
     public static ZenType Keyword = new("keyword");
     public static ZenType Any = new("any");
     public static ZenType Object = new("Object");
+    public static ZenType DotNetObject = new("DotNetObject");
     public static ZenType Class = new("Class");
     public static ZenType Interface = new("Interface");
     public static ZenType Function = new("func");

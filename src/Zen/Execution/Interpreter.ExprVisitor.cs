@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using Zen.Common;
+using Zen.Execution.Builtins.Core;
 using Zen.Execution.EvaluationResult;
 using Zen.Parsing.AST;
 using Zen.Parsing.AST.Expressions;
@@ -71,8 +72,8 @@ public IEvaluationResult Visit(Grouping grouping)
         IEvaluationResult eval = Evaluate(unary.Right);
 
         if (unary.IsNot())
-{
-    // Negate the truthiness of the value
+        {
+            // Negate the truthiness of the value
             if ( ! eval.IsTruthy())
             {
                 return (ValueResult)ZenValue.True;
@@ -141,8 +142,7 @@ public IEvaluationResult Visit(Grouping grouping)
         if (result.Value.Underlying is ZenObject instance)
         {
             // is it a method?
-            ZenMethod? method;
-            instance.HasMethodHierarchically(get.Identifier.Value, out method);
+            ZenMethod? method = instance.GetMethodHierarchically(get.Identifier.Value);
 
             if (method != null)
             {
@@ -213,8 +213,7 @@ public IEvaluationResult Visit(Grouping grouping)
         }
 
         // Call the get method
-        ZenMethod? method;
-        instance.HasMethodHierarchically("get", out method);
+        ZenMethod? method = instance.GetMethodHierarchically("_BracketGet");
 
         if (method == null)
         {
@@ -236,8 +235,7 @@ public IEvaluationResult Visit(Grouping grouping)
         }
 
         // Call the set method
-        ZenMethod? method;
-        instance.HasMethodHierarchically("set", out method);
+        ZenMethod? method = instance.GetMethodHierarchically("_BracketSet");
 
         if (method == null)
         {
