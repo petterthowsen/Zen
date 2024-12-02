@@ -334,8 +334,10 @@ Zen provides an extensible builtin system through the `IBuiltinsProvider` interf
 - - [x] Nullable types
 - - [x] Type casting using parenthesis
 - - [x] Type comparison using 'is'
+- - [] Byte type, to make Interop with C# easier
 - - [] Union types, like type number = int|float
 - [x] Classes
+- - [] Static members (methods & properties)
 - - [x] Interfaces
 - - - [x] interface declaration statement
 - - - [x] class support for interfaces via `implements` keyword
@@ -346,8 +348,9 @@ Zen provides an extensible builtin system through the `IBuiltinsProvider` interf
 - - [] Constant folding
 - [x] Namespaces, packages & imports
 - - [x] ImportStmt
-- - - [] Make modules automatically import all sibling modules (modules of the same namespace) implicitly.
 - - [x] FromImportStmt
+- - [] Make modules automatically import all sibling modules (modules of the same namespace) implicitly.
+- - [] Ability to import namespaces and multi-symbol modules into a special Module Object
 - - [x] Importer System
 - - - [x] Two-phase import with placeholders for cyclic imports
 - - - [x] MainScriptProvider that provides files from the current main script package
@@ -362,6 +365,19 @@ Zen provides an extensible builtin system through the `IBuiltinsProvider` interf
 - - - [] try/catch/finally statements
 - - - [] stack traces
 - [] Collections
-- - [] Array class and Bracket Access using array[index]
+- - [x] BracketGet and BracketSet interfaces
+- - [] Make builtin array class implement Bracket interfaces from stdlib packages? how?
+- - [] Array class and Bracket Access Interfaceusing array[index]
 - - [] Map class for storing key-value pairs, with support for bracket access
+- - [] Array literals
+- - [] Map literals
 - [] Dotnet Interop
+- - [x] Basic type conversions
+- - [x] Basic
+- [] Standard library
+- - [] Math
+- - [] File
+- - [] Standard IO
+- - [] Date & Time
+- - [] Low-level HTTP (tcp, sockets)
+- - [] Windowing, GUI, Graphics
