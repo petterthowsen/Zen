@@ -540,7 +540,7 @@ public class ParserTests {
         Assert.Equal("S", classStmt.Parameters[0].Name);
         
         //check S
-        Parameter S = classStmt.Parameters[0];
+        ParameterDeclaration S = classStmt.Parameters[0];
         Assert.Equal("S", S.Name);
 
         // Check the type hint and default value
@@ -553,6 +553,113 @@ public class ParserTests {
         Assert.Equal(99, defaultValue.Value.Underlying);
     }
     
+    [Fact]
+    public void TestInterfaceDeclaration() {
+        ProgramNode program = Parse("interface Test {}");
+        Assert.Single(program.Statements);
+        Assert.IsType<InterfaceStmt>(program.Statements[0]);
+
+        InterfaceStmt stmt = (InterfaceStmt) program.Statements[0];
+        Assert.Equal("Test", stmt.Identifier.Value);
+    }
+
+    [Fact]
+    public void TestParametricInterface() {
+        ProgramNode program = Parse("interface Test<T> {}");
+        Assert.Single(program.Statements);
+        Assert.IsType<InterfaceStmt>(program.Statements[0]);
+
+        InterfaceStmt stmt = (InterfaceStmt) program.Statements[0];
+        Assert.Equal("Test", stmt.Identifier.Value);
+        Assert.Single(stmt.Parameters);
+        Assert.Equal("T", stmt.Parameters[0].Type.Name);
+    }
+
+    [Fact]
+    public void TestClassImplementsParametricInterface() {
+        ProgramNode program = Parse("class Test<T> implements MyInterface<T> {}");
+        Assert.Single(program.Statements);
+        Assert.IsType<ClassStmt>(program.Statements[0]);
+
+        ClassStmt classStmt = (ClassStmt)program.Statements[0];
+
+        Assert.Equal("Test", classStmt.Identifier.Value);
+        Assert.Single(classStmt.Implements);
+
+        ImplementsExpr implementsExpr = classStmt.Implements[0];
+        Assert.Equal("MyInterface", implementsExpr.Identifier.Name);
+        Assert.Single(implementsExpr.Parameters);
+
+        Identifier T = (Identifier) implementsExpr.Parameters[0];
+        Assert.Equal("T", T.Name);
+    }
+
+    [Fact]
+    public void TestClassImplementsPolyParametricInterface()
+    {
+        ProgramNode program = Parse("class Test<K, V> implements MyInterface<K, V> {}");
+        Assert.Single(program.Statements);
+        Assert.IsType<ClassStmt>(program.Statements[0]);
+
+        ClassStmt classStmt = (ClassStmt)program.Statements[0];
+
+        Assert.Equal("Test", classStmt.Identifier.Value);
+        Assert.Single(classStmt.Implements);
+
+        ImplementsExpr implementsExpr = classStmt.Implements[0];
+        Assert.Equal("MyInterface", implementsExpr.Identifier.Name);
+        Assert.Equal(2, implementsExpr.Parameters.Count);
+
+        Identifier K = (Identifier) implementsExpr.Parameters[0];
+        Assert.Equal("K", K.Name);
+
+        Identifier V = (Identifier) implementsExpr.Parameters[1];
+        Assert.Equal("V", V.Name);
+    }
+
+    
+    [Fact]
+    public void TestInterfaceDeclarationWithMethod() {
+        ProgramNode program = Parse("interface Printable { Print(): string }");
+        Assert.Single(program.Statements);
+        Assert.IsType<InterfaceStmt>(program.Statements[0]);
+
+        InterfaceStmt stmt = (InterfaceStmt) program.Statements[0];
+        Assert.Equal("Printable", stmt.Identifier.Value);
+        Assert.Single(stmt.Methods);
+
+        AbstractMethodStmt methodStmt = stmt.Methods[0];
+        Assert.Equal("Print", methodStmt.Identifier.Value);
+        Assert.Equal("string", methodStmt.ReturnType.Name);
+        Assert.Empty(methodStmt.Parameters);
+    }
+
+    [Fact]
+    public void TestClassImplementsInterface() {
+        ProgramNode program = Parse("class Test implements MyInterface {}");
+        Assert.Single(program.Statements);
+        Assert.IsType<ClassStmt>(program.Statements[0]);
+
+        ClassStmt classStmt = (ClassStmt)program.Statements[0];
+
+        Assert.Equal("Test", classStmt.Identifier.Value);
+        Assert.Single(classStmt.Implements);
+        ImplementsExpr implementsExpr = classStmt.Implements[0];
+        Assert.Equal("MyInterface", implementsExpr.Identifier.Name);
+    }
+
+    [Fact]
+    public void TestClassDeclarationWithInheritance() {
+        ProgramNode program = Parse("class Test extends OtherClass {}");
+        Assert.Single(program.Statements);
+        Assert.IsType<ClassStmt>(program.Statements[0]);
+
+        ClassStmt classStmt = (ClassStmt)program.Statements[0];
+        Assert.Equal("Test", classStmt.Identifier.Value);
+        Identifier extends = (Identifier) classStmt.Extends!;
+        Assert.Equal("OtherClass", extends.Name);
+    }
+
     [Fact]
     public void TestInstantiationExpression() {
         ProgramNode program = Parse("var obj = new Object()");
@@ -610,7 +717,7 @@ public class ParserTests {
 
         Assert.Single(instantiation.Parameters);
         Assert.IsType<Identifier>(instantiation.Parameters[0]);
-        Parameter param = (Parameter) instantiation.Parameters[0];
+        ParameterDeclaration param = (ParameterDeclaration) instantiation.Parameters[0];
         Assert.Equal("string", param.Name);
         TypeHint typeHint = param.Type;
         Assert.Equal("string", typeHint.Name);

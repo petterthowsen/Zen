@@ -9,24 +9,32 @@ public interface IVisitor
     // Root ProgramNode
     void Visit(ProgramNode programNode);
 
-    // Statements
+    void Visit(PackageStmt packageStmt);
+    void Visit(ImportStmt importStmt);
+    void Visit(FromImportStmt fromImportStmt);
+    
     void Visit(VarStmt varStmt);
+    void Visit(ExpressionStmt expressionStmt);
+
     void Visit(Block block);
     void Visit(IfStmt ifStmt);
     void Visit(WhileStmt whileStmt);
     void Visit(ForStmt forStmt);
     void Visit(ForInStmt forInStmt);
-    void Visit(ExpressionStmt expressionStmt);
+    
     void Visit(PrintStmt printStmt);
+    
     void Visit(FuncStmt funcStmt);
     void Visit(ReturnStmt returnStmt);
+    
     void Visit(ClassStmt classStmt);
+    void Visit(InterfaceStmt interfaceStmt);
+    void Visit(AbstractMethodStmt abstractMethodStmt);
     void Visit(PropertyStmt propertyStmt);
     void Visit(MethodStmt methodStmt);
+    void Visit(ImplementsExpr implementsExpr);
+
     void Visit(Instantiation instantiation);
-    void Visit(ImportStmt importStmt);
-    void Visit(FromImportStmt fromImportStmt);
-    void Visit(PackageStmt packageStmt);
 
     // Expressions
     void Visit(Binary binary);
@@ -44,7 +52,7 @@ public interface IVisitor
     void Visit(This dis);
     void Visit(TypeCheck typeCheck);
     void Visit(TypeCast typeCast);
-    void Visit(Parameter parameter);
+    void Visit(ParameterDeclaration parameter);
     void Visit(Await await);
     void Visit(BracketGet bracketGet);
     void Visit(BracketSet bracketSet);

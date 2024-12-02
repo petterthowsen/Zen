@@ -38,6 +38,11 @@ public abstract class ZenFunction : ICallable {
             DefaultValue = defaultValue;
             OriginalTypeHint = originalTypeHint;
         }
+
+        public override readonly string ToString()
+        {
+            return $"{Name}: {Type}{(Nullable ? "?" : "")}{(DefaultValue != null ? $" = {DefaultValue}" : "")}";
+        }
     }
 
     public int Arity => Arguments.Count;

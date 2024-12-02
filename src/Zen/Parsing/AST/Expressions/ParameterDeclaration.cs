@@ -8,7 +8,7 @@ namespace Zen.Parsing.AST.Expressions;
 /// Can be either a type parameter "T" or a constraint like "SIZE:int".
 /// constraints can have default values, E.g "SIZE:int = 100"
 /// </summary>
-public class Parameter : Expr
+public class ParameterDeclaration : Expr
 {
     public string Name; // "T", "SIZE" etc.
     public TypeHint Type; // "int", "Array<string>" etc.
@@ -16,7 +16,7 @@ public class Parameter : Expr
     public bool IsTypeParameter;
     public override SourceLocation Location => Type.Location;
 
-    public Parameter(string name, TypeHint type, Expr? defaultValue = null, bool isTypeParameter = true)
+    public ParameterDeclaration(string name, TypeHint type, Expr? defaultValue = null, bool isTypeParameter = true)
     {
         Name = name;
         Type = type;

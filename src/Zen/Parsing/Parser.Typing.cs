@@ -7,7 +7,7 @@ using Zen.Parsing.AST.Expressions;
 
 public partial class Parser {
 
-    private Parameter ParseParameter() {
+    private ParameterDeclaration ParseParameter() {
 		// Parse parameter name
 		if (!Match(TokenType.Identifier, TokenType.Keyword)) {
 			throw Error($"Expected parameter name (identifier or keyword)", ErrorType.SyntaxError);
@@ -20,7 +20,7 @@ public partial class Parser {
 		if (isTypeParameter) {
 			// It's a type parameter like "T"
 			// Create a TypeHint marked as generic
-			return new Parameter(name, new TypeHint(Previous, [], false, true), null);
+			return new ParameterDeclaration(name, new TypeHint(Previous, [], false, true), null);
 		}
 
 		// It's a value constraint like max: int
@@ -36,7 +36,7 @@ public partial class Parser {
 			MaybeSome(TokenType.Whitespace);
 		}
 
-		return new Parameter(name, type, defaultValue, false);
+		return new ParameterDeclaration(name, type, defaultValue, false);
 	}
 
     private TypeHint TypeHint()

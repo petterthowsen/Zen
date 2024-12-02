@@ -247,7 +247,7 @@ public IEvaluationResult Visit(Grouping grouping)
         return (ValueResult)instance.Call(this, method, [target.Value, element.Value, value.Value]);
     }
 
-    public IEvaluationResult Visit(Parameter parameter)
+    public IEvaluationResult Visit(ParameterDeclaration parameter)
     {
         // For type parameters, just evaluate the type
         if (parameter.IsTypeParameter)
@@ -616,5 +616,11 @@ public IEvaluationResult Visit(Grouping grouping)
             throw Error($"Cannot cast value of type '{exprResult.Type}' to type '{targetType}'", 
                 typeCast.Token.Location, Common.ErrorType.TypeError);
         }
+    }
+
+    public IEvaluationResult Visit(ImplementsExpr implementsExpr)
+    {
+        // do nothing
+        return VoidResult.Instance;
     }
 }

@@ -349,6 +349,16 @@ public class Resolver : IVisitor
             scopes.Peek().Add(param.Name, true);
         }
 
+        // resolve super class
+        if (classStmt.Extends != null) {
+            Resolve(classStmt.Extends);
+        }
+
+        // resolve interfaces
+        foreach (var @interface in classStmt.Implements) {
+            Resolve(@interface);
+        }
+
         foreach (MethodStmt method in classStmt.Methods) {
             FunctionType declaration = FunctionType.METHOD;
             if (method.Identifier.Value == classStmt.Identifier.Value) {
@@ -360,6 +370,40 @@ public class Resolver : IVisitor
         EndScope();
     }
 
+
+    public void Visit(ImplementsExpr implementsExpr)
+    {
+        Resolve(implementsExpr.Identifier);
+        foreach(Expr expr in implementsExpr.Parameters) {
+            // Resolve(expr); //not entirely sure if we need to do this
+        }
+    }
+
+    public void Visit(InterfaceStmt interfaceStmt)
+    {
+        Declare(interfaceStmt.Identifier);
+        Define(interfaceStmt.Identifier);
+
+        BeginScope();
+        scopes.Peek().Add("this", true);
+
+        // Make class parameters available in method scopes
+        foreach (var param in interfaceStmt.Parameters) {
+            scopes.Peek().Add(param.Name, true);
+        }
+
+        // abstract methods don't have bodies, so no need for this here.
+        // foreach (AbstractMethodStmt method in interfaceStmt.Methods) {
+        //     FunctionType declaration = FunctionType.METHOD;
+        //     if (method.Identifier.Value == interfaceStmt.Identifier.Value) {
+        //         declaration = FunctionType.CONSTRUCTOR;
+        //     }
+        //     ResolveFunction(method, declaration);
+        // }
+
+        EndScope();
+    }
+
     public void Visit(PropertyStmt propertyStmt)
     {
         // don't need this yet since properties inside methods are via 'this'
@@ -367,8 +411,14 @@ public class Resolver : IVisitor
 
     public void Visit(MethodStmt methodStmt)
     {
-        // I guess this is handled by the visit to ClassStmt
+        // handled by the visit to ClassStmt
     }
+
+    public void Visit(AbstractMethodStmt abstractMethodStmt)
+    {
+        // handled by visit to InterfaceStmt
+    }
+
 
     public void Visit(Instantiation instantiation)
     {
@@ -414,7 +464,7 @@ public class Resolver : IVisitor
         Resolve(typeCast.Expression);
     }
 
-    public void Visit(Parameter parameter)
+    public void Visit(ParameterDeclaration parameter)
     {
         // Resolve the type hint
         Resolve(parameter.Type);
@@ -480,5 +530,4 @@ public class Resolver : IVisitor
     {
         // handled by the Importer
     }
-
 }

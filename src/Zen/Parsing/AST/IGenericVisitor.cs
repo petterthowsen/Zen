@@ -20,8 +20,12 @@ public interface IGenericVisitor<T>
     T Visit(FuncStmt funcStmt);
     T Visit(ReturnStmt returnStmt);
     T Visit(ClassStmt classStmt);
+    T Visit(InterfaceStmt interfaceStmt);
+    T Visit(AbstractMethodStmt abstractMethodStmt);
     T Visit(PropertyStmt propertyStmt);
     T Visit(MethodStmt methodStmt);
+    T Visit(ImplementsExpr implementsExpr);
+
     T Visit(Instantiation instantiation);
     T Visit(ImportStmt importStmt);
     T Visit(FromImportStmt fromImportStmt);
@@ -33,7 +37,7 @@ public interface IGenericVisitor<T>
     T Visit(Unary unary);
     T Visit(Literal literal);
     T Visit(TypeHint typeHint);
-    T Visit(Parameter typeHintParam);
+    T Visit(ParameterDeclaration typeHintParam);
     T Visit(Identifier identifier);
     T Visit(Assignment assignment);
     T Visit(Logical logical);

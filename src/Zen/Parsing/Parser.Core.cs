@@ -74,6 +74,7 @@ public partial class Parser
 		if (MatchKeywordSequence("async", "func")) return FuncStatement(true);
 		if (MatchKeyword("func")) return FuncStatement(false);
 		if (MatchKeyword("class")) return ClassStatement();
+		if (MatchKeyword("interface")) return InterfaceStatement();
 		if (MatchKeyword("return")) return ReturnStatement();
 		if (MatchKeyword("import")) return ImportStatement();
 		if (MatchKeyword("from")) return FromImportStatement();
@@ -550,8 +551,14 @@ public partial class Parser
 				expr = FinishCall(expr);
 			}
 			else if (Match(TokenType.Dot)) {
-				Token name = Consume(TokenType.Identifier, "Expect property name after '.'");
-				expr = new Get(expr, name);
+				// allow identifiers and keywords to be used as property names
+				
+				if (Match(TokenType.Identifier, TokenType.Keyword)) {
+					Token name = Previous;
+					expr = new Get(expr, name);
+				}else {
+					throw Error("Expected property name after '.'");
+				}
 			}
 			else if (Match(TokenType.OpenBracket)) {
 				MaybeSome(TokenType.Whitespace);
@@ -590,6 +597,14 @@ public partial class Parser
 		return new Call(paren, callee, [.. arguments]);
 	}
 
+	private Identifier Identifier() {
+		if (Match(TokenType.Identifier, TokenType.Keyword)) {
+			return new Identifier(Previous);
+		}
+
+		throw Error("Expected identifier", ErrorType.SyntaxError);
+	}
+	
 	private Expr Primary()
 	{
 		if (MatchKeyword("false")) return new Literal(Literal.LiteralKind.Bool, false, Previous);

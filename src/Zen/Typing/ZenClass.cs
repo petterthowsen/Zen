@@ -73,7 +73,11 @@ public class ZenClass {
     }
 
     public string Name;
+    
     public ZenClass SuperClass = Master;
+
+    public List<ZenInterface> Interfaces = [];
+
     public List<ZenMethod> Methods = [];
     public Dictionary<string, Property> Properties = [];
     public ZenTypeClass Type;
@@ -133,7 +137,7 @@ public class ZenClass {
         }
 
         // validate the generic parameters
-        ValidateParameters(paramValues);    
+        ValidateParameters(paramValues);
         
         // create the instance
         ZenObject instance = new(this);
@@ -256,14 +260,15 @@ public class ZenClass {
 
     public void HasOwnMethod(string name, ZenType returnType, ZenType[] argTypes, out ZenMethod? method) {
         foreach (var m in Methods) {
-            if (m.Name == name && m.ReturnType == returnType) {
+            if (m.Name == name && TypeChecker.IsCompatible(returnType, m.ReturnType)) {
                 if (m.Arguments.Count != argTypes.Length) {
                     continue;
                 }
 
                 bool matching = true;
                 for (int i = 0; i < argTypes.Length; i++) {
-                    if (m.Arguments[i].Type != argTypes[i]) {
+
+                    if (false == TypeChecker.IsCompatible(argTypes[i], m.Arguments[i].Type)) {
                         matching = false;
                         break;
                     }
@@ -320,8 +325,34 @@ public class ZenClass {
         return this == other || this.SuperClass == other || this.SuperClass.IsAssignableFrom(other);
     }
 
+    public bool Implements(ZenInterface @interface)
+    {
+        if (Interfaces.Contains(@interface)) {
+            return true;
+        }
+
+        if (this == Master) {
+            return false;
+        }else {
+            return SuperClass.Implements(@interface);
+        }
+    }
+
     public bool IsSubclassOf(ZenClass other) {
         return other.IsAssignableFrom(this);
+    }
+
+    public void Validate() {
+        // make sure all interfaces are satisfied
+        foreach (ZenInterface @interface in Interfaces) {
+            foreach(ZenAbstractMethod abstractMethod in @interface.Methods) {
+                ZenMethod? concreteMethod;
+                HasMethodHierarchically(abstractMethod.Name, abstractMethod.ReturnType, abstractMethod.Arguments.Select(x => x.Type).ToArray(), out concreteMethod);
+                if (concreteMethod == null) {
+                    throw Interpreter.Error("Class " + Name + " does not implement interface method " + abstractMethod);
+                }
+            }
+        }
     }
 
     public override string ToString()

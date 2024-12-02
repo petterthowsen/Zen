@@ -320,9 +320,69 @@ public partial class Interpreter
 
         ZenClass clazz = EvaluateClassStatement(classStmt);
 
+        // validate the class
+        clazz.Validate();
+
         environment.Assign(classStmt.Identifier.Value, new ZenValue(ZenType.Class, clazz));
 
         return (ValueResult)ZenValue.Void;
+    }
+
+    public IEvaluationResult Visit(InterfaceStmt interfaceStmt)
+    {
+        environment.Define(true, interfaceStmt.Identifier.Value, ZenType.Class, false);
+
+        ZenInterface @interface = EvaluateInterfaceStatement(interfaceStmt);
+
+        environment.Assign(interfaceStmt.Identifier.Value, new ZenValue(ZenType.Interface, @interface));
+
+        return (ValueResult)ZenValue.Void;
+    }
+
+    protected ZenInterface EvaluateInterfaceStatement(InterfaceStmt interfaceStmt)
+    {
+        // create the methods
+        List<ZenAbstractMethod> methods = [];
+
+        foreach (AbstractMethodStmt methodStmt in interfaceStmt.Methods)
+        {
+            string name = methodStmt.Identifier.Value;
+            ZenClass.Visibility visibility = ZenClass.Visibility.Public;
+            ZenType returnType;
+
+            if (methodStmt.ReturnType.IsGeneric) {
+                returnType = new ZenType(methodStmt.ReturnType.Name, methodStmt.ReturnType.Nullable, generic: true);
+            }else {
+                returnType = Evaluate(methodStmt.ReturnType).Type;
+            }
+
+            // method parameters
+            List<ZenFunction.Argument> parameters = [];
+
+            for (int i = 0; i < methodStmt.Parameters.Length; i++)
+            {
+                FunctionParameterResult funcParamResult = (FunctionParameterResult) methodStmt.Parameters[i].Accept(this);
+                parameters.Add(funcParamResult.Parameter);
+            }
+
+            ZenAbstractMethod method = new(methodStmt.Async, name, visibility, returnType, parameters);
+            methods.Add(method);
+        }
+
+        // parameters
+        List<ZenClass.Parameter> genericParameters = [];
+
+        foreach (ParameterDeclaration parameter in interfaceStmt.Parameters) {
+            ZenValue? defaultValue = null;
+            if (parameter.DefaultValue != null) {
+                defaultValue = Evaluate(parameter.DefaultValue!).Value;
+            }
+
+            ZenClass.Parameter param = new ZenClass.Parameter(parameter.Name, parameter.Type.GetZenType(), defaultValue);
+            genericParameters.Add(param);
+        }
+
+        return new ZenInterface(interfaceStmt.Identifier.Value, methods, genericParameters);
     }
 
     protected ZenClass EvaluateClassStatement(ClassStmt classStmt)
@@ -421,7 +481,7 @@ public partial class Interpreter
         // parameters
         List<ZenClass.Parameter> genericParameters = [];
 
-        foreach (Parameter parameter in classStmt.Parameters) {
+        foreach (ParameterDeclaration parameter in classStmt.Parameters) {
             ZenValue? defaultValue = null;
             if (parameter.DefaultValue != null) {
                 defaultValue = Evaluate(parameter.DefaultValue!).Value;
@@ -431,7 +491,29 @@ public partial class Interpreter
             genericParameters.Add(param);
         }
 
-        return new ZenClass(classStmt.Identifier.Value, methods, properties, genericParameters);
+        ZenClass clazz = new ZenClass(classStmt.Identifier.Value, methods, properties, genericParameters);
+
+        // extends?
+        if (classStmt.Extends != null) {
+            ZenValue val = Evaluate(classStmt.Extends).Value;
+            if (val.Type == ZenType.Class) {
+                clazz.SuperClass = val.Underlying!;
+            }else {
+                throw Error($"Class '{classStmt.Identifier.Value}' cannot extend non-class type '{val.Type}'", classStmt.Extends.Location, Common.ErrorType.SyntaxError);
+            }
+        }
+
+        // implements?
+        foreach (ImplementsExpr implements in classStmt.Implements) {
+            ZenValue val = Evaluate(implements.Identifier).Value;
+            if (val.Type == ZenType.Interface) {
+                clazz.Interfaces.Add(val.Underlying!);
+            }else {
+                throw Error($"Class '{classStmt.Identifier.Value}' cannot implement non-interface type '{val.Type}'", implements.Location, Common.ErrorType.SyntaxError);
+            }
+        }
+        
+        return clazz;
     }
 
     public IEvaluationResult Visit(PropertyStmt propertyStmt)
@@ -444,5 +526,11 @@ public partial class Interpreter
     {
         // this isn't used.
         return (ValueResult)ZenValue.Void;
+    }
+    
+    public IEvaluationResult Visit(AbstractMethodStmt abstractMethodStmt)
+    {
+        // this isn't used
+        return (ValueResult) ZenValue.Void;
     }
 }

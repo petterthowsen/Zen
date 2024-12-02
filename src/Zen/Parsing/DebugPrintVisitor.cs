@@ -302,6 +302,25 @@ public class DebugPrintVisitor : IVisitor {
         _sb.Indent--;
     }
 
+    public void Visit(InterfaceStmt iStmt)
+    {
+        _sb.Add(iStmt.ToString());
+        _sb.Indent++;
+
+        _sb.Add("Token: " + iStmt.Token.ToString());
+        _sb.Add("Identifier: " + iStmt.Identifier.ToString());
+
+
+        _sb.Add("Methods:");
+        foreach (var method in iStmt.Methods) {
+            method.Accept(this);
+        }
+        _sb.Indent++;
+        _sb.Indent--;
+
+        _sb.Indent--;
+    }
+
     public void Visit(PropertyStmt propertyStmt)
     {
         _sb.Add(propertyStmt.ToString());
@@ -350,6 +369,25 @@ public class DebugPrintVisitor : IVisitor {
         }
         _sb.Indent--;
         //body
+
+        _sb.Indent--;
+    }
+
+    public void Visit(AbstractMethodStmt methodStmt)
+    {
+        _sb.Add(methodStmt.ToString());
+        _sb.Indent++;
+
+        _sb.Add("Identifier: " + methodStmt.Identifier.ToString());
+        _sb.Add("Return Type: " + methodStmt.ReturnType.ToString());
+        _sb.Add("Modifiers: " + string.Join(", ", methodStmt.Modifiers.Select(m => m.Value)));
+
+        _sb.Add("Parameters:");
+        _sb.Indent++;
+        foreach (var param in methodStmt.Parameters) {
+            param.Accept(this);
+        }
+        _sb.Indent--;
 
         _sb.Indent--;
     }
@@ -491,8 +529,19 @@ public class DebugPrintVisitor : IVisitor {
         _sb.Indent--;
     }
 
-    public void Visit(Parameter typeHintParam)
+    public void Visit(ParameterDeclaration typeHintParam)
     {
         _sb.Add(typeHintParam.ToString());
+    }
+
+    public void Visit(ImplementsExpr implementsExpr)
+    {
+        _sb.Add(implementsExpr.ToString());
+        _sb.Indent++;
+
+        _sb.Add("Identifier: " + implementsExpr.Identifier.ToString());
+        _sb.Add("Parameters: " + string.Join(", ", implementsExpr.Parameters.Select(p => p.ToString())));
+
+        _sb.Indent--;
     }
 }

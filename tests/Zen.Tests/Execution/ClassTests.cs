@@ -154,4 +154,133 @@ public class ClassTests : TestRunner
         Assert.Equal(ZenType.Integer, xValue.Type);
         Assert.Equal(7, xValue.Underlying);
     }
+
+    [Fact]
+    public void TestInterface()
+    {
+        RestartInterpreter();
+
+        string? result;
+        
+        Execute(@"
+            interface Printable {
+                Print(): string
+            }
+        ");
+
+        ZenInterface printableInterface = (ZenInterface)Interpreter.environment.GetValue("Printable")!.Underlying!;
+        
+        Assert.Equal("Printable", printableInterface.Name);
+        Assert.Single(printableInterface.Methods);
+        Assert.Equal("Print", printableInterface.Methods.First().Name);
+    }
+
+    [Fact]
+    public void TestClassImplementsInterface()
+    {
+        RestartInterpreter();
+
+        Execute(@"
+            interface Printable {
+                Print(): string
+            }
+
+            class Test implements Printable {
+                Print(): string {
+                    return ""hello world""
+                }
+            }
+        ");
+
+        ZenInterface printableInterface = (ZenInterface)Interpreter.environment.GetValue("Printable")!.Underlying!;
+        ZenClass testClass = (ZenClass)Interpreter.environment.GetValue("Test")!.Underlying!;
+        
+        Assert.Equal("Test", testClass.Name);
+        Assert.Equal("Print", printableInterface.Methods.First().Name);
+        Assert.Equal("Print", testClass.Methods.First().Name);
+    }
+
+    [Fact]
+    public void TestParametricInterface()
+    {
+        RestartInterpreter();
+        Execute(@"
+        interface Printable<T> {
+            Print(thing: T): string
+        }");
+
+        ZenInterface printableInterface = (ZenInterface)Interpreter.environment.GetValue("Printable")!.Underlying!;
+        Assert.Equal("Printable", printableInterface.Name);
+        Assert.Single(printableInterface.Methods);
+        Assert.Equal("Print", printableInterface.Methods.First().Name);
+
+        ZenClass.Parameter T = printableInterface.Parameters[0];
+        Assert.Equal("T", T.Name);
+        Assert.Equal(ZenType.Type, T.Type);
+        Assert.True(T.IsTypeParameter);
+    }
+
+    [Fact]
+    public void TestClassImplementsParametricInterface()
+    {
+        RestartInterpreter();
+        string? result = Execute(@"
+        interface Printable<T> {
+            Print(thing: T): string
+        }
+
+        class Test<T> implements Printable<T> {
+            Print(thing: T): string {
+                print thing
+            }
+        }
+        
+        var obj = new Test<string>()
+        
+        obj.Print(""Hello World"")
+        ");
+
+        ZenInterface printableInterface = (ZenInterface)Interpreter.environment.GetValue("Printable")!.Underlying!;
+        ZenClass testClass = (ZenClass)Interpreter.environment.GetValue("Test")!.Underlying!;
+        
+        Assert.Equal("Test", testClass.Name);
+        Assert.Equal("Print", printableInterface.Methods.First().Name);
+        Assert.Equal("Print", testClass.Methods.First().Name);
+
+        Assert.Equal("Hello World", result);
+    }
+
+    [Fact]
+    public void TestClassImplementsPolyParametricInterface()
+    {
+        RestartInterpreter();
+        string? result = Execute(@"
+        interface Container<K, V> {
+            Add(key:K, value:V): void
+            Get(key:K): V
+        }
+
+        class MyContainer<K, V> implements Container<K, V> {
+            
+            LastKey:K
+            LastValue:V
+
+            Add(key:K, value:V): void {
+                this.LastKey = key
+                this.LastValue = value
+            }
+
+            Get(key:K): V {
+                return this.LastValue
+            }
+        }
+        
+        var obj = new MyContainer<string, int>()
+        
+        obj.Add(""my_key"", 42)
+        print obj.Get(""my_key"")
+        ");
+
+        Assert.Equal("42", result);
+    }
 }

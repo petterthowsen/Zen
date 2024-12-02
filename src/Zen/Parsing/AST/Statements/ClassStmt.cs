@@ -9,19 +9,37 @@ public class ClassStmt : Stmt
     public Token Token;
     public Token Identifier;
 
+    public Token[] Modifiers;
+
     public PropertyStmt[] Properties = [];
     public MethodStmt[] Methods = [];
-    public Parameter[] Parameters = [];
+    public ParameterDeclaration[] Parameters = [];
+
+    public Identifier? Extends;
+
+    public ImplementsExpr[] Implements = [];
 
     public override SourceLocation Location => Token.Location;
 
-    public ClassStmt(Token token, Token identifier, PropertyStmt[] properties, MethodStmt[] methods, Parameter[] parameters)
+    public ClassStmt(
+        Token token,
+        Token identifier,
+        PropertyStmt[] properties,
+        MethodStmt[] methods,
+        ParameterDeclaration[] parameters,
+        Token[] modifiers,
+        Identifier? extends,
+        ImplementsExpr[] implements
+    )
     {
         Token = token;
         Identifier = identifier;
         Properties = properties;
         Methods = methods;
         Parameters = parameters;
+        Modifiers = modifiers;
+        Extends = extends;
+        Implements = implements;
     }
 
     public override void Accept(IVisitor visitor)

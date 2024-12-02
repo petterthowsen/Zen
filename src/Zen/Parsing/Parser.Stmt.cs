@@ -405,6 +405,58 @@ public partial class Parser
 		}
 	}
 
+	protected InterfaceStmt InterfaceStatement() {
+		// "interface" keyword token
+		Token token = Previous;
+		AtleastOne(TokenType.Whitespace);
+
+		// identifier
+		if ( ! Match(TokenType.Identifier, TokenType.Keyword)) {
+			throw Error($"Expected 'Identifier' or 'Keyword' for class name after 'class' keyword", ErrorType.SyntaxError);
+		}
+
+		Token identifier = Previous;
+
+		// Parametric Parameters?
+		List<ParameterDeclaration> parameters = [];
+        if (Match(TokenType.LessThan)) {
+			do {
+				MaybeSome(TokenType.Whitespace);
+				parameters.Add(ParseParameter());
+				MaybeSome(TokenType.Whitespace);
+			} while(Match(TokenType.Comma));
+
+			MaybeSome(TokenType.Whitespace);
+
+			Consume(TokenType.GreaterThan, "Expected '>' after class generic parameters");
+        }
+
+
+		MaybeSome(TokenType.Whitespace, TokenType.Newline);
+
+		// open brace
+		Consume(TokenType.OpenBrace, "Expected '{' after class declaration");
+		MaybeSome(TokenType.Whitespace, TokenType.Newline);
+
+		// properties and methods
+		List<AbstractMethodStmt> methods = [];
+		
+		// gather genericp arameter names
+        string[] generics = parameters.Select((p) => p.Name).ToArray();
+	
+		// parse untill we find a close brace
+		while ( ! Check(TokenType.CloseBrace) && ! IsAtEnd) {
+            
+			methods.Add(AbstractMethodStatement(generics));
+			MaybeSome(TokenType.Whitespace, TokenType.Newline);
+		}
+
+		// close brace
+		Consume(TokenType.CloseBrace, "Expected '}' after block");
+
+		return new InterfaceStmt(token, identifier, [..methods], [..parameters]);
+	}
+
     protected ClassStmt ClassStatement() {
 		// "class" keyword token
 		Token token = Previous;
@@ -418,14 +470,50 @@ public partial class Parser
 		Token identifier = Previous;
         
         // Parametric Parameters?
-        List<Parameter> parameters = [];
+        List<ParameterDeclaration> parameters = [];
         if (Match(TokenType.LessThan)) {
-            while( ! Match(TokenType.GreaterThan)) {
-                MaybeSome(TokenType.Whitespace);
-                parameters.Add(ParseParameter());
-                MaybeSome(TokenType.Whitespace);
-            }
+			do {
+				MaybeSome(TokenType.Whitespace);
+				parameters.Add(ParseParameter());
+				MaybeSome(TokenType.Whitespace);
+			} while(Match(TokenType.Comma));
+
+			MaybeSome(TokenType.Whitespace);
+
+			Consume(TokenType.GreaterThan, "Expected '>' after class generic parameters");
         }
+
+		MaybeSome(TokenType.Whitespace, TokenType.Newline);
+
+		// extends ?
+		Identifier? extendsIdentifier = null;
+
+		if (MatchKeyword("extends")) {
+			
+			Token extendsToken = Previous;
+			MaybeSome(TokenType.Whitespace);
+			if (Check(TokenType.Identifier, TokenType.Keyword)) {
+				extendsIdentifier = Identifier();
+			}else {
+				throw Error($"Expected Identifier or Keyword for class name after 'extends' keyword", ErrorType.SyntaxError);
+			}
+			MaybeSome(TokenType.Whitespace, TokenType.Newline);
+		}
+
+		// implements ?
+		List<ImplementsExpr> implements = [];
+
+		// parse one or more identifiers separated by either ',' token or keyword token 'and'
+		if (MatchKeyword("implements")) {
+			MaybeSome(TokenType.Whitespace);
+			do {
+				if ( ! Check(TokenType.Identifier, TokenType.Keyword)) {
+					throw Error($"Expected 'Identifier' or 'Keyword' for implemented interface after 'implements' keyword", ErrorType.SyntaxError);
+				}
+				implements.Add(ImplementsExpression());
+				MaybeSome(TokenType.Whitespace);
+			} while (MatchKeyword("and") || Match(TokenType.Comma));
+		}
 
 		MaybeSome(TokenType.Whitespace, TokenType.Newline);
 		
@@ -436,9 +524,11 @@ public partial class Parser
 		// properties and methods
 		List<MethodStmt> methods = [];
 		List<PropertyStmt> properties = [];
+		
+		// gather generic parameter names
+        string[] generics = parameters.Select((p) => p.Name).ToArray();
 
 		// parse untill we find a close brace
-        string[] generics = parameters.Select((p) => p.Name).ToArray();
 		while ( ! Check(TokenType.CloseBrace) && ! IsAtEnd) {
             
 			if (CheckMethodDeclaration()) {
@@ -453,7 +543,34 @@ public partial class Parser
 		// close brace
 		Consume(TokenType.CloseBrace, "Expected '}' after block");
 
-		return new ClassStmt(token, identifier, [.. properties], [.. methods], [.. parameters]);
+		return new ClassStmt(token, identifier, [.. properties], [.. methods], [.. parameters], [/*modifiers*/], extendsIdentifier, [..implements]);
+	}
+
+	private ImplementsExpr ImplementsExpression() {
+		Token token = Previous; // 'implements' keyword
+		MaybeSome(TokenType.Whitespace);
+
+		// identifier for the interface name
+		Identifier identifier = Identifier();
+		
+		// paremeters?
+		List<Expr> parameters = [];
+
+		if (Match(TokenType.LessThan)) {
+			while ( ! Check(TokenType.GreaterThan)) {
+				parameters.Add(Primary());
+
+				if (!Match(TokenType.Comma)) {
+					break;
+				}
+
+				MaybeSome(TokenType.Whitespace, TokenType.Newline);
+			}
+
+			Consume(TokenType.GreaterThan, "Expected '>' after generic parameters");
+		}
+
+		return new ImplementsExpr(identifier, [..parameters]);
 	}
 
 	private static readonly string[] methodModifiers = ["async", "public", "protected", "private", "abstract", "override", "final"];
@@ -534,6 +651,50 @@ public partial class Parser
 		block.CloseBrace = Consume(TokenType.CloseBrace, "Expected '}' after block");
 
 		return new MethodStmt(identifier, returnTypeTypeHint, parameters, block, [..modifiers]);
+	}
+
+	protected AbstractMethodStmt AbstractMethodStatement(string[] generics) {
+		List<Token> modifiers = [];
+
+		while (Current.Type == TokenType.Keyword && methodModifiers.Contains(Current.Value)) {
+			modifiers.Add(Current);
+			Advance();
+			MaybeSome(TokenType.Whitespace);
+		}
+
+		// identifier
+		Token identifier;
+		if ( Match(TokenType.Identifier, TokenType.Keyword)) {
+			identifier = Previous;
+		} else {
+			throw Error($"Expected 'Identifier' or 'Keyword' for method name after modifiers", ErrorType.SyntaxError);
+		}
+
+		// open paren
+		Token openParen = Consume(TokenType.OpenParen, "Expected '(' after method identifier");
+		MaybeSome(TokenType.Whitespace, TokenType.Newline);
+
+		// parameters
+		FuncParameter[] parameters = FuncParameters(generics);
+
+		// close paren
+		Token closeParen = Consume(TokenType.CloseParen, "Expected ')' after function parameters");
+		MaybeSome(TokenType.Whitespace, TokenType.Newline);
+
+		// return type?
+		TypeHint? returnTypeTypeHint;
+
+		if (Match(TokenType.Colon)) {
+			MaybeSome(TokenType.Whitespace);
+			returnTypeTypeHint = TypeHint(generics);
+			MaybeSome(TokenType.Whitespace);
+		}else {
+			returnTypeTypeHint = new TypeHint(new Token(TokenType.StringLiteral, "void", identifier.Location), false);
+		}
+
+		MaybeSome(TokenType.Whitespace, TokenType.Newline);
+
+		return new AbstractMethodStmt(identifier, returnTypeTypeHint, parameters, [..modifiers]);
 	}
 
 	protected PropertyStmt PropertyStatement(string[] generics) {
