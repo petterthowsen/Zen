@@ -366,14 +366,16 @@ Zen provides an extensible builtin system through the `IBuiltinsProvider` interf
 - - - [] stack traces
 - [] Collections
 - - [x] BracketGet and BracketSet interfaces
-- - [] Make builtin array class implement Bracket interfaces from stdlib packages? how?
-- - [] Array class and Bracket Access Interfaceusing array[index]
+- - [x] Make builtin array class implement Bracket interfaces from stdlib packages? how?
+- - [x] Array class and Bracket Access Interface using array[index]
+- - [] Iterable interface and integration with for-in loops
 - - [] Map class for storing key-value pairs, with support for bracket access
 - - [] Array literals
 - - [] Map literals
 - [] Dotnet Interop
-- - [x] Basic type conversions
-- - [x] Basic
+- - [x] CallDotNet and CallDotNetAsync
+- - [x] DotNetObject with automatic class generation (ZenProxyClass and ZenProxyObject)
+- - [] Utility methods on DotNetObject for getting info about a DotNetObject, such as its class name.
 - [] Standard library
 - - [] Math
 - - [] File

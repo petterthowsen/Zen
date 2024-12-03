@@ -3,7 +3,8 @@ using Zen.Typing;
 namespace Zen.Execution.Builtins.Core;
 
 /// <summary>
-/// Provides built-in functions for type conversions.
+/// Defines all builtin value constants (true, false, null, void)
+/// and all builtin types
 /// </summary>
 public class Typing : IBuiltinsProvider
 {
@@ -65,9 +66,6 @@ public class Typing : IBuiltinsProvider
 
         interp.globalEnvironment.Define(true, "DotNetObject", ZenType.Type, false);
         interp.globalEnvironment.Assign("DotNetObject", new ZenValue(ZenType.Type, ZenType.DotNetObject));
-
-        interp.globalEnvironment.Define(true, "DotNetType", ZenType.Type, false);
-        interp.globalEnvironment.Assign("DotNetType", new ZenValue(ZenType.Type, ZenType.DotNetType));
 
         interp.globalEnvironment.Define(true, "Promise", ZenType.Type, false);
         interp.globalEnvironment.Assign("Promise", new ZenValue(ZenType.Type, ZenType.Promise));
