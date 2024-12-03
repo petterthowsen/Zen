@@ -10,9 +10,9 @@ namespace Zen.Execution;
 
 public partial class Interpreter : IGenericVisitor<IEvaluationResult>
 {
-    public static RuntimeError Error(string message, SourceLocation? location = null, ErrorType errorType = ErrorType.RuntimeError)
+    public static RuntimeError Error(string message, SourceLocation? location = null, ErrorType errorType = ErrorType.RuntimeError, Exception? innerException = null)
     {
-        return new RuntimeError(message, errorType, location);
+        return new RuntimeError(message, errorType, location, innerException);
     }
 
     /// <summary>
@@ -36,6 +36,8 @@ public partial class Interpreter : IGenericVisitor<IEvaluationResult>
     public readonly EventLoop EventLoop;
 
     public Importer Importer;
+
+    public Node? CurrentNode {get; protected set;}
 
     public Interpreter(EventLoop eventLoop)
     {
@@ -282,7 +284,7 @@ public partial class Interpreter : IGenericVisitor<IEvaluationResult>
 
     public void Interpret(ProgramNode node, bool awaitEvents = true)
     {
-        Visit(node, true);
+        Visit(node, awaitEvents);
     }
 
     public void Shutdown()

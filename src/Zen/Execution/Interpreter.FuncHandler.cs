@@ -11,7 +11,7 @@ public partial class Interpreter
 {
     public ZenValue CallObject(ZenObject obj, string methodName, ZenType returnType, ZenValue[] args)
     {
-        ZenMethod? method = obj.Class.GetMethodHierarchically(methodName, returnType, []);
+        ZenMethod? method = obj.GetMethodHierarchically(methodName, args, returnType);
 
         if (method == null) {
             throw Error($"{obj.Class} has no method {methodName}!");

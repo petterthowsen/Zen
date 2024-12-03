@@ -26,40 +26,50 @@ public class ZenObject {
         Type = clazz.Type;  // Initially use the class's type, can be updated later with specific type parameters
     }
 
-    public ZenMethod? GetOwnConstructor(ZenType[] argTypes) {
-        // First check concrete methods
-        var method = GetOwnMethod(Class.Name, ZenType.Void, argTypes);
-        if (method != null) return method;
+    public ZenMethod? GetOwnMethod(string name, ZenValue[] argValues, ZenType? returnType = null) {
+        var argTypes = argValues.Select(v => v.Type).ToArray();
 
-        // Fall back to class methods
-        return Class.GetOwnConstructor(argTypes);
-    }
-
-    public ZenMethod? GetOwnMethod(string name, ZenType returnType, ZenType[] argTypes) {
         // First check concrete methods
         foreach (ZenMethod m in Methods) {
-            if (m.Name == name && m.ReturnType == returnType) {
-                if (m.Arguments.Count != argTypes.Length) {
-                    continue;
-                }
+            if (m.Name != name) {
+                continue;
+            }
 
-                bool match = true;
-                for (int i = 0; i < argTypes.Length; i++) {
-                    if (m.Arguments[i].Type != argTypes[i]) {
-                        match = false;
-                        break;
-                    }
-                }
+            if (returnType != null && m.ReturnType != returnType) {
+                continue;
+            }
 
-                if (match) {
-                    return m;
+            if (m.Arguments.Count != argTypes.Length) {
+                continue;
+            }
+
+            bool match = true;
+            for (int i = 0; i < argTypes.Length; i++) {
+                if (m.Arguments[i].Type != argTypes[i]) {
+                    match = false;
+                    break;
                 }
+            }
+
+            if (match) {
+                return m;
             }
         }
 
         // Fall back to class methods
-        return Class.GetOwnMethod(name, returnType, argTypes);
+        return Class.GetOwnMethod(name, argValues, returnType);
     }
+
+
+    public ZenMethod? GetOwnConstructor(ZenValue[] argValues) {
+        // First check concrete methods
+        var method = GetOwnMethod(Class.Name, argValues, ZenType.Void);
+        if (method != null) return method;
+
+        // Fall back to class methods
+        return Class.GetOwnConstructor(argValues);
+    }
+  
 
     public virtual ZenMethod? GetOwnMethod(string name)
     {
@@ -73,9 +83,9 @@ public class ZenObject {
         return Class.GetOwnMethod(name);
     }
 
-    public ZenMethod? GetMethodHierarchically(string name, ZenType returnType, ZenType[] argTypes) {
+    public ZenMethod? GetMethodHierarchically(string name, ZenValue[] argValues, ZenType? returnType = null) {
         // First check concrete methods
-        var method = GetOwnMethod(name, returnType, argTypes);
+        var method = GetOwnMethod(name, argValues, returnType);
         if (method != null) return method;
 
         // Fall back to class methods
@@ -83,7 +93,7 @@ public class ZenObject {
             return null;
         }
 
-        return Class.SuperClass.GetMethodHierarchically(name, returnType, argTypes);
+        return Class.SuperClass.GetMethodHierarchically(name, argValues, returnType);
     }
 
     public ZenMethod? GetMethodHierarchically(string name)
@@ -124,7 +134,7 @@ public class ZenObject {
 
     public ZenValue Call(Interpreter interpreter, ZenMethod method, ZenValue[] args) {
         if (method is ZenUserMethod) {
-            throw new Exception("Cannot call ZenUserMethod directly.");
+            return interpreter.CallFunction(method, args).Value;
         }else if (method is ZenMethodProxy) {
             return ((ZenMethodProxy) method).Call(interpreter, this, args);
         }else if (method is ZenHostMethod) {

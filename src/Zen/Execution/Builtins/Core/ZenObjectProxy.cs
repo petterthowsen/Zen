@@ -14,7 +14,7 @@ public class ZenObjectProxy : ZenObject
     {
         Target = target;
     }
-    
+
     public override bool HasProperty(string name) {
         PropertyInfo? property = Target.GetType().GetProperty(name);
         return property != null;
@@ -29,7 +29,7 @@ public class ZenObjectProxy : ZenObject
 
         // Get the property's type
         Type propertyType = property.PropertyType;
-        ZenType propertyTypeZen = Interop.ToZen(propertyType);
+        ZenType propertyTypeZen = Interop.ToZenType(propertyType);
 
         Logger.Instance.Debug($"Setting property {name} of type {propertyTypeZen} to value of type {value.Type}");
 

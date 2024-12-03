@@ -11,7 +11,7 @@ public class Error : Exception {
     private string _message;
     public override string Message => GetFormattedMessage();
 
-    public Error(string message, ErrorType errorType, SourceLocation? location) : base(message) {
+    public Error(string message, ErrorType errorType, SourceLocation? location, Exception? innerException = null) : base(message, innerException) {
         _message = message;
         prefix = "Error";
         Type = errorType;

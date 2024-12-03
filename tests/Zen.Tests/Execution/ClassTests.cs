@@ -138,7 +138,7 @@ public class ClassTests : TestRunner
         Assert.Equal(ZenType.Integer, Point.Properties["y"].Type);
 
         // test constructor
-        var constructor = Point.GetOwnConstructor([ZenType.Integer, ZenType.Integer]);
+        var constructor = Point.GetOwnConstructor([new(ZenType.Integer, 0), new(ZenType.Integer, 0)]);
         Assert.NotNull(constructor);
 
         Assert.Equal(2, constructor!.Arity);

@@ -5,7 +5,6 @@ namespace Zen.Execution.Builtins.Core;
 
 public class ZenClassProxy : ZenClass
 {
-
     public Type Target;
 
     private List<ZenMethodProxy> _methods = [];
@@ -15,34 +14,42 @@ public class ZenClassProxy : ZenClass
         Target = dotnetClass;
     }
 
-    public override ZenMethod? GetOwnConstructor(ZenType[] argTypes)
+    public override ZenMethod? GetOwnConstructor(ZenValue[] argValues)
     {
         return null;
     }
-    
-    public override ZenMethod? GetOwnMethod(string name, ZenType returnType, ZenType[] argTypes) {
+
+    public override ZenMethod? GetOwnMethod(string name, ZenValue[] argValues, ZenType? returnType) {
         // use reflection on the Target to find a matching method
         List<Type> argTypesDotnet = [];
 
-        foreach (var argType in argTypes) {
-            Type? t = Interop.ToDotNet(argType);
-            if (t != null) {
-                argTypesDotnet.Add(t);
+        foreach (ZenValue zenValue in argValues) {
+            ZenType zenType = zenValue.Type;
+            Type dotnetType;
+            if (zenType == ZenType.DotNetObject) {
+                var proxy = zenValue.Underlying as ZenObjectProxy;
+                dotnetType = proxy!.Target.GetType();
+            }else {
+                dotnetType = Interop.ToDotNet(zenType);
             }
+
+            argTypesDotnet.Add(dotnetType);
         }
 
         var methodInfo = Target.GetMethod(name, [..argTypesDotnet]);
 
-        if (methodInfo != null) {
-            var methodReturnType = Interop.ToZen(methodInfo.ReturnType);
+        if (methodInfo == null) return null;
 
-            if (TypeChecker.IsCompatible(returnType, methodReturnType)) {
+        var methodReturnType = Interop.ToZenType(methodInfo.ReturnType);
 
-                return new ZenMethodProxy(methodInfo, returnType, argTypes);
+        if (returnType != null) {
+            if (false == TypeChecker.IsCompatible(returnType, methodReturnType)) {
+                return null;
             }
         }
 
-        return null;
+        var argTypes = argValues.Select(x => x.Type).ToArray();
+        return new ZenMethodProxy(methodInfo, methodReturnType, argTypes);
     }
 
     public override ZenMethod? GetOwnMethod(string name)
@@ -50,11 +57,11 @@ public class ZenClassProxy : ZenClass
         var methodInfo = Target.GetMethod(name);
 
         if (methodInfo != null) {
-            ZenType returnType = Interop.ToZen(methodInfo.ReturnType);
+            ZenType returnType = Interop.ToZenType(methodInfo.ReturnType);
             List<ZenType> argTypes = [];
 
             foreach(ParameterInfo pInfo in methodInfo.GetParameters()) {
-                ZenType zenType = Interop.ToZen(pInfo.GetType());
+                ZenType zenType = Interop.ToZenType(pInfo.GetType());
                 argTypes.Add(zenType);
             }
 

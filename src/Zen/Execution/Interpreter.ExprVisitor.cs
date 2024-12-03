@@ -17,6 +17,8 @@ public partial class Interpreter
 
     public IEvaluationResult Visit(Binary binary)
     {
+        CurrentNode = binary;
+
         IEvaluationResult leftRes = Evaluate(binary.Left);
         IEvaluationResult rightRes = Evaluate(binary.Right);
 
@@ -64,11 +66,15 @@ public partial class Interpreter
 
 public IEvaluationResult Visit(Grouping grouping)
     {
+        CurrentNode = grouping;
+
         return Evaluate(grouping.Expression);
     }
 
     public IEvaluationResult Visit(Unary unary)
     {
+        CurrentNode = unary;
+
         IEvaluationResult eval = Evaluate(unary.Right);
 
         if (unary.IsNot())
@@ -126,17 +132,25 @@ public IEvaluationResult Visit(Grouping grouping)
 
     public IEvaluationResult Visit(Literal literal)
     {
+        CurrentNode = literal;
+
         return (ValueResult)literal.Value;
     }
 
     public IEvaluationResult Visit(Identifier identifier)
     {
+        CurrentNode = identifier;
+
         string name = identifier.Name;
 
         return LookUpVariable(name, identifier);
     }
 
-    public IEvaluationResult Visit(Get get) {
+    public IEvaluationResult Visit(Get get)
+    {
+        CurrentNode = get;
+
+        // evaluate the object expression
         IEvaluationResult result = Evaluate(get.Expression);
 
         if (result.Value.Underlying is ZenObject instance)
@@ -162,6 +176,8 @@ public IEvaluationResult Visit(Grouping grouping)
     }
 
     public IEvaluationResult Visit(Set set) {
+        CurrentNode = set;
+
         // evaluate the object expression
         IEvaluationResult objectExpression = Evaluate(set.ObjectExpression);
         string propertyName = set.Identifier.Value;
@@ -202,8 +218,10 @@ public IEvaluationResult Visit(Grouping grouping)
         }
     }
 
-  public IEvaluationResult Visit(BracketGet bracketGet)
+    public IEvaluationResult Visit(BracketGet bracketGet)
     {
+        CurrentNode = bracketGet;
+
         IEvaluationResult target = Evaluate(bracketGet.Target);
         IEvaluationResult element = Evaluate(bracketGet.Element);
 
@@ -220,11 +238,17 @@ public IEvaluationResult Visit(Grouping grouping)
             throw Error($"Object does not support bracket access (missing 'get' method)", bracketGet.Location);
         }
 
-        return (ValueResult)instance.Call(this, method, [new ZenValue(instance.Type, instance), element.Value]);
+        BoundMethod boundMethod = method.Bind(instance);
+
+        return CallUserFunction(boundMethod, [element.Value]);
+
+        //return (ValueResult)instance.Call(this, method, [new ZenValue(instance.Type, instance), element.Value]);
     }
 
     public IEvaluationResult Visit(BracketSet bracketSet)
     {
+        CurrentNode = bracketSet;
+
         IEvaluationResult target = Evaluate(bracketSet.Target);
         IEvaluationResult element = Evaluate(bracketSet.Element);
         IEvaluationResult value = Evaluate(bracketSet.ValueExpression);
@@ -247,6 +271,8 @@ public IEvaluationResult Visit(Grouping grouping)
 
     public IEvaluationResult Visit(ParameterDeclaration parameter)
     {
+        CurrentNode = parameter;
+
         // For type parameters, just evaluate the type
         if (parameter.IsTypeParameter)
         {
@@ -275,6 +301,8 @@ public IEvaluationResult Visit(Grouping grouping)
 
     public IEvaluationResult Visit(Logical logical)
     {
+        CurrentNode = logical;
+
         IEvaluationResult left = Evaluate(logical.Left);
 
         if (logical.Token.Value == "or")
@@ -291,11 +319,15 @@ public IEvaluationResult Visit(Grouping grouping)
 
     public IEvaluationResult Visit(This dis)
     {
+        CurrentNode = dis;
+
         return LookUpVariable("this", dis);
     }
 
     public IEvaluationResult Visit(Await await)
     {
+        CurrentNode = await;
+
         // Evaluate the expression being awaited
         IEvaluationResult result = Evaluate(@await.Expression);
         
@@ -323,47 +355,63 @@ public IEvaluationResult Visit(Grouping grouping)
         }
     }
 
+    public IEvaluationResult EvaluateGetMethod(Get get, ZenValue[] argValues)
+    {
+        CurrentNode = get;
+
+        IEvaluationResult result = Evaluate(get.Expression);
+        
+        if (result.Value.Underlying is ZenObject instance)
+        {
+            // is it a method?
+            ZenMethod? method = instance.GetMethodHierarchically(get.Identifier.Value, argValues);
+
+            if (method == null)
+            {
+                throw Error($"Cannot find method '{get.Identifier.Value}' on '{instance.Type}' with argument types '{string.Join<ZenValue>(", ", argValues)}'", get.Identifier.Location, Common.ErrorType.TypeError);
+            }
+            return (ValueResult) method.Bind(instance);
+        }
+        else
+        {
+            throw Error($"Cannot get property '{get.Identifier.Value}' on non-object type '{result.Type}'", get.Identifier.Location, Common.ErrorType.TypeError);
+        }
+    }
+
     public IEvaluationResult Visit(Call call)
     {
-        IEvaluationResult callee = Evaluate(call.Callee);
+        CurrentNode = call;
 
+        IEvaluationResult callee;
+        ZenValue[] argValues = call.Arguments.Select(e => Evaluate(e).Value).ToArray();
+
+        // is the callee a Get Expression?
+        if (call.Callee is Get get)
+        {
+            // resolve the get expression
+            callee = EvaluateGetMethod(get, argValues);
+        }else {
+            // evaluate the callee
+            callee = Evaluate(call.Callee);
+        }
+        
         if (callee.IsCallable())
         {
             ZenFunction function = (ZenFunction)callee.Value.Underlying!;
 
             // check number of arguments is at least equal to the number of non-nullable parameters
-            if (call.Arguments.Length < function.Arguments.Count(p => !p.Nullable))
+            if (argValues.Length < function.Arguments.Count(p => !p.Nullable))
             {
                 throw Error($"Not enough arguments for function", null, Common.ErrorType.RuntimeError);
             }
 
             // check number of arguments is at most equal to the number of parameters
-            if (function.Variadic == false && call.Arguments.Length > function.Arguments.Count)
+            if (function.Variadic == false && argValues.Length > function.Arguments.Count)
             {
                 throw Error($"Too many arguments for function {function}", call.Location, Common.ErrorType.RuntimeError);
             }
 
-            // evaluate the arguments
-            ZenValue[] argumentValues = new ZenValue[call.Arguments.Length];
-
-            for (int i = 0; i < call.Arguments.Length; i++)
-            {
-                argumentValues[i] = Evaluate(call.Arguments[i]).Value;
-            }
-
-            // check that the types of the arguments are compatible with the types of the parameters
-            for (int i = 0; i < function.Arguments.Count; i++)
-            {
-                ZenFunction.Argument parameter = function.Arguments[i];
-                ZenValue argument = argumentValues[i];
-
-                if (!TypeChecker.IsCompatible(argument.Type, parameter.Type))
-                {
-                    throw Error($"Cannot pass argument of type '{argument.Type}' to parameter of type '{parameter.Type}'", call.Arguments[i].Location, Common.ErrorType.TypeError);
-                }
-            }
-
-            return CallFunction(function, argumentValues);
+            return CallFunction(function, argValues);
         }
         else
         {
@@ -373,6 +421,8 @@ public IEvaluationResult Visit(Grouping grouping)
 
     public IEvaluationResult Visit(FuncParameter funcParameter)
     {
+        CurrentNode = funcParameter;
+
         // parameter name
         string name = funcParameter.Identifier.Value;
 
@@ -399,6 +449,8 @@ public IEvaluationResult Visit(Grouping grouping)
 
     public IEvaluationResult Visit(Instantiation instantiation)
     {
+        CurrentNode = instantiation;
+
         Call call = instantiation.Call;
         IEvaluationResult clazzResult = Evaluate(call.Callee);
 
@@ -522,6 +574,8 @@ public IEvaluationResult Visit(Grouping grouping)
 
     public IEvaluationResult Visit(TypeHint typeHint)
     {
+        CurrentNode = typeHint;
+
         // For primitive types like 'string', return a TypeResult with the base type
         // don't need to do this, as all primtiives are global variables, see below...
         // if (typeHint.IsPrimitive()) {
@@ -547,6 +601,8 @@ public IEvaluationResult Visit(Grouping grouping)
 
     public IEvaluationResult Visit(TypeCheck typeCheck)
     {
+        CurrentNode = typeCheck;
+
         IEvaluationResult exprResult = Evaluate(typeCheck.Expression);
         ZenType sourceType = exprResult.Type;
         ZenClass? sourceClass = null;
@@ -600,6 +656,8 @@ public IEvaluationResult Visit(Grouping grouping)
         
     public IEvaluationResult Visit(TypeCast typeCast)
     {
+        CurrentNode = typeCast;
+
         IEvaluationResult exprResult = Evaluate(typeCast.Expression);
         TypeResult targetTypeResult = (TypeResult) Evaluate(typeCast.Type);
         ZenType targetType = targetTypeResult.Type;

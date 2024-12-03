@@ -229,9 +229,7 @@ public class ZenClass {
         
         // find constructor: note that we access the instance here, to make sure we also check the concretized versions if any.
         // it'll fallback to class methods for non-generic methods.
-        ZenType[] argTypes = args.Select(x => x.Type).ToArray();
-
-        var constructor = instance.GetOwnConstructor(argTypes);
+        var constructor = instance.GetOwnConstructor(args);
         if (constructor == null && args.Length > 0) {
             throw Interpreter.Error("No valid constructor found for class " + Name);
         }
@@ -254,34 +252,39 @@ public class ZenClass {
         return instance;
     }
 
-    public bool HasOwnConstructor(ZenType[] argTypes) {
-        return GetOwnMethod(Name, ZenType.Void, argTypes) != null;
+    public bool HasOwnConstructor(ZenValue[] argValues) {
+        return GetOwnMethod(Name, argValues) != null;
     }
 
-    public virtual ZenMethod? GetOwnConstructor(ZenType[] argTypes)
+    public virtual ZenMethod? GetOwnConstructor(ZenValue[] argValues)
     {
-        return GetOwnMethod(Name, ZenType.Void, argTypes);
+        return GetOwnMethod(Name, argValues, ZenType.Void);
     }
 
-    public virtual ZenMethod? GetOwnMethod(string name, ZenType returnType, ZenType[] argTypes) {
+    public virtual ZenMethod? GetOwnMethod(string name, ZenValue[] argValues, ZenType? returnType = null) {
+        var argTypes = argValues.Select(x => x.Type).ToArray();
         foreach (var m in Methods) {
-            if (m.Name == name && TypeChecker.IsCompatible(returnType, m.ReturnType)) {
-                if (m.Arguments.Count != argTypes.Length) {
-                    continue;
-                }
+            if (m.Name != name) continue;
 
-                bool matching = true;
-                for (int i = 0; i < argTypes.Length; i++) {
+            if (returnType != null && false == TypeChecker.IsCompatible(returnType, m.ReturnType)) {
+                continue;
+            }
 
-                    if (false == TypeChecker.IsCompatible(m.Arguments[i].Type, argTypes[i])) {
-                        matching = false;
-                        break;
-                    }
-                }
+            if (m.Arguments.Count != argTypes.Length) {
+                continue;
+            }
 
-                if (matching) {
-                    return m;
+            bool matching = true;
+            for (int i = 0; i < argTypes.Length; i++) {
+
+                if (false == TypeChecker.IsCompatible(argTypes[i], m.Arguments[i].Type)) {
+                    matching = false;
+                    break;
                 }
+            }
+
+            if (matching) {
+                return m;
             }
         }
 
@@ -299,8 +302,8 @@ public class ZenClass {
         return null;
     }
 
-    public bool HasOwnMethod(string name, ZenType returnType, ZenType[] argTypes) {
-        return GetOwnMethod(name, returnType, argTypes) != null;
+    public bool HasOwnMethod(string name, ZenValue[] argValues, ZenType? returnType = null) {
+        return GetOwnMethod(name, argValues, returnType) != null;
     }
 
     public bool HasOwnMethod(string name) {
@@ -313,14 +316,14 @@ public class ZenClass {
         return false;
     }
 
-    public bool HasMethodHierarchically(string name, ZenType returnType, ZenType[] argTypes) {
-        if (HasOwnMethod(name, returnType, argTypes)) return true;
+    public bool HasMethodHierarchically(string name, ZenValue[] argValues, ZenType? returnType = null) {
+        if (HasOwnMethod(name, argValues, returnType)) return true;
 
         if (this == Master) {
             return false;
         }
 
-        return SuperClass.HasMethodHierarchically(name, returnType, argTypes);
+        return SuperClass.HasMethodHierarchically(name, argValues, returnType);
     }
 
     public bool HasMethodHierarchically(string name) {
@@ -333,9 +336,9 @@ public class ZenClass {
         }
     }
     
-    public ZenMethod? GetMethodHierarchically(string name, ZenType returnType, ZenType[] argTypes)
+    public ZenMethod? GetMethodHierarchically(string name, ZenValue[] argValues, ZenType? returnType)
     {
-        var method = GetOwnMethod(name, returnType, argTypes);
+        var method = GetOwnMethod(name, argValues, returnType);
         if (method != null) {
             return method;
         }
@@ -343,7 +346,59 @@ public class ZenClass {
         if (this == Master) {
             return null;
         }else {
-            return SuperClass.GetMethodHierarchically(name, returnType, argTypes);
+            return SuperClass.GetMethodHierarchically(name, argValues, returnType);
+        }
+    }
+
+    /// <summary>
+    /// Returns a concrete method that satisfies the given abstract signature.
+    /// </summary>
+    /// <remarks>
+    /// Note that we pass types to TypeChecker in the opposite order than in GetOwnMethod.
+    /// This is because we're not checking whether the argTypes are compatible with the method signature
+    /// but rather whether the method signature is compatible with the argTypes.
+    /// </remarks>
+    protected virtual ZenMethod? GetOwnMethodSatisfying(string name, ZenType[] argTypes, ZenType? returnType)
+    {
+        foreach (var m in Methods) {
+            if (m.Name != name) continue;
+
+            if (returnType != null && false == TypeChecker.IsCompatible(m.ReturnType, returnType)) {
+                continue;
+            }
+
+             if (m.Arguments.Count != argTypes.Length) {
+                continue;
+            }
+
+            bool matching = true;
+            for (int i = 0; i < argTypes.Length; i++) {
+
+                if (false == TypeChecker.IsCompatible(m.Arguments[i].Type, argTypes[i])) {
+                    matching = false;
+                    break;
+                }
+            }
+
+            if (matching) {
+                return m;
+            }
+        }
+
+        return null;
+    }
+
+    protected ZenMethod? GetMethodSatisfying(string name, ZenType[] argTypes, ZenType? returnType)
+    {
+        var method = GetOwnMethodSatisfying(name, argTypes, returnType);
+        if (method != null) {
+            return method;
+        }
+
+        if (this == Master) {
+            return null;
+        }else {
+            return SuperClass.GetOwnMethodSatisfying(name, argTypes, returnType);
         }
     }
 
@@ -386,7 +441,7 @@ public class ZenClass {
         // make sure all interfaces are satisfied
         foreach (ZenInterface @interface in Interfaces) {
             foreach(ZenAbstractMethod abstractMethod in @interface.Methods) {
-                ZenMethod? concreteMethod = GetMethodHierarchically(abstractMethod.Name, abstractMethod.ReturnType, abstractMethod.Arguments.Select(x => x.Type).ToArray());
+                ZenMethod? concreteMethod = GetMethodSatisfying(abstractMethod.Name, abstractMethod.Arguments.Select(x => x.Type).ToArray(), abstractMethod.ReturnType);
                 if (concreteMethod == null) {
                     throw Interpreter.Error("Class " + Name + " does not implement interface method " + abstractMethod);
                 }

@@ -51,146 +51,143 @@ public class Interop : IBuiltinsProvider
 
     private static ZenValue CallDotNet(ZenValue[] args)
     {
-        return CallDotNetInternal(args);
+        return CallDotNetInternal(args, false).Result;
     }
 
-    private static ZenValue CallDotNetInternal(ZenValue[] args)
-    {
-        if (args.Length < 2)
-            throw new ArgumentException("CallDotNet requires at least two arguments: target and method name.");
+    // private static ZenValue CallDotNetInternal(ZenValue[] args)
+    // {
+    //     if (args.Length < 2)
+    //         throw new ArgumentException("CallDotNet requires at least two arguments: target and method name.");
 
-        string targetName = args[0].Underlying as string ?? throw new ArgumentException("First argument must be a string (type name or object).");
-        string methodName = args[1].Underlying as string ?? throw new ArgumentException("Second argument must be a string (method name).");
+    //     string targetName = args[0].Underlying as string ?? throw new ArgumentException("First argument must be a string (type name or object).");
+    //     string methodName = args[1].Underlying as string ?? throw new ArgumentException("Second argument must be a string (method name).");
 
-        Logger.Instance.Debug($"Attempting to call method {methodName} on {targetName}...");
+    //     Logger.Instance.Debug($"Attempting to call method {methodName} on {targetName}...");
 
-        Type? targetType = Type.GetType(targetName);
-        if (targetType == null)
-        {
-            throw new ArgumentException($"Type '{targetName}' not found.");
-        }
+    //     Type? targetType = Type.GetType(targetName);
+    //     if (targetType == null)
+    //     {
+    //         throw new ArgumentException($"Type '{targetName}' not found.");
+    //     }
 
-        // Convert Zen arguments to .NET and infer parameter types
-        var methodArgs = args.Skip(2).Select(arg => ToDotNet(arg)).ToArray();
-        var parameterTypes = methodArgs
-            .Select(arg => arg?.GetType() ?? typeof(object))
-            .Cast<Type>()
-            .ToArray();
+    //     // Convert Zen arguments to .NET and infer parameter types
+    //     var methodArgs = args.Skip(2).Select(arg => ToDotNet(arg)).ToArray();
+    //     var parameterTypes = methodArgs
+    //         .Select(arg => arg?.GetType() ?? typeof(object))
+    //         .Cast<Type>()
+    //         .ToArray();
 
-        Logger.Instance.Debug($"Inferred parameter types: {string.Join(", ", parameterTypes.Select(pt => pt.Name))}");
+    //     Logger.Instance.Debug($"Inferred parameter types: {string.Join(", ", parameterTypes.Select(pt => pt.Name))}");
 
-        var methods = targetType.GetMethods(BindingFlags.Static | BindingFlags.Public)
-            .Where(m => m.Name == methodName && m.GetParameters().Length == parameterTypes.Length + 1)
-            .ToList();
+    //     var methods = targetType.GetMethods(BindingFlags.Static | BindingFlags.Public)
+    //         .Where(m => m.Name == methodName && m.GetParameters().Length == parameterTypes.Length + 1)
+    //         .ToList();
 
-        // Find a method that matches exactly or with an additional CancellationToken
-        var method = methods.FirstOrDefault(m =>
-        {
-            var parameters = m.GetParameters();
-            return parameters.Take(parameterTypes.Length)
-                .Select(p => p.ParameterType)
-                .SequenceEqual(parameterTypes) &&
-                parameters.LastOrDefault()?.ParameterType == typeof(CancellationToken);
-        });
+    //     // Find a method that matches exactly or with an additional CancellationToken
+    //     var method = methods.FirstOrDefault(m =>
+    //     {
+    //         var parameters = m.GetParameters();
+    //         return parameters.Take(parameterTypes.Length)
+    //             .Select(p => p.ParameterType)
+    //             .SequenceEqual(parameterTypes) &&
+    //             parameters.LastOrDefault()?.ParameterType == typeof(CancellationToken);
+    //     });
 
-        if (method == null)
-        {
-            method = targetType.GetMethod(methodName, BindingFlags.Static | BindingFlags.Public, null, parameterTypes, null);
-            if (method == null)
-            {
-                Logger.Instance.Debug($"Available methods on {targetType.FullName}:");
-                foreach (var m in targetType.GetMethods(BindingFlags.Static | BindingFlags.Public))
-                {
-                    Logger.Instance.Debug($"- {m.Name}({string.Join(", ", m.GetParameters().Select(p => p.ParameterType.Name))})");
-                }
-                throw new ArgumentException($"No matching method found for {methodName} on {targetName} with parameter types {string.Join<Type>(", ", parameterTypes)}");
-            }
-        }
-        else
-        {
-            // Append CancellationToken.None if the method expects it
-            Logger.Instance.Debug($"Appending CancellationToken.None to arguments for method: {method.Name}");
-            methodArgs = methodArgs.Append(CancellationToken.None).ToArray();
-        }
+    //     if (method == null)
+    //     {
+    //         method = targetType.GetMethod(methodName, BindingFlags.Static | BindingFlags.Public, null, parameterTypes, null);
+    //         if (method == null)
+    //         {
+    //             Logger.Instance.Debug($"Available methods on {targetType.FullName}:");
+    //             foreach (var m in targetType.GetMethods(BindingFlags.Static | BindingFlags.Public))
+    //             {
+    //                 Logger.Instance.Debug($"- {m.Name}({string.Join(", ", m.GetParameters().Select(p => p.ParameterType.Name))})");
+    //             }
+    //             throw new ArgumentException($"No matching method found for {methodName} on with parameter types {string.Join<Type>(", ", parameterTypes)}");
+    //         }
+    //     }
+    //     else
+    //     {
+    //         // Append CancellationToken.None if the method expects it
+    //         Logger.Instance.Debug($"Appending CancellationToken.None to arguments for method: {method.Name}");
+    //         methodArgs = methodArgs.Append(CancellationToken.None).ToArray();
+    //     }
 
-        Logger.Instance.Debug($"Resolved method: {method.Name}");
+    //     Logger.Instance.Debug($"Resolved method: {method.Name}");
 
-        try
-        {
-            var result = method.Invoke(null, methodArgs);
-            return ToZen(result); // Handle synchronous methods
-        }
-        catch (Exception ex)
-        {
-            Logger.Instance.Debug($"Error invoking method {methodName} on {targetName}: {ex.Message}");
-            throw;
-        }
-    }
+    //     try
+    //     {
+    //         var result = method.Invoke(null, methodArgs);
+    //         return ToZen(result); // Handle synchronous methods
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         Logger.Instance.Debug($"Error invoking method {methodName} on {targetName}: {ex.Message}");
+    //         throw;
+    //     }
+    // }
 
     private static async Task<ZenValue> CallDotNetInternal(ZenValue[] args, bool asyncExecution)
     {
-        if (args.Length < 2)
-            throw new ArgumentException("CallDotNet requires at least two arguments: target and method name.");
+       if (args.Length < 2)
+        throw new ArgumentException("CallDotNet requires at least two arguments: target and method name.");
+        
+        // Convert arguments to .NET-compatible values
+        dynamic?[] dotNetArgs = args.Select(ToDotNet).ToArray();
 
-        string targetName = args[0].Underlying as string ?? throw new ArgumentException("First argument must be a string (type name or object).");
-        string methodName = args[1].Underlying as string ?? throw new ArgumentException("Second argument must be a string (method name).");
-
-        Logger.Instance.Debug($"Attempting to call method {methodName} on {targetName}...");
-
-        Type? targetType = Type.GetType(targetName);
-        if (targetType == null)
+        // The target: either a string (type name) or an object
+        object? target = dotNetArgs[0];
+        if (target is not string && target is not Type && target is not null)
         {
-            throw new ArgumentException($"Type '{targetName}' not found.");
+            Logger.Instance.Debug($"Using instance of type {target.GetType()} as target.");
         }
-
-        // Convert Zen arguments to .NET and infer parameter types
-        var methodArgs = args.Skip(2).Select(arg => ToDotNet(arg)).ToArray();
-        var parameterTypes = methodArgs
-            .Select(arg => arg?.GetType() ?? typeof(object))
-            .Cast<Type>()
-            .ToArray();
-
-        Logger.Instance.Debug($"Inferred parameter types: {string.Join(", ", parameterTypes.Select(pt => pt.Name))}");
-
-        var methods = targetType.GetMethods(BindingFlags.Static | BindingFlags.Public)
-            .Where(m => m.Name == methodName && m.GetParameters().Length == parameterTypes.Length + 1)
-            .ToList();
-
-        // Find a method that matches exactly or with an additional CancellationToken
-        var method = methods.FirstOrDefault(m =>
+        else if (target is string targetName)
         {
-            var parameters = m.GetParameters();
-            return parameters.Take(parameterTypes.Length)
-                .Select(p => p.ParameterType)
-                .SequenceEqual(parameterTypes) &&
-                parameters.LastOrDefault()?.ParameterType == typeof(CancellationToken);
-        });
-
-        if (method == null)
-        {
-            method = targetType.GetMethod(methodName, BindingFlags.Static | BindingFlags.Public, null, parameterTypes, null);
-            if (method == null)
-            {
-                Logger.Instance.Debug($"Available methods on {targetType.FullName}:");
-                foreach (var m in targetType.GetMethods(BindingFlags.Static | BindingFlags.Public))
-                {
-                    Logger.Instance.Debug($"- {m.Name}({string.Join(", ", m.GetParameters().Select(p => p.ParameterType.Name))})");
-                }
-                throw new ArgumentException($"No matching method found for {methodName} with parameter types {string.Join<Type>(", ", parameterTypes)}");
-            }
+            Logger.Instance.Debug($"Resolving type: {targetName}...");
+            target = Type.GetType(targetName) ?? throw new ArgumentException($"Type '{targetName}' not found.");
         }
         else
         {
-            // Append CancellationToken.None if the method expects it
-            Logger.Instance.Debug($"Appending CancellationToken.None to arguments for method: {method.Name}");
-            methodArgs = methodArgs.Append(CancellationToken.None).ToArray();
+            throw new ArgumentException("First argument must be a string (type name) or an object instance.");
+        }
+
+        // The method name
+        string methodName = dotNetArgs[1] as string ?? throw new ArgumentException("Second argument must be a string (method name).");
+
+        // The actual method arguments
+        dynamic?[] methodArgs = dotNetArgs.Skip(2).ToArray();
+
+        Logger.Instance.Debug($"Attempting to call method {methodName} on {(target is Type t ? t.FullName : target.GetType().FullName)}...");
+
+        // Determine if the target is a type or an object
+        var targetType = target as Type ?? target.GetType();
+
+        // Find matching method
+        var methods = targetType.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static)
+            .Where(m => m.Name == methodName && m.GetParameters().Length == methodArgs.Length)
+            .ToList();
+
+        if (methods.Count == 0)
+        {
+            Logger.Instance.Debug($"Available methods on {targetType.FullName}:");
+            foreach (var m in targetType.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static))
+            {
+                Logger.Instance.Debug($"- {m.Name}({string.Join(", ", m.GetParameters().Select(p => p.ParameterType.Name))})");
+            }
+            throw new ArgumentException($"No matching method found for {methodName} on {targetType.FullName}");
+        }
+
+        var method = methods.FirstOrDefault();
+        if (method == null)
+        {
+            throw new ArgumentException($"No suitable overload found for {methodName} on {targetType.FullName}.");
         }
 
         Logger.Instance.Debug($"Resolved method: {method.Name}");
 
         try
         {
-            var result = method.Invoke(null, methodArgs);
+            var result = method.Invoke(target is Type || target is null ? null : target, methodArgs);
             if (result is Task task)
             {
                 if (asyncExecution)
@@ -210,11 +207,11 @@ public class Interop : IBuiltinsProvider
                 }
             }
 
-            return ToZen(result); // Handle synchronous methods
+            return ToZenValue(result); // Handle synchronous methods
         }
         catch (Exception ex)
         {
-            Logger.Instance.Debug($"Error invoking method {methodName} on {targetName}: {ex.Message}");
+            Logger.Instance.Debug($"Error invoking method {methodName} on {target}: {ex.Message}");
             throw;
         }
     }
@@ -227,6 +224,17 @@ public class Interop : IBuiltinsProvider
     /// <returns></returns>
     public static ZenValue ToZen(dynamic? value)
     {
+        // is value a Type?
+        if (value is Type type)
+        {
+            ZenType zenType = ToZenType(type);
+            return new ZenValue(ZenType.Type, zenType);
+        }else {
+            return ToZenValue(value);
+        }
+    }
+
+    public static ZenValue ToZenValue(dynamic? value) {
         if (value == null)
         {
             return ZenValue.Null;
@@ -254,7 +262,8 @@ public class Interop : IBuiltinsProvider
         else if (value is string)
         {
             return new ZenValue(ZenType.String, value);
-        }else if (value is object)
+        }
+        else if (value is object)
         {
             var proxyClass = GetOrCreateProxyClass(value.GetType());
             var zenObjectProxy = new ZenObjectProxy(value, proxyClass);
@@ -264,7 +273,7 @@ public class Interop : IBuiltinsProvider
         }
     }
 
-    public static ZenType ToZen(Type type)
+    public static ZenType ToZenType(Type type)
     {
         if (type == typeof(string))
         {
@@ -289,10 +298,6 @@ public class Interop : IBuiltinsProvider
         else if (type == typeof(double))
         {
             return ZenType.Float64;
-        }
-        else if (type == typeof(DateTime)) // Explicitly handle DateTime
-        {
-            return ZenType.DotNetObject; // Or ZenType.DateTime if supported
         }
         else if (!type.IsPrimitive) // Treat all non-primitive types as Object
         {
@@ -321,10 +326,10 @@ public class Interop : IBuiltinsProvider
             return typeof(object);
         }else if (type == ZenType.Null) {
             return null;
-        }else if (type == ZenType.Object) {
+        }else if (type == ZenType.Object || type == ZenType.DotNetObject || type == ZenType.Class) {
             return typeof(object);
-        }else if (type == ZenType.Class) {
-            return typeof(object);
+        }else if (type == ZenType.Type) {
+            return typeof(ZenType);
         }else {
             return null;
         }

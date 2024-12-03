@@ -11,42 +11,60 @@ public partial class Interpreter
 {
     public IEvaluationResult Visit(ProgramNode programNode)
     {
+        CurrentNode = programNode;
         return Visit(programNode, true);
     }
 
     public IEvaluationResult Visit(ProgramNode programNode, bool awaitEvents)
     {
-        // First, process all top-level statements
-        foreach (var statement in programNode.Statements)
-        {
-            statement.Accept(this);
-        }
-
-        if (awaitEvents) {
-            // Then wait for all event loop tasks to complete
-            var timeout = TimeSpan.FromSeconds(5);
-            var startTime = DateTime.Now;
-
-            while (EventLoop.HasPendingTasks)
+        CurrentNode = programNode;
+        // try {
+            // First, process all top-level statements
+            foreach (var statement in programNode.Statements)
             {
-                if (DateTime.Now - startTime >= timeout)
-                {
-                    throw Error("Event loop tasks did not complete within timeout period");
-                }
-                Thread.Sleep(1); // Small delay to prevent CPU spinning
+                statement.Accept(this);
             }
-        }
+
+            if (awaitEvents) {
+                // Then wait for all event loop tasks to complete
+                var timeout = TimeSpan.FromSeconds(5);
+                var startTime = DateTime.Now;
+
+                while (EventLoop.HasPendingTasks)
+                {
+                    if (DateTime.Now - startTime >= timeout)
+                    {
+                        throw Error("Event loop tasks did not complete within timeout period");
+                    }
+                    Thread.Sleep(1); // Small delay to prevent CPU spinning
+                }
+            }
+        // } catch (Exception ex) {
+        //     // Wrap unknown exceptions in a RuntimeError with source code info
+        //     if (ex is not Common.Error) {
+        //         ex = Error("Unhandled exception in program: ", CurrentNode?.Location, ErrorType.RuntimeError, ex);
+        //     }
+
+        //     // log it
+        //     Logger.Instance.Error(ex.ToString());
+
+        //     throw ex;
+        // }
 
         return VoidResult.Instance;
     }
 
     public IEvaluationResult Visit(Block block)
     {
+        CurrentNode = block;
+
         return ExecuteBlock(block, new Environment(environment));
     }
 
     public IEvaluationResult ExecuteBlock(Block block, Environment environment)
     {
+        CurrentNode = block;
+
         Environment previousEnvironment = this.environment;
         this.environment = environment;
 
@@ -67,6 +85,8 @@ public partial class Interpreter
 
     public IEvaluationResult Visit(IfStmt ifStmt)
     {
+        CurrentNode = ifStmt;
+
         if (Evaluate(ifStmt.Condition).IsTruthy())
         {
             ifStmt.Then.Accept(this);
@@ -92,6 +112,8 @@ public partial class Interpreter
 
     public IEvaluationResult Visit(PrintStmt printStmt)
     {
+        CurrentNode = printStmt;
+
         IEvaluationResult expResult = Evaluate(printStmt.Expression);
 
         ZenValue value = expResult.Value;
@@ -119,11 +141,14 @@ public partial class Interpreter
 
     public IEvaluationResult Visit(ExpressionStmt expressionStmt)
     {
+        CurrentNode = expressionStmt;
         return Evaluate(expressionStmt.Expression);
     }
 
     public IEvaluationResult Visit(VarStmt varStmt)
     {
+        CurrentNode = varStmt;
+
         string name = varStmt.Identifier.Value;
         ZenType type = ZenType.Null;
         bool nullable = false;
@@ -172,6 +197,8 @@ public partial class Interpreter
 
     public IEvaluationResult Visit(Assignment assignment)
     {
+        CurrentNode = assignment;
+
         // evaluate the expression on the right hand side
         IEvaluationResult right = Evaluate(assignment.Expression);
         Variable leftVariable;
@@ -219,6 +246,8 @@ public partial class Interpreter
 
     public IEvaluationResult Visit(WhileStmt whileStmt)
     {
+        CurrentNode = whileStmt;
+
         IEvaluationResult conditionResult = Evaluate(whileStmt.Condition);
 
         while (conditionResult.IsTruthy())
@@ -232,6 +261,8 @@ public partial class Interpreter
 
     public IEvaluationResult Visit(ForStmt forStmt)
     {
+        CurrentNode = forStmt;
+
         Environment previousEnvironment = environment;
         environment = new Environment(previousEnvironment);
 
@@ -267,11 +298,15 @@ public partial class Interpreter
 
     public IEvaluationResult Visit(ForInStmt forInStmt)
     {
+        CurrentNode = forInStmt;
+
         throw new NotImplementedException();
     }
 
     public IEvaluationResult Visit(ReturnStmt returnStmt)
     {
+        CurrentNode = returnStmt;
+
         IEvaluationResult result;
 
         if (returnStmt.Expression != null)
@@ -288,6 +323,8 @@ public partial class Interpreter
 
     protected ZenUserFunction EvaluateFunctionStatement(FuncStmt funcStmt, Environment? closure = null)
     {
+        CurrentNode = funcStmt;
+
         closure ??= environment;
 
         // function parameters
@@ -307,6 +344,8 @@ public partial class Interpreter
 
     public IEvaluationResult Visit(FuncStmt funcStmt)
     {
+        CurrentNode = funcStmt;
+
         ZenUserFunction zenFunction = EvaluateFunctionStatement(funcStmt);
 
         RegisterFunction(funcStmt.Identifier.Value, zenFunction);
@@ -316,6 +355,8 @@ public partial class Interpreter
 
     public IEvaluationResult Visit(ClassStmt classStmt)
     {
+        CurrentNode = classStmt;
+
         environment.Define(true, classStmt.Identifier.Value, ZenType.Class, false);
 
         ZenClass clazz = EvaluateClassStatement(classStmt);
@@ -330,6 +371,8 @@ public partial class Interpreter
 
     public IEvaluationResult Visit(InterfaceStmt interfaceStmt)
     {
+        CurrentNode = interfaceStmt;
+
         environment.Define(true, interfaceStmt.Identifier.Value, ZenType.Class, false);
 
         ZenInterface @interface = EvaluateInterfaceStatement(interfaceStmt);
@@ -341,6 +384,8 @@ public partial class Interpreter
 
     protected ZenInterface EvaluateInterfaceStatement(InterfaceStmt interfaceStmt)
     {
+        CurrentNode = interfaceStmt;
+
         // create the methods
         List<ZenAbstractMethod> methods = [];
 
@@ -387,11 +432,15 @@ public partial class Interpreter
 
     protected ZenClass EvaluateClassStatement(ClassStmt classStmt)
     {
+        CurrentNode = classStmt;
+
         // create the Properties
         List<ZenClass.Property> properties = [];
 
         foreach (var property in classStmt.Properties)
         {
+            CurrentNode = property;
+
             ZenType type = ZenType.Any;
             ZenValue defaultValue = ZenValue.Null;
 
@@ -455,6 +504,8 @@ public partial class Interpreter
 
         foreach (MethodStmt methodStmt in classStmt.Methods)
         {
+            CurrentNode = methodStmt;
+
             string name = methodStmt.Identifier.Value;
             ZenClass.Visibility visibility = ZenClass.Visibility.Public;
             ZenType returnType = ZenType.Void;
@@ -482,6 +533,8 @@ public partial class Interpreter
         List<ZenClass.Parameter> genericParameters = [];
 
         foreach (ParameterDeclaration parameter in classStmt.Parameters) {
+            CurrentNode = parameter;
+
             ZenValue? defaultValue = null;
             if (parameter.DefaultValue != null) {
                 defaultValue = Evaluate(parameter.DefaultValue!).Value;
@@ -505,6 +558,7 @@ public partial class Interpreter
 
         // implements?
         foreach (ImplementsExpr implements in classStmt.Implements) {
+            CurrentNode = implements;
             ZenValue val = Evaluate(implements.Identifier).Value;
             if (val.Type == ZenType.Interface) {
                 clazz.Interfaces.Add(val.Underlying!);

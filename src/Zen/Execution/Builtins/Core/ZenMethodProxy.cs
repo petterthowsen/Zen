@@ -13,7 +13,7 @@ public class ZenMethodProxy : ZenMethod
         Method = method;
         // add arguments
         foreach (ParameterInfo argInfo in method.GetParameters()) {
-            Arguments.Add(new Argument(argInfo.Name ?? "", Interop.ToZen(argInfo.ParameterType)));
+            Arguments.Add(new Argument(argInfo.Name ?? "", Interop.ToZenType(argInfo.ParameterType)));
         }
     }
 
@@ -36,7 +36,8 @@ public class ZenMethodProxy : ZenMethod
 
         dynamic?[] args = argValues.Select(a => Interop.ToDotNet(a)).ToArray();
         dynamic? result = Method.Invoke(zenObjectProxy.Target, args);
-        return Interop.ToZen(result);
+        var resultZen = Interop.ToZenValue(result);
+        return resultZen;
     }
 
     public override BoundMethod Bind(ZenObject instance) {

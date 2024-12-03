@@ -14,8 +14,17 @@ public class ArrayTests : TestRunner
     public void TestArrayCreation()
     {
         Execute("var arr = new Array<int>()");
-        //var result = Execute("print arr.length");
-        //Assert.Equal("0", result);
+
+        var result = Execute("print arr.length");
+        Assert.Equal("0", result);
+
+        Execute("arr.Append(42)");
+        result = Execute("print arr.length");
+        Assert.Equal("1", result);
+
+        result = Execute("print arr[0]");
+        Assert.Equal("42", result);
+
     }
 
     [Fact]

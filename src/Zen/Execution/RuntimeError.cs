@@ -3,7 +3,7 @@ using Zen.Common;
 namespace Zen.Execution;
 
 public class RuntimeError : Error {
-    public RuntimeError(string message, ErrorType errorType, SourceLocation? location) : base(message, errorType, location) {
+    public RuntimeError(string message, ErrorType errorType, SourceLocation? location, Exception? innerException = null) : base(message, errorType, location, innerException) {
         prefix = "Runtime Error";
     }
 
