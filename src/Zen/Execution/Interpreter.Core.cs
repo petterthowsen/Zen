@@ -41,11 +41,6 @@ public partial class Interpreter : IGenericVisitor<IEvaluationResult>
     {
         environment = globalEnvironment;
         EventLoop = eventLoop;
-        
-        RegisterBuiltins(new Builtins.Core.Typing());
-        RegisterBuiltins(new Builtins.Core.Interop());
-        //RegisterBuiltins(new Builtins.Core.Time());
-        //RegisterBuiltins(new Builtins.Core.Array());
     }
 
     /// <summary>
@@ -57,14 +52,16 @@ public partial class Interpreter : IGenericVisitor<IEvaluationResult>
         builtinsProvider.RegisterBuiltins(this);
     }
 
-    public void RegisterHostFunction(string name, ZenType returnType, List<ZenFunction.Argument> parameters, Func<ZenValue[], ZenValue> func)
+    public ZenHostFunction RegisterHostFunction(string name, ZenType returnType, List<ZenFunction.Argument> parameters, Func<ZenValue[], ZenValue> func, bool variadic = false)
     {
         var hostFunc = new ZenHostFunction(false, returnType, parameters, func, globalEnvironment);
+        hostFunc.Variadic = variadic;
         globalEnvironment.Define(true, name, ZenType.Function, false);
         globalEnvironment.Assign(name, new ZenValue(ZenType.Function, hostFunc));
+        return hostFunc;
     }
 
-    public void RegisterAsyncHostFunction(string name, ZenType returnType, List<ZenFunction.Argument> parameters, Func<ZenValue[], Task<ZenValue>> func)
+    public ZenHostFunction RegisterAsyncHostFunction(string name, ZenType returnType, List<ZenFunction.Argument> parameters, Func<ZenValue[], Task<ZenValue>> func, bool variadic = false)
     {
         var hostFunc = new ZenHostFunction(true, returnType, parameters, args =>
         {
@@ -84,8 +81,12 @@ public partial class Interpreter : IGenericVisitor<IEvaluationResult>
             return new ZenValue(ZenType.Promise, promise);
         }, globalEnvironment);
 
+        hostFunc.Variadic = variadic;
+
         globalEnvironment.Define(true, name, ZenType.Function, false);
         globalEnvironment.Assign(name, new ZenValue(ZenType.Function, hostFunc));
+
+        return hostFunc;
     }
 
     public void RegisterFunction(bool async, string name, ZenType returnType, List<ZenFunction.Argument> parameters, Block block, Environment? closure = null)
@@ -114,6 +115,7 @@ public partial class Interpreter : IGenericVisitor<IEvaluationResult>
     {
         if (Locals.TryGetValue(expr, out int distance))
         {
+            Logger.Instance.Debug($"Found variable {name} at distance {distance}");
             Variable value = environment.GetAt(distance, name);
             return (VariableResult)value;
         }

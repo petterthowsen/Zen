@@ -49,6 +49,24 @@ public class ClassTests : TestRunner
 
     
     [Fact]
+    public void TestClassInstantiationWithLocal() {
+        RestartInterpreter();
+
+        string? result = Execute(@"
+            class Test {
+                Test() {
+                    var text = ""hello""
+                    print text
+                }
+            }
+
+            var t = new Test()
+        ");
+        Assert.Equal("hello", result);
+    }
+
+    
+    [Fact]
     public void TestClassProperty() {
         RestartInterpreter();
 

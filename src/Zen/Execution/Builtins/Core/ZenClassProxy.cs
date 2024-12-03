@@ -8,6 +8,8 @@ public class ZenClassProxy : ZenClass
 
     public Type Target;
 
+    private List<ZenMethodProxy> _methods = [];
+
     public ZenClassProxy(Type dotnetClass) : base(dotnetClass.Name, [], [], [])
     {
         Target = dotnetClass;
@@ -17,7 +19,7 @@ public class ZenClassProxy : ZenClass
     {
         return null;
     }
-
+    
     public override ZenMethod? GetOwnMethod(string name, ZenType returnType, ZenType[] argTypes) {
         // use reflection on the Target to find a matching method
         List<Type> argTypesDotnet = [];

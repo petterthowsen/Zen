@@ -25,6 +25,9 @@ public class ModuleHelper
     /// <summary>
     /// Parse the module's source code into an AST and extracts all top-level exportable Symbols.
     /// </summary>
+    /// <throws>
+    ///     Exception if the module cannot be parsed
+    /// </throws>
     public void Parse(Module module)
     {
         if (module.State != State.NotLoaded)
@@ -71,7 +74,11 @@ public class ModuleHelper
             else if (stmt is ClassStmt classStmt)
             {
                 symbol = new Symbol(classStmt.Identifier.Value, SymbolType.Class, module);
-            }else {
+            }else if (stmt is InterfaceStmt interfaceStmt)
+            {
+                symbol = new Symbol(interfaceStmt.Identifier.Value, SymbolType.Interface, module);
+            }
+            else {
                 continue;
             }
 

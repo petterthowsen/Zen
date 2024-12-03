@@ -273,7 +273,7 @@ public class ZenClass {
                 bool matching = true;
                 for (int i = 0; i < argTypes.Length; i++) {
 
-                    if (false == TypeChecker.IsCompatible(argTypes[i], m.Arguments[i].Type)) {
+                    if (false == TypeChecker.IsCompatible(m.Arguments[i].Type, argTypes[i])) {
                         matching = false;
                         break;
                     }

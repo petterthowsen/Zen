@@ -47,6 +47,8 @@ public abstract class ZenFunction : ICallable {
 
     public int Arity => Arguments.Count;
     
+    public bool Variadic = false;
+
     public bool Async = false;
 
     public ZenType ReturnType { get; set; }

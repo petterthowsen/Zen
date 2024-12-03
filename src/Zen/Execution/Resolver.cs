@@ -45,9 +45,17 @@ public class Resolver : IVisitor
         return err;
     }
 
-    public void Resolve(ProgramNode program) {
+    public void Resolve(ProgramNode program, bool global = false) {
+        if (global == false) {
+            BeginScope();
+        }
+
         foreach (var statement in program.Statements) {
             Resolve(statement);
+        }
+
+        if (global == false) {
+            EndScope();
         }
     }
 
@@ -341,22 +349,23 @@ public class Resolver : IVisitor
         Declare(classStmt.Identifier);
         Define(classStmt.Identifier);
 
-        BeginScope();
-        scopes.Peek().Add("this", true);
-
-        // Make class parameters available in method scopes
-        foreach (var param in classStmt.Parameters) {
-            scopes.Peek().Add(param.Name, true);
-        }
-
         // resolve super class
         if (classStmt.Extends != null) {
             Resolve(classStmt.Extends);
         }
 
         // resolve interfaces
-        foreach (var @interface in classStmt.Implements) {
-            Resolve(@interface);
+        foreach (var implementsExpr in classStmt.Implements) {
+            Resolve(implementsExpr);
+        }
+
+        // methods and properties are inside its own scope
+        BeginScope();
+        scopes.Peek().Add("this", true);
+
+        // Make class parameters available in method scopes
+        foreach (var param in classStmt.Parameters) {
+            scopes.Peek().Add(param.Name, true);
         }
 
         foreach (MethodStmt method in classStmt.Methods) {
@@ -375,7 +384,7 @@ public class Resolver : IVisitor
     {
         Resolve(implementsExpr.Identifier);
         foreach(Expr expr in implementsExpr.Parameters) {
-            // Resolve(expr); //not entirely sure if we need to do this
+            Resolve(expr); //not entirely sure if we need to do this
         }
     }
 

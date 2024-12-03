@@ -4,8 +4,9 @@ using Zen.Typing;
 namespace Zen.Exection.Import;
 
 public enum SymbolType {
+    Function,
     Class,
-    Function
+    Interface
 }
 
 /// <summary>

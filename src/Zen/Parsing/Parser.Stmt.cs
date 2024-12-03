@@ -505,8 +505,8 @@ public partial class Parser
 
 		// parse one or more identifiers separated by either ',' token or keyword token 'and'
 		if (MatchKeyword("implements")) {
-			MaybeSome(TokenType.Whitespace);
 			do {
+				MaybeSome(TokenType.Whitespace);
 				if ( ! Check(TokenType.Identifier, TokenType.Keyword)) {
 					throw Error($"Expected 'Identifier' or 'Keyword' for implemented interface after 'implements' keyword", ErrorType.SyntaxError);
 				}

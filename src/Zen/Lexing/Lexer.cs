@@ -234,10 +234,6 @@ public class Lexer {
 
     private void ScanIdentifierOrKeyword() {
         int start = _position;
-        if (!char.IsLetter(Current)) {
-            throw new Exception("Implementation Error: Identifier must start with a letter!");
-        }
-
         Advance();
 
         while ( ! EOF && (char.IsLetterOrDigit(Current) || Current == '_')) {
@@ -293,7 +289,7 @@ public class Lexer {
                 // All consecutive spaces and tabs is a single whitespace token
                 ConsumeAll([' ', '\t'], TokenType.Whitespace);
                 continue;
-            } else if (char.IsLetter(Current)) {
+            } else if (char.IsLetter(Current) || Current == '_') {
                 ScanIdentifierOrKeyword();
                 continue;
             } else if (MatchSequence("==")) {
@@ -336,68 +332,70 @@ public class Lexer {
             
             // Parse single character tokens
             switch (Current) {
-                case ' ':
                 case '\n':
                     ConsumeAll(['\n'], TokenType.Newline);
-                    break;
+                    continue;
                 case '.':
                     Consume('.', TokenType.Dot);
-                    break;
+                    continue;
                 case ',':
                     Consume(',', TokenType.Comma);
-                    break;
+                    continue;
                 case ':':
                     Consume(':', TokenType.Colon);
-                    break;
+                    continue;
                 case ';':
                     Consume(';', TokenType.Semicolon);
-                    break;
+                    continue;
                 case '?':
                     Consume('?', TokenType.QuestionMark);
-                    break;
+                    continue;
                 case '+':
                     Consume('+', TokenType.Plus);
-                    break;
+                    continue;
                 case '-':
                     Consume('-', TokenType.Minus);
-                    break;
+                    continue;
                 case '*':
                     Consume('*', TokenType.Star);
-                    break;
+                    continue;
                 case '/':
                     Consume('/', TokenType.Slash);
-                    break;
+                    continue;
                 case '%':
                     Consume('%', TokenType.Percent);
-                    break;
+                    continue;
                 case '=':
                     Consume('=', TokenType.Assign);
-                    break;
+                    continue;
                 case '<':
                     Consume('<', TokenType.LessThan);
-                    break;
+                    continue;
                 case '>':
                     Consume('>', TokenType.GreaterThan);
-                    break;
+                    continue;
                 case '(':
                     Consume('(', TokenType.OpenParen);
-                    break;
+                    continue;
                 case ')':
                     Consume(')', TokenType.CloseParen);
-                    break;
+                    continue;
                 case '{':
                     Consume('{', TokenType.OpenBrace);
-                    break;
+                    continue;
                 case '}':
                     Consume('}', TokenType.CloseBrace);
-                    break;
+                    continue;
                 case '[':
                     Consume('[', TokenType.OpenBracket);
-                    break;
+                    continue;
                 case ']':
                     Consume(']', TokenType.CloseBracket);
-                    break;
+                    continue;
             }
+
+            Error("Unrecognized character '" + Current + "'", ErrorType.SyntaxError, _position);
+            break;
         }
         
         return Tokens;

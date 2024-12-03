@@ -118,6 +118,9 @@ public class Array : IBuiltinsProvider
             new ZenClass.Parameter("T", ZenType.Type)
         ]);
 
+        // implement BracketGet & BracketSet
+        
+
         interp.globalEnvironment.Assign("Array", new ZenValue(ZenType.Class, array));
     }
 }

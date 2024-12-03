@@ -37,7 +37,7 @@ public class Importer
     /// <summary>
     /// Phase 1: Resolves symbols without executing modules
     /// </summary>
-    public ImportResolution ResolveSymbols(string path)
+    public ImportResolution ResolveSymbols(string path, bool global = false)
     {
         Logger.Instance.Debug($"Resolving symbols for path: {path}");
 
@@ -72,7 +72,7 @@ public class Importer
         if (resolution.IsModule())
         {
             var module = resolution.AsModule().Module;
-            ProcessModule(module);
+            ProcessModule(module, global);
         }
 
         return resolution;
@@ -81,16 +81,16 @@ public class Importer
     /// <summary>
     /// Phase 2: Executes modules, supporting circular dependencies
     /// </summary>
-    public Symbol[] Import(string path)
+    public Symbol[] Import(string path, bool global = false)
     {
-        Logger.Instance.Debug($"Importing path: {path}");
-        var resolution = ResolveSymbols(path);
+        Logger.Instance.Debug($"Importing path: {path} (global: {global})");
+        var resolution = ResolveSymbols(path, global);
         
         if (resolution.IsModule())
         {
             var module = resolution.AsModule().Module;
             ExecuteModule(module);
-            return module.Symbols.ToArray();
+            return [.. module.Symbols];
         }
 
         return [];
@@ -100,7 +100,7 @@ public class Importer
     /// Process a module through parsing and import resolution
     /// Handles circular dependencies by allowing partial processing
     /// </summary>
-    private void ProcessModule(Module module)
+    private void ProcessModule(Module module, bool global = false)
     {
         Logger.Instance.Debug($"Processing module: {module.FullPath} (State: {module.State})");
 
@@ -138,7 +138,11 @@ public class Importer
             Logger.Instance.Debug($"Declaring types for module: {module.FullPath}");
 
             // Set up module environment
-            module.environment = new Environment(_interpreter.globalEnvironment);
+            if (global) {
+                module.environment = _interpreter.globalEnvironment;
+            }else {
+                module.environment = new Environment(_interpreter.globalEnvironment);
+            }
 
             // First pass: Declare all class types with empty implementations
             foreach (var stmt in module.AST.Statements)
@@ -152,6 +156,14 @@ public class Importer
                     module.environment.Define(true, className, ZenType.Class, false);
                     var emptyClass = new ZenClass(className, [], [], []);
                     module.environment.Assign(className, new ZenValue(ZenType.Class, emptyClass));
+                }
+                else if (stmt is InterfaceStmt interfaceStmt) {
+                    var interfaceName = interfaceStmt.Identifier.Value;
+                    Logger.Instance.Debug($"Declaring interface: {interfaceName}");
+                    
+                    module.environment.Define(true, interfaceName, ZenType.Interface, false);
+                    var emptyInterface = new ZenInterface(interfaceName, [], []);
+                    module.environment.Assign(interfaceName, new ZenValue(ZenType.Interface, emptyInterface));
                 }
                 else if (stmt is FuncStmt funcStmt)
                 {
@@ -221,7 +233,7 @@ public class Importer
             var oldEnv = _interpreter.environment;
             try {
                 _interpreter.environment = module.environment;
-                _resolver.Resolve(module.AST);
+                _resolver.Resolve(module.AST, global: false);
             } finally {
                 _interpreter.environment = oldEnv;
             }
@@ -280,6 +292,9 @@ public class Importer
         // We pass false to awaitEvents, since that should only be done at the main script being executed.
         Logger.Instance.Debug($"Executing module: {module.FullPath}");
 
+        // module.environment may be == to interpreter.environment
+        // in that case, it will be executed in global scope.
+        // module.environment is set in ProcessModule.
         var oldEnv = _interpreter.environment;
         try {
             _interpreter.environment = module.environment;

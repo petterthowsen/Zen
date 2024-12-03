@@ -44,6 +44,11 @@ public class Runtime
 
         // add import providers
         Importer.RegisterProvider(new BuiltinProvider());
+
+        // Import Always-Loaded modules
+        Interpreter.RegisterBuiltins(new Builtins.Core.Typing());
+        Interpreter.RegisterBuiltins(new Builtins.Core.Interop());
+        Importer.Import("System/Collections/Array", true);
     }
 
     private string GetPackageName(string? scriptDirectory)
@@ -102,7 +107,7 @@ public class Runtime
             }
 
             // Resolve scope
-            Resolver.Resolve(mainModule.AST);
+            Resolver.Resolve(mainModule.AST, global: true);
             if (Resolver.Errors.Count > 0)
             {
                 throw new Exception("Resolver errors: " + string.Join("\n", Resolver.Errors));

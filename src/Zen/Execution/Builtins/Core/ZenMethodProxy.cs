@@ -11,6 +11,10 @@ public class ZenMethodProxy : ZenMethod
     public ZenMethodProxy(MethodInfo method, ZenType returnType, ZenType[] argTypes) : base(false, method.Name, ZenClass.Visibility.Public, returnType, [])
     {
         Method = method;
+        // add arguments
+        foreach (ParameterInfo argInfo in method.GetParameters()) {
+            Arguments.Add(new Argument(argInfo.Name ?? "", Interop.ToZen(argInfo.ParameterType)));
+        }
     }
 
     public override ZenValue Call(Interpreter interpreter, ZenValue[] arguments)

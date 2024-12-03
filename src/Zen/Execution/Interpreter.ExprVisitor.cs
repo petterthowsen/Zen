@@ -338,9 +338,9 @@ public IEvaluationResult Visit(Grouping grouping)
             }
 
             // check number of arguments is at most equal to the number of parameters
-            if (call.Arguments.Length > function.Arguments.Count)
+            if (function.Variadic == false && call.Arguments.Length > function.Arguments.Count)
             {
-                throw Error($"Too many arguments for function", null, Common.ErrorType.RuntimeError);
+                throw Error($"Too many arguments for function {function}", call.Location, Common.ErrorType.RuntimeError);
             }
 
             // evaluate the arguments
@@ -352,7 +352,7 @@ public IEvaluationResult Visit(Grouping grouping)
             }
 
             // check that the types of the arguments are compatible with the types of the parameters
-            for (int i = 0; i < call.Arguments.Length; i++)
+            for (int i = 0; i < function.Arguments.Count; i++)
             {
                 ZenFunction.Argument parameter = function.Arguments[i];
                 ZenValue argument = argumentValues[i];

@@ -8,30 +8,30 @@ public class Interop : IBuiltinsProvider
 {
     public void RegisterBuiltins(Interpreter interpreter)
     {
-        // Async function
+        // Async CallDotNet
         interpreter.RegisterAsyncHostFunction(
             "CallDotNetAsync",
-            ZenType.String, // Returns a String
+            ZenType.Any, // Returns a String
             new List<ZenFunction.Argument>
             {
                 new("target", ZenType.String),
                 new("method", ZenType.String),
-                new("args", ZenType.Any, true) // Once Arrays are implemented, this will be an Array instead.
             },
-            CallDotNetAsync
+            CallDotNetAsync,
+            variadic: true
         );
 
-        // Synchronous function
+        // Synchronous CallDotNet
         interpreter.RegisterHostFunction(
             "CallDotNet",
-            ZenType.String, // Returns a String
+            ZenType.Any, // Returns a String
             new List<ZenFunction.Argument>
             {
                 new("target", ZenType.String),
                 new("method", ZenType.String),
-                new("args", ZenType.Any) // Once Arrays are implemented, this will be an Array instead.
             },
-            CallDotNet
+            CallDotNet,
+            variadic: true
         );
     }
 
@@ -103,7 +103,7 @@ public class Interop : IBuiltinsProvider
                 {
                     Logger.Instance.Debug($"- {m.Name}({string.Join(", ", m.GetParameters().Select(p => p.ParameterType.Name))})");
                 }
-                throw new ArgumentException($"No matching method found for {methodName} with parameter types {string.Join<Type>(", ", parameterTypes)}");
+                throw new ArgumentException($"No matching method found for {methodName} on {targetName} with parameter types {string.Join<Type>(", ", parameterTypes)}");
             }
         }
         else
@@ -341,7 +341,7 @@ public class Interop : IBuiltinsProvider
             var obj = value.Underlying as ZenObject;
             return obj;
         }
-        
+
         return value.Underlying;
     }
 }
