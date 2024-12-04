@@ -209,8 +209,7 @@ public class ZenClass {
                         method.Visibility,
                         concreteReturnType,
                         concreteArguments,
-                        hostMethod.Func,
-                        hostMethod.Closure
+                        hostMethod.Func
                     ));
                 }
                 else if (method is ZenUserMethod userMethod) {

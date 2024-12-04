@@ -2,6 +2,6 @@ namespace Zen.Execution;
 
 public interface IBuiltinsProvider {
 
-    public void RegisterBuiltins(Interpreter interpreter);
+    public static abstract void RegisterBuiltins(Interpreter interpreter);
 
 }

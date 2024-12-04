@@ -14,7 +14,20 @@ public partial class Interpreter {
         // Package statements are handled during module loading
         return VoidResult.Instance;
     }
-
+    
+    public Module GetModule(string modulePath)
+    {
+        var resolution = Importer.ResolveSymbols(modulePath);
+        if (resolution.IsModule())
+        {
+            var module = resolution.AsModule().Module;
+            return module;
+        }
+        else
+        {
+            throw new RuntimeError($"Cannot import '{modulePath}': not a module or namespace");
+        }
+    }
 
     public IEvaluationResult Visit(ImportStmt import)
     {

@@ -8,10 +8,12 @@ public abstract class ZenMethod : ZenFunction
 {
     public string Name;
     public ZenClass.Visibility Visibility;
+    public bool Static = false;
 
-    public ZenMethod(bool async, string name, ZenClass.Visibility visibility, ZenType returnType, List<Argument> arguments) : base(async, returnType, arguments) {
+    public ZenMethod(bool async, string name, ZenClass.Visibility visibility, ZenType returnType, List<Argument> arguments, bool @static = false) : base(async, returnType, arguments) {
         Name = name;
         Visibility = visibility;
+        Static = @static;
     }
 
     public override ZenValue Call(Interpreter interpreter, ZenValue[] arguments)

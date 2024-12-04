@@ -15,6 +15,8 @@ public partial class Interpreter : IGenericVisitor<IEvaluationResult>
         return new RuntimeError(message, errorType, location, innerException);
     }
 
+    public static Interpreter Instance;
+
     /// <summary>
     /// The top level environment / global scope
     /// </summary>
@@ -43,15 +45,7 @@ public partial class Interpreter : IGenericVisitor<IEvaluationResult>
     {
         environment = globalEnvironment;
         EventLoop = eventLoop;
-    }
-
-    /// <summary>
-    /// Registers builtins from the provided builtins provider.
-    /// </summary>
-    /// <param name="builtinsProvider"></param>
-    public void RegisterBuiltins(IBuiltinsProvider builtinsProvider)
-    {
-        builtinsProvider.RegisterBuiltins(this);
+        Instance = this;
     }
 
     public ZenHostFunction RegisterHostFunction(string name, ZenType returnType, List<ZenFunction.Argument> parameters, Func<ZenValue[], ZenValue> func, bool variadic = false)
@@ -155,7 +149,7 @@ public partial class Interpreter : IGenericVisitor<IEvaluationResult>
         {
             return GetNumericPromotionType(left, right);
         }
-        else if (left == ZenType.String || right == ZenType.String)
+        else if ((op == TokenType.Plus) && left == ZenType.String && (right == ZenType.String || right.IsNumeric))
         {
             return ZenType.String;
         }
@@ -168,42 +162,43 @@ public partial class Interpreter : IGenericVisitor<IEvaluationResult>
         if (a == ZenType.Float64 || b == ZenType.Float64) return ZenType.Float64;
         if (a == ZenType.Float || b == ZenType.Float) return ZenType.Float;
         if (a == ZenType.Integer64 || b == ZenType.Integer64) return ZenType.Integer64;
-        return ZenType.Integer;
+        if (a == ZenType.Integer || b == ZenType.Integer) return ZenType.Integer;
+        return ZenType.Void;
     }
 
-    private static ZenValue PerformArithmetic(TokenType tokenType, ZenType type, dynamic leftNumber, dynamic rightNumber)
+    private static ZenValue PerformArithmetic(TokenType tokenType, ZenType type, dynamic left, dynamic right)
     {
         // Perform the operation
         switch (tokenType)
         {
             case TokenType.Plus or TokenType.PlusAssign:
-                return new ZenValue(type, leftNumber + rightNumber);
+                return new ZenValue(type, left + right);
             case TokenType.MinusAssign or TokenType.Minus:
-                return new ZenValue(type, leftNumber - rightNumber);
+                return new ZenValue(type, left - right);
             case TokenType.StarAssign or TokenType.Star:
-                return new ZenValue(type, leftNumber * rightNumber);
+                return new ZenValue(type, left * right);
             case TokenType.SlashAssign or TokenType.Slash:
-                if (rightNumber == 0)
+                if (right == 0)
                 {
-                    throw Error($"Cannot divide `{leftNumber}` by zero");
+                    throw Error($"Cannot divide `{left}` by zero");
                 }
-                return new ZenValue(type, leftNumber / rightNumber);
+                return new ZenValue(type, left / right);
             case TokenType.Percent:
                 // Ensure both operands are integers for modulus
-                if (!(leftNumber is long || leftNumber is int))
+                if (!(left is long || left is int))
                 {
                     throw Error($"Modulus operator requires both operands to be integers");
                 }
-                if (!(rightNumber is long || rightNumber is int))
+                if (!(right is long || right is int))
                 {
                     throw Error($"Modulus operator requires both operands to be integers");
                 }
                 // Check for division by zero
-                if (rightNumber == 0)
+                if (right == 0)
                 {
                     throw Error($"Cannot compute modulus with divisor zero");
                 }
-                return new ZenValue(type, leftNumber % rightNumber);
+                return new ZenValue(type, left % right);
         }
 
         return ZenValue.Null;
@@ -284,6 +279,7 @@ public partial class Interpreter : IGenericVisitor<IEvaluationResult>
 
     public void Interpret(ProgramNode node, bool awaitEvents = true)
     {
+        Instance = this;
         Visit(node, awaitEvents);
     }
 

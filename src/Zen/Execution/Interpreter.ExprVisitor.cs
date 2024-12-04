@@ -28,16 +28,17 @@ public partial class Interpreter
         if (IsArithmeticOperator(binary.Operator.Type))
         {
             // For now, we only support numbers (int, long, float, double)
-            if (!left.IsNumber())
-            {
-                throw Error($"Cannot use operator `{binary.Operator.Type}` on non-numeric value `{left}`", binary.Location);
-            }
-            else if (!right.IsNumber())
-            {
-                throw Error($"Cannot use operator `{binary.Operator.Type}` on non-numeric value `{right}`", binary.Location);
-            }
+            // if (!left.IsNumber())
+            // {
+            //     throw Error($"Cannot use operator `{binary.Operator.Type}` on non-numeric value `{left}`", binary.Location);
+            // }
+            // else if (!right.IsNumber())
+            // {
+            //     throw Error($"Cannot use operator `{binary.Operator.Type}` on non-numeric value `{right}`", binary.Location);
+            // }
 
             // Check operation validity and get result type
+            // this throws an error if the operation is invalid
             ZenType resultType = DetermineResultType(binary.Operator.Type, left.Type, right.Type);
 
             if (left.Type != resultType)
@@ -360,22 +361,27 @@ public IEvaluationResult Visit(Grouping grouping)
         CurrentNode = get;
 
         IEvaluationResult result = Evaluate(get.Expression);
-        
+        ZenMethod? method;
+
         if (result.Value.Underlying is ZenObject instance)
         {
             // is it a method?
-            ZenMethod? method = instance.GetMethodHierarchically(get.Identifier.Value, argValues);
-
-            if (method == null)
-            {
-                throw Error($"Cannot find method '{get.Identifier.Value}' on '{instance.Type}' with argument types '{string.Join<ZenValue>(", ", argValues)}'", get.Identifier.Location, Common.ErrorType.TypeError);
+            method = instance.GetMethodHierarchically(get.Identifier.Value, argValues);
+            if (method != null) {
+                return (ValueResult) method.Bind(instance);
             }
-            return (ValueResult) method.Bind(instance);
         }
-        else
-        {
-            throw Error($"Cannot get property '{get.Identifier.Value}' on non-object type '{result.Type}'", get.Identifier.Location, Common.ErrorType.TypeError);
+        else if (result.Type == ZenType.String) {
+            var argsWithObj = argValues.ToList();
+            argsWithObj.Insert(0, result.Value);
+            var args = argsWithObj.ToArray();
+            method = Builtins.Core.String.ZenString.GetOwnMethod(get.Identifier.Value, args);
+            if (method != null && method.Static) {
+                return new PrimitiveMethodResult(result.Value, method, args);
+            }
         }
+
+        throw Error($"Cannot find method '{get.Identifier.Value}' on '{result.Type}' with argument types '{string.Join<ZenValue>(", ", argValues)}'", get.Identifier.Location, Common.ErrorType.TypeError);
     }
 
     public IEvaluationResult Visit(Call call)
@@ -395,10 +401,24 @@ public IEvaluationResult Visit(Grouping grouping)
             callee = Evaluate(call.Callee);
         }
         
-        if (callee.IsCallable())
-        {
-            ZenFunction function = (ZenFunction)callee.Value.Underlying!;
+        if (callee.IsCallable() == false) {
+            throw Error($"Cannot call non-callable of type '{callee.Type}'", call.Location, Common.ErrorType.RuntimeError);
+        }
 
+        if (callee is PrimitiveMethodResult pmr)
+        {
+            ZenMethod method = pmr.Method;
+            ZenValue[] args = pmr.Arguments;
+
+            // check number of arguments is at most equal to the number of parameters
+            if (method.Variadic == false && args.Length > method.Arguments.Count)
+            {
+                throw Error($"Too many arguments for function {method}", call.Location, Common.ErrorType.RuntimeError);
+            }
+
+            return CallFunction(method, args);
+        }
+        else if (callee.Value.Underlying is ZenFunction function) {
             // check number of arguments is at least equal to the number of non-nullable parameters
             if (argValues.Length < function.Arguments.Count(p => !p.Nullable))
             {

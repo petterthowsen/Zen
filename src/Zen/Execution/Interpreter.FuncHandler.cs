@@ -41,6 +41,8 @@ public partial class Interpreter
         else if (function is BoundMethod boundMethod)
         {
             return CallUserFunction(boundMethod, arguments);
+        }else if (function is ZenHostMethod) {
+            return (ValueResult) function.Call(this, arguments);
         }
         
         throw Error($"Cannot call unknown function type '{function.GetType()}'", null, Common.ErrorType.RuntimeError);

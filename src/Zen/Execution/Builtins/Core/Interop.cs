@@ -6,7 +6,7 @@ namespace Zen.Execution.Builtins.Core;
 
 public class Interop : IBuiltinsProvider
 {
-    public void RegisterBuiltins(Interpreter interpreter)
+    public static void RegisterBuiltins(Interpreter interpreter)
     {
         // Async CallDotNet
         interpreter.RegisterAsyncHostFunction(
@@ -235,7 +235,13 @@ public class Interop : IBuiltinsProvider
     }
 
     public static ZenValue ToZenValue(dynamic? value) {
-        if (value == null)
+        if (value is ZenValue) {
+            return value;
+        }
+        else if (value is ZenObject) {
+            return new ZenValue(ZenType.Object, value);
+        }
+        else if (value == null)
         {
             return ZenValue.Null;
         }

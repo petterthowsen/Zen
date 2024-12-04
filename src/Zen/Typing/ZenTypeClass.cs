@@ -8,4 +8,6 @@ public class ZenTypeClass : ZenType
     {
         Clazz = clazz;
     }
+
+    public ZenTypeClass MakeConcrete() => new ZenTypeClass(Clazz, Name, Parameters);
 }

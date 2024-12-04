@@ -37,18 +37,20 @@ public class Runtime
         Resolver = new Resolver(Interpreter);
 
         // create importer and module helper
+        // add import providers
         Importer = new Importer(Interpreter, Resolver);
+        Importer.RegisterProvider(new BuiltinProvider());
         ModuleHelper = new ModuleHelper(Interpreter);
 
         Interpreter.Importer = Importer;
 
-        // add import providers
-        Importer.RegisterProvider(new BuiltinProvider());
+        // Register core builtins
+        Builtins.Core.Typing.RegisterBuiltins(Interpreter);
+        Builtins.Core.Interop.RegisterBuiltins(Interpreter);
+        Builtins.Core.Array.RegisterBuiltins(Interpreter);
 
         // Import Always-Loaded modules
-        Interpreter.RegisterBuiltins(new Builtins.Core.Typing());
-        Interpreter.RegisterBuiltins(new Builtins.Core.Interop());
-        Importer.Import("System/Collections/Array", true);
+        // Importer.Import("System/Collections/BracketGet", true);
     }
 
     private string GetPackageName(string? scriptDirectory)
@@ -67,7 +69,7 @@ public class Runtime
 
     public ProgramNode Parse(ISourceCode sourceCode) => Parser.Parse(Lexer.Tokenize(sourceCode));
 
-    public ProgramNode parse(string sourceCode) => Parse(new InlineSourceCode(sourceCode));
+    public ProgramNode Parse(string sourceCode) => Parse(new InlineSourceCode(sourceCode));
 
     /// <summary>
     /// Execute source code as a module, setting up the import system

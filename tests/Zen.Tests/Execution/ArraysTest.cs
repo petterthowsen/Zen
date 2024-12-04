@@ -15,53 +15,45 @@ public class ArrayTests : TestRunner
     {
         Execute("var arr = new Array<int>()");
 
-        var result = Execute("print arr.length");
+        var result = Execute("print arr.Length");
         Assert.Equal("0", result);
-
-        Execute("arr.Append(42)");
-        result = Execute("print arr.length");
-        Assert.Equal("1", result);
-
-        result = Execute("print arr[0]");
-        Assert.Equal("42", result);
-
     }
 
     [Fact]
-    public void TestArrayPushAndLength()
+    public void TestArrayAppend()
     {
         RestartInterpreter();
         Execute(@"
             var arr = new Array<any>()
-            arr.push(1)
-            arr.push(2)
+            arr.Append(1)
+            arr.Append(2)
         ");
-        var result = Execute("print arr.length");
+        var result = Execute("print arr.Length");
         Assert.Equal("2", result);
     }
 
     [Fact]
-    public void TestArrayBracketAccess()
+    public void TestArrayBracketGet()
     {
         RestartInterpreter();
         Execute(@"
             var arr = new Array<int>()
-            arr.push(1)
-            arr.push(2)
-            arr.push(3)
+            arr.Append(1)
+            arr.Append(2)
+            arr.Append(3)
         ");
         var result = Execute("print arr[1]");
         Assert.Equal("2", result);
     }
 
     [Fact]
-    public void TestArrayBracketAssignment()
+    public void TestArrayBracketSet()
     {
         RestartInterpreter();
         Execute(@"
             var arr = new Array<int>()
-            arr.push(1)
-            arr.push(2)
+            arr.Append(1)
+            arr.Append(2)
             arr[1] = 42
         ");
         var result = Execute("print arr[1]");
@@ -69,17 +61,33 @@ public class ArrayTests : TestRunner
     }
 
     [Fact]
-    public void TestArrayPop()
+    public void TestArraySlice()
+    {
+        RestartInterpreter();
+        string? result = Execute(@"
+            var arr = new Array<string>()
+            arr.Append(""one"")
+            arr.Append(""two"")
+            arr.Append(""three"")
+            var slice = arr.Slice(1, 2)
+            print slice[0]
+        ");
+
+        Assert.Equal("two", result);
+    }
+
+    [Fact]
+    public void TestArrayRemoveAt()
     {
         RestartInterpreter();
         Execute(@"
             var arr = new Array<int>()
-            arr.push(1)
-            arr.push(2)
+            arr.Append(1)
+            arr.Append(2)
         ");
-        var result = Execute("print arr.pop()");
+        var result = Execute("print arr.RemoveLast()");
         Assert.Equal("2", result);
-        result = Execute("print arr.length");
+        result = Execute("print arr.Length");
         Assert.Equal("1", result);
     }
 

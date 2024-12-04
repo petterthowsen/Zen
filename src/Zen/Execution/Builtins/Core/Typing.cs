@@ -8,7 +8,7 @@ namespace Zen.Execution.Builtins.Core;
 /// </summary>
 public class Typing : IBuiltinsProvider
 {
-    public void RegisterBuiltins(Interpreter interp)
+    public static void RegisterBuiltins(Interpreter interp)
     {
         // 'type' returns the type of a value as a ZenValue of type ZenType.Type
         interp.RegisterHostFunction("type", ZenType.Type, [new ZenFunction.Argument("val", ZenType.Any)], (ZenValue[] args) =>

@@ -4,7 +4,7 @@ namespace Zen.Execution.Builtins.Core;
 
 public class Time : IBuiltinsProvider
 {
-    public void RegisterBuiltins(Interpreter interp)
+    public static void RegisterBuiltins(Interpreter interp)
     {
         // 'time' returns the current time in milliseconds.
         interp.RegisterHostFunction("time", ZenType.Integer64, [], (ZenValue[] args) =>

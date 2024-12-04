@@ -3,11 +3,11 @@ using Environment = Zen.Execution.Environment;
 
 namespace Zen.Typing;
 
-// todo: add a ZenUserMethod and ZenHostMethod
 public class ZenHostMethod : ZenMethod
 {
 
-    public readonly Func<ZenObject, ZenValue[], ZenValue> Func;
+    public readonly Func<ZenObject, ZenValue[], ZenValue>? Func;
+    public readonly Func<ZenValue[], ZenValue>? StaticFunc;
 
     public ZenHostMethod(
         bool async,
@@ -16,7 +16,7 @@ public class ZenHostMethod : ZenMethod
         ZenType returnType,
         List<Argument> arguments,
         Func<ZenObject, ZenValue[], ZenValue> func
-    ) : base(async, name, visibility, returnType, arguments)
+    ) : base(async, name, visibility, returnType, arguments, false)
     {
         Func = func;
     }
@@ -27,29 +27,31 @@ public class ZenHostMethod : ZenMethod
         ZenClass.Visibility visibility,
         ZenType returnType,
         List<Argument> arguments,
-        Func<ZenObject, ZenValue[], ZenValue> func,
-        Environment? closure
-    ) : base(async, name, visibility, returnType, arguments)
+        Func<ZenValue[], ZenValue> staticFunc
+    ) : base(async, name, visibility, returnType, arguments, true)
     {
-        Func = func;
-        Closure = closure;
+        StaticFunc = staticFunc;
     }
 
     public ZenValue Call(Interpreter interpreter, ZenObject instance, ZenValue[] argValues)
     {
-        if (argValues.Length < Arity) {
-            throw new Exception($"Function called with {argValues.Length} arguments, but expected {Arity}");
+        if (this.Static) {
+            return StaticFunc!(argValues);
+        } else {
+            return Func!(instance, argValues);
         }
-
-        return Func(instance, argValues);
     }
 
     public override ZenValue Call(Interpreter interpreter, ZenValue[] argValues)
     {
-        throw new Exception("Methods must be called with a ZenObject instance");
+        if (Static) {
+            return StaticFunc!(argValues);
+        }else {
+            throw new Exception("Instance Methods must be called with a ZenObject instance.");
+        }
     }
 
-    public new BoundMethod Bind(ZenObject instance) {
+    public override BoundMethod Bind(ZenObject instance) {
         return new BoundMethod(instance, this);
     }
 }
