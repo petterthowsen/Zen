@@ -35,7 +35,7 @@ public class ZenObject {
                 continue;
             }
 
-            if (returnType != null && m.ReturnType != returnType) {
+            if (returnType != null && false == TypeChecker.IsCompatible(returnType, m.ReturnType)) {
                 continue;
             }
 
@@ -45,7 +45,7 @@ public class ZenObject {
 
             bool match = true;
             for (int i = 0; i < argTypes.Length; i++) {
-                if (m.Arguments[i].Type != argTypes[i]) {
+                if (false == TypeChecker.IsCompatible(argTypes[i], m.Arguments[i].Type)) {
                     match = false;
                     break;
                 }

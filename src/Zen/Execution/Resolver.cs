@@ -46,6 +46,10 @@ public class Resolver : IVisitor
     }
 
     public void Resolve(ProgramNode program, bool global = false) {
+        Reset();
+
+        Logger.Instance.Debug("RESOLVING PROGRAM: " + program.Location);
+
         if (global == false) {
             BeginScope();
         }
@@ -62,7 +66,7 @@ public class Resolver : IVisitor
 
     public void Resolve(Stmt[] statements) {
         foreach (var statement in statements) {
-            Resolve(statement);
+            statement.Accept(this);
         }
     }
     
@@ -82,12 +86,12 @@ public class Resolver : IVisitor
 
     public void BeginScope() {
         scopes.Push([]);
-        Logger.Instance.Debug($"[RESOLVER] Pushed new scope. Total scopes: {scopes.Count}");
+        //Logger.Instance.Debug($"[RESOLVER] Pushed new scope. Total scopes: {scopes.Count}");
     }
 
     public void EndScope() {
         var scope = scopes.Pop();
-        Logger.Instance.Debug($"[RESOLVER] Popped scope with variables: {string.Join(", ", scope.Keys)}. Remaining scopes: {scopes.Count}");
+        //Logger.Instance.Debug($"[RESOLVER] Popped scope with variables: {string.Join(", ", scope.Keys)}. Remaining scopes: {scopes.Count}");
     }
 
     /// <summary>
@@ -103,7 +107,7 @@ public class Resolver : IVisitor
             throw Interpreter.Error("Variable with this name already declared in this scope.", name.Location, ErrorType.RedefinitionError);
         }
 
-        Logger.Instance.Debug($"[RESOLVER] Declaring variable '{name.Value}' in scope at depth {scopes.Count - 1}");
+        //Logger.Instance.Debug($"[RESOLVER] Declaring variable '{name.Value}' in scope at depth {scopes.Count - 1}");
         scope.Add(name.Value, false);
     }
 
@@ -116,7 +120,7 @@ public class Resolver : IVisitor
             throw Interpreter.Error("Variable with this name already declared in this scope.", location, ErrorType.RedefinitionError);
         }
 
-        Logger.Instance.Debug($"[RESOLVER] Declaring variable '{name}' in scope at depth {scopes.Count - 1}");
+        //Logger.Instance.Debug($"[RESOLVER] Declaring variable '{name}' in scope at depth {scopes.Count - 1}");
         scope.Add(name, false);
     }
 
@@ -124,7 +128,7 @@ public class Resolver : IVisitor
         if (scopes.Count == 0) return;
 
         Dictionary<String, Boolean> scope = scopes.Peek();
-        Logger.Instance.Debug($"[RESOLVER] Defining variable '{name.Value}' in scope at depth {scopes.Count - 1}");
+        //Logger.Instance.Debug($"[RESOLVER] Defining variable '{name.Value}' in scope at depth {scopes.Count - 1}");
         scope[name.Value] = true;
     }
 
@@ -133,7 +137,7 @@ public class Resolver : IVisitor
         if (scopes.Count == 0) return;
 
         Dictionary<String, Boolean> scope = scopes.Peek();
-        Logger.Instance.Debug($"[RESOLVER] Defining variable '{name}' in scope at depth {scopes.Count - 1}");
+        //Logger.Instance.Debug($"[RESOLVER] Defining variable '{name}' in scope at depth {scopes.Count - 1}");
         scope[name] = true;
     }
 
@@ -150,49 +154,21 @@ public class Resolver : IVisitor
     /// <param name="name"></param>
     private void ResolveLocal(Node expr, string name) {
         var scopesList = scopes.ToList(); // Top scope is at index 0
-        Logger.Instance.Debug($"[RESOLVER] Resolving '{name}'. Scope chain from innermost to outermost:");
+        //Logger.Instance.Debug($"[RESOLVER] Resolving '{name}'. Scope chain from innermost to outermost:");
         for (int i = 0; i < scopesList.Count; i++) { // Iterate from innermost to outermost
             var vars = string.Join(", ", scopesList[i].Keys);
-            Logger.Instance.Debug($"[RESOLVER] Scope {i}: {vars}");
+            //Logger.Instance.Debug($"[RESOLVER] Scope {i}: {vars}");
             if (scopesList[i].ContainsKey(name)) {
                 var distance = i; // Correct distance calculation
-                Logger.Instance.Debug($"[RESOLVER] Found '{name}' in scope {i}, distance: {distance}");
+                //Logger.Instance.Debug($"[RESOLVER] Found '{name}' in scope {i}, distance: {distance}");
                 interpreter.Resolve(expr, distance);
                 return;
             }
         }
 
-        Logger.Instance.Debug($"[RESOLVER] Variable '{name}' not found in any scope, assuming global");
+        //Logger.Instance.Debug($"[RESOLVER] Variable '{name}' not found in any scope, assuming global");
     }
 
-    protected void ResolveFunction(FuncStmt funcStmt, FunctionType type) {
-        FunctionType enclosingFunction = currentFunction;
-        currentFunction = type;
-
-        BeginScope();
-        Logger.Instance.Debug($"[RESOLVER] Beginning function scope for {funcStmt.Identifier.Value}, type: {type}");
-
-        // If this is a method, make class parameters available in its scope
-        if (type == FunctionType.METHOD || type == FunctionType.CONSTRUCTOR) {
-            // The class parameters are already in the parent scope (from Visit(ClassStmt))
-            // We need to copy them into the method's scope
-            var classScope = scopes.Skip(1).First();  // Parent scope is the class scope
-            foreach (var param in classScope.Where(p => p.Key != "this")) {
-                scopes.Peek().Add(param.Key, true);
-            }
-        }
-
-        foreach (var parameter in funcStmt.Parameters) {
-            Declare(parameter.Identifier);
-            Define(parameter.Identifier);
-        }
-        
-        Resolve(funcStmt.Block.Statements);
-        
-        Logger.Instance.Debug($"[RESOLVER] Ending function scope for {funcStmt.Identifier.Value}");
-        EndScope();
-        currentFunction = enclosingFunction;
-    }
 
     public void Visit(ProgramNode programNode)
     {
@@ -211,9 +187,9 @@ public class Resolver : IVisitor
 
         Define(varStmt.Identifier);
 
-        // if (varStmt.TypeHint != null) {
-        //     Resolve(varStmt.TypeHint);
-        // }
+        if (varStmt.TypeHint != null) {
+            Resolve(varStmt.TypeHint);
+        }
     }
 
     public void Visit(Assignment assignment)
@@ -327,6 +303,28 @@ public class Resolver : IVisitor
     public void Visit(TypeHint typeHint)
     {
         // Do nothing
+        // if scopes.Count == 0, we're in the global scope
+        // there's therefore no need to resolve the identifier since
+        // the Interpreter will get it from the global environment
+        if (scopes.Count == 0) return;
+
+        Dictionary<String, Boolean> scope = scopes.Peek();
+
+        if (scope.ContainsKey(typeHint.Name) && !scope[typeHint.Name]) {
+            Error("Cannot read local variable in its own initializer.", typeHint.Location);
+        }
+
+        // types like T don't need to be resolved, they're handled in the interpreter.
+        if (typeHint.IsGeneric) {
+            return;
+        }
+
+        ResolveLocal(typeHint, typeHint.Name);
+        if (typeHint.IsParametric) {
+            foreach (TypeHint parameterTypeHint in typeHint.Parameters) {
+                Resolve(parameterTypeHint);
+            }
+        }
     }
 
     public void Visit(Logical logical)
@@ -355,6 +353,9 @@ public class Resolver : IVisitor
         Declare(classStmt.Identifier);
         Define(classStmt.Identifier);
 
+        // Class scope for properties and method signatures
+        BeginScope();
+
         // resolve super class
         if (classStmt.Extends != null) {
             Resolve(classStmt.Extends);
@@ -365,9 +366,7 @@ public class Resolver : IVisitor
             Resolve(implementsExpr);
         }
 
-        // Class scope for properties and method signatures
-        BeginScope();
-        Logger.Instance.Debug($"[RESOLVER] Beginning class scope for {classStmt.Identifier.Value}");
+        //Logger.Instance.Debug($"[RESOLVER] Beginning class scope for {classStmt.Identifier.Value}");
         scopes.Peek().Add("this", true);
 
         // Make class parameters available in method scopes
@@ -383,10 +382,70 @@ public class Resolver : IVisitor
             ResolveFunction(method, declaration);
         }
 
-        Logger.Instance.Debug($"[RESOLVER] Ending class scope for {classStmt.Identifier.Value}");
+        //Logger.Instance.Debug($"[RESOLVER] Ending class scope for {classStmt.Identifier.Value}");
         EndScope();
     }
 
+      protected void ResolveFunction(FuncStmt funcStmt, FunctionType type) {
+        FunctionType enclosingFunction = currentFunction;
+        currentFunction = type;
+
+        Resolve(funcStmt.ReturnType);
+
+        BeginScope();
+        //Logger.Instance.Debug($"[RESOLVER] Beginning function scope for {funcStmt.Identifier.Value}, type: {type}");
+
+        // If this is a method, make class parameters available in its scope
+        if (type == FunctionType.METHOD || type == FunctionType.CONSTRUCTOR) {
+            // The class parameters are already in the parent scope (from Visit(ClassStmt))
+            // We need to copy them into the method's scope
+            var classScope = scopes.Skip(1).First();  // Parent scope is the class scope
+            foreach (var param in classScope.Where(p => p.Key != "this")) {
+                scopes.Peek().Add(param.Key, true);
+            }
+        }
+
+        foreach (var parameter in funcStmt.Parameters) {
+            Declare(parameter.Identifier);
+            Define(parameter.Identifier);
+        }
+        
+        Resolve(funcStmt.Block.Statements);
+        
+        //Logger.Instance.Debug($"[RESOLVER] Ending function scope for {funcStmt.Identifier.Value}");
+        EndScope();
+        currentFunction = enclosingFunction;
+    }
+
+      protected void ResolveAbstractMethod(AbstractMethodStmt funcStmt, FunctionType type) {
+        FunctionType enclosingFunction = currentFunction;
+        currentFunction = type;
+
+        // return type
+        Resolve(funcStmt.ReturnType);
+
+        BeginScope();
+        //Logger.Instance.Debug($"[RESOLVER] Beginning function scope for {funcStmt.Identifier.Value}, type: {type}");
+
+        // If this is a method, make class parameters available in its scope
+        if (type == FunctionType.METHOD || type == FunctionType.CONSTRUCTOR) {
+            // The class parameters are already in the parent scope (from Visit(ClassStmt))
+            // We need to copy them into the method's scope
+            // var classScope = scopes.Skip(1).First();  // Parent scope is the class scope
+            // foreach (var param in classScope.Where(p => p.Key != "this")) {
+            //     scopes.Peek().Add(param.Key, true);
+            // }
+        }
+
+        foreach (var parameter in funcStmt.Parameters) {
+            Declare(parameter.Identifier);
+            Define(parameter.Identifier);
+        }
+
+        //Logger.Instance.Debug($"[RESOLVER] Ending function scope for {funcStmt.Identifier.Value}");
+        EndScope();
+        currentFunction = enclosingFunction;
+    }
 
     public void Visit(ImplementsExpr implementsExpr)
     {
@@ -409,14 +468,14 @@ public class Resolver : IVisitor
             scopes.Peek().Add(param.Name, true);
         }
 
-        // abstract methods don't have bodies, so no need for this here.
-        // foreach (AbstractMethodStmt method in interfaceStmt.Methods) {
-        //     FunctionType declaration = FunctionType.METHOD;
-        //     if (method.Identifier.Value == interfaceStmt.Identifier.Value) {
-        //         declaration = FunctionType.CONSTRUCTOR;
-        //     }
-        //     ResolveFunction(method, declaration);
-        // }
+        //abstract methods don't have bodies, so no need for this here.
+        foreach (AbstractMethodStmt method in interfaceStmt.Methods) {
+            FunctionType declaration = FunctionType.METHOD;
+            if (method.Identifier.Value == interfaceStmt.Identifier.Value) {
+                declaration = FunctionType.CONSTRUCTOR;
+            }
+            ResolveAbstractMethod(method, declaration);
+        }
 
         EndScope();
     }

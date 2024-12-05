@@ -1,5 +1,6 @@
 using Zen.Common;
 using Zen.Execution.EvaluationResult;
+using Zen.Execution.Import;
 using Zen.Lexing;
 using Zen.Parsing.AST;
 using Zen.Parsing.AST.Expressions;
@@ -264,7 +265,7 @@ public partial class Interpreter
         CurrentNode = forStmt;
 
         Environment previousEnvironment = environment;
-        environment = new Environment(previousEnvironment);
+        environment = new Environment(previousEnvironment, "for");
 
         try
         {
@@ -300,7 +301,61 @@ public partial class Interpreter
     {
         CurrentNode = forInStmt;
 
-        throw new NotImplementedException();
+        ZenValue targetVal = Evaluate(forInStmt.Expression).Value;
+
+        if (targetVal.IsObject() == false)
+        {
+            throw Error("Cannot iterate over non-object.", forInStmt.Expression.Location, Common.ErrorType.TypeError);
+        }
+
+        ZenObject target = (ZenObject) targetVal.Underlying!;
+
+        ZenInterface iterableInterface = FetchSymbol("System/Collections/Iterable", "Iterable").Underlying!;
+        ZenInterface enmeratorInterface = FetchSymbol("System/Collections/Enumerator", "Enumerator").Underlying!;
+
+        if (target.Class.Implements(iterableInterface) == false) {
+            throw Error($"Class '{target.Class.Name}' does not implement '{iterableInterface.Name}'.", forInStmt.Expression.Location, Common.ErrorType.TypeError);
+        }
+
+        Environment previousEnvironment = environment;
+        environment = new Environment(previousEnvironment, "for in");
+
+        try
+        {
+            Token valueIdentifier = forInStmt.ValueIdentifier;
+            Token? keyIdentifier = forInStmt.KeyIdentifier;
+            TypeHint? keyTypeHint = forInStmt.KeyTypeHint;
+            TypeHint? valueTypeHint = forInStmt.ValueTypeHint;
+            
+            ZenObject enumerator = CallObject(target, "GetEnumerator").Underlying!;
+
+            // the type of the value is the type of the enumerator
+            ZenType elementType = target.GetParameter("T").Underlying!;
+
+            environment.Define(false, valueIdentifier.Value, elementType, false);
+
+            if (keyIdentifier != null) {
+                environment.Define(false, keyIdentifier.Value.Value, elementType, false);
+            }
+
+            while (CallObject(enumerator, "MoveNext").IsTruthy()) {
+                environment.Assign(valueIdentifier.Value, CallObject(enumerator, "Current"));
+
+                if (keyIdentifier != null) {
+                    environment.Assign(keyIdentifier.Value.Value, enumerator.GetProperty("index"));
+                }
+
+                foreach (Stmt statement in forInStmt.Block.Statements) {
+                    statement.Accept(this);
+                }
+            }            
+        }
+        finally
+        {
+            environment = previousEnvironment;
+        }
+
+        return (ValueResult)ZenValue.Void;
     }
 
     public IEvaluationResult Visit(ReturnStmt returnStmt)
@@ -386,188 +441,203 @@ public partial class Interpreter
     {
         CurrentNode = interfaceStmt;
 
-        // create the methods
-        List<ZenAbstractMethod> methods = [];
+        var previousEnvironment = environment;
 
-        foreach (AbstractMethodStmt methodStmt in interfaceStmt.Methods)
-        {
-            string name = methodStmt.Identifier.Value;
-            ZenClass.Visibility visibility = ZenClass.Visibility.Public;
-            ZenType returnType;
+        try {
+            environment = new Environment(environment, "interface");
 
-            if (methodStmt.ReturnType.IsGeneric) {
-                returnType = new ZenType(methodStmt.ReturnType.Name, methodStmt.ReturnType.Nullable, generic: true);
-            }else {
-                returnType = Evaluate(methodStmt.ReturnType).Type;
-            }
+            // create the methods
+            List<ZenAbstractMethod> methods = [];
 
-            // method parameters
-            List<ZenFunction.Argument> parameters = [];
-
-            for (int i = 0; i < methodStmt.Parameters.Length; i++)
+            foreach (AbstractMethodStmt methodStmt in interfaceStmt.Methods)
             {
-                FunctionParameterResult funcParamResult = (FunctionParameterResult) methodStmt.Parameters[i].Accept(this);
-                parameters.Add(funcParamResult.Parameter);
+                string name = methodStmt.Identifier.Value;
+                ZenClass.Visibility visibility = ZenClass.Visibility.Public;
+                ZenType returnType;
+
+                if (methodStmt.ReturnType.IsGeneric) {
+                    returnType = new ZenType(methodStmt.ReturnType.Name, methodStmt.ReturnType.Nullable, generic: true);
+                }else {
+                    returnType = Evaluate(methodStmt.ReturnType).Type;
+                }
+
+                // method parameters
+                List<ZenFunction.Argument> parameters = [];
+
+                for (int i = 0; i < methodStmt.Parameters.Length; i++)
+                {
+                    FunctionParameterResult funcParamResult = (FunctionParameterResult) methodStmt.Parameters[i].Accept(this);
+                    parameters.Add(funcParamResult.Parameter);
+                }
+
+                ZenAbstractMethod method = new(methodStmt.Async, name, visibility, returnType, parameters);
+                methods.Add(method);
             }
 
-            ZenAbstractMethod method = new(methodStmt.Async, name, visibility, returnType, parameters);
-            methods.Add(method);
-        }
+            // parameters
+            List<ZenClass.Parameter> genericParameters = [];
 
-        // parameters
-        List<ZenClass.Parameter> genericParameters = [];
+            foreach (ParameterDeclaration parameter in interfaceStmt.Parameters) {
+                ZenValue? defaultValue = null;
+                if (parameter.DefaultValue != null) {
+                    defaultValue = Evaluate(parameter.DefaultValue!).Value;
+                }
 
-        foreach (ParameterDeclaration parameter in interfaceStmt.Parameters) {
-            ZenValue? defaultValue = null;
-            if (parameter.DefaultValue != null) {
-                defaultValue = Evaluate(parameter.DefaultValue!).Value;
+                ZenClass.Parameter param = new(parameter.Name, Evaluate(parameter.Type).Type, defaultValue);
+                genericParameters.Add(param);
             }
 
-            ZenClass.Parameter param = new ZenClass.Parameter(parameter.Name, parameter.Type.GetZenType(), defaultValue);
-            genericParameters.Add(param);
+            return new ZenInterface(interfaceStmt.Identifier.Value, methods, genericParameters);
+        } finally {
+            environment = previousEnvironment;
         }
-
-        return new ZenInterface(interfaceStmt.Identifier.Value, methods, genericParameters);
     }
 
     protected ZenClass EvaluateClassStatement(ClassStmt classStmt)
     {
         CurrentNode = classStmt;
+        var previousEnvironment = environment;
 
-        // create the Properties
-        List<ZenClass.Property> properties = [];
+        try {
+            environment = new Environment(environment, "class");
+            
+            // create the Properties
+            List<ZenClass.Property> properties = [];
 
-        foreach (var property in classStmt.Properties)
-        {
-            CurrentNode = property;
-
-            ZenType type = ZenType.Any;
-            ZenValue defaultValue = ZenValue.Null;
-
-            if (property.Initializer != null)
+            foreach (var property in classStmt.Properties)
             {
-                IEvaluationResult defaultValueResult = Evaluate(property.Initializer);
-                defaultValue = defaultValueResult.Value;
-                type = defaultValue.Type;
+                CurrentNode = property;
 
-                if (property.TypeHint != null)
+                ZenType type = ZenType.Any;
+                ZenValue defaultValue = ZenValue.Null;
+
+                if (property.Initializer != null)
                 {
+                    IEvaluationResult defaultValueResult = Evaluate(property.Initializer);
+                    defaultValue = defaultValueResult.Value;
+                    type = defaultValue.Type;
+
+                    if (property.TypeHint != null)
+                    {
+                        if (property.TypeHint.IsGeneric) {
+                            type = new ZenType(property.TypeHint.Name, property.TypeHint.Nullable, generic: true);
+                        }else {
+                            type = Evaluate(property.TypeHint).Type;
+                        }
+
+                        if ( ! TypeChecker.IsCompatible(defaultValue.Type, type))
+                        {
+                            throw Error($"Cannot assign value of type '{defaultValue.Type}' to property of type '{type}'", property.TypeHint.Location, Common.ErrorType.TypeError);
+                        }
+                }
+                }else {
+                    if (property.TypeHint == null) {
+                        throw Error($"Property '{property.Identifier.Value}' must have a type hint", property.Identifier.Location, Common.ErrorType.SyntaxError);
+                    }
+
                     if (property.TypeHint.IsGeneric) {
                         type = new ZenType(property.TypeHint.Name, property.TypeHint.Nullable, generic: true);
                     }else {
+                        // type = property.TypeHint.GetZenType();
                         type = Evaluate(property.TypeHint).Type;
+                        defaultValue = new ZenValue(type, null);
                     }
+                }
 
-                    if ( ! TypeChecker.IsCompatible(defaultValue.Type, type))
+                ZenClass.Visibility visibility = ZenClass.Visibility.Public;
+                
+                // check modifiers
+                foreach (Token modifier in property.Modifiers)
+                {
+                    if (modifier.Value == "public")
                     {
-                        throw Error($"Cannot assign value of type '{defaultValue.Type}' to property of type '{type}'", property.TypeHint.Location, Common.ErrorType.TypeError);
+                        visibility = ZenClass.Visibility.Public;
                     }
-               }
-            }else {
-                if (property.TypeHint == null) {
-                    throw Error($"Property '{property.Identifier.Value}' must have a type hint", property.Identifier.Location, Common.ErrorType.SyntaxError);
+                    else if (modifier.Value == "private")
+                    {
+                        visibility = ZenClass.Visibility.Private;
+                    }
+                    else if (modifier.Value == "protected")
+                    {
+                        visibility = ZenClass.Visibility.Protected;
+                    }
                 }
 
-                if (property.TypeHint.IsGeneric) {
-                    type = new ZenType(property.TypeHint.Name, property.TypeHint.Nullable, generic: true);
+                properties.Add(new ZenClass.Property(property.Identifier.Value, type, defaultValue, visibility));
+            }
+
+            // create the methods
+            List<ZenMethod> methods = [];
+
+            foreach (MethodStmt methodStmt in classStmt.Methods)
+            {
+                CurrentNode = methodStmt;
+
+                string name = methodStmt.Identifier.Value;
+                ZenClass.Visibility visibility = ZenClass.Visibility.Public;
+                ZenType returnType;
+
+                if (methodStmt.ReturnType.IsGeneric) {
+                    returnType = new ZenType(methodStmt.ReturnType.Name, methodStmt.ReturnType.Nullable, generic: true);
                 }else {
-                    // type = property.TypeHint.GetZenType();
-                    type = Evaluate(property.TypeHint).Type;
-                    defaultValue = new ZenValue(type, null);
+                    returnType = Evaluate(methodStmt.ReturnType).Type;
+                }
+
+                // method parameters
+                List<ZenFunction.Argument> parameters = [];
+
+                for (int i = 0; i < methodStmt.Parameters.Length; i++)
+                {
+                    FunctionParameterResult funcParamResult = (FunctionParameterResult) methodStmt.Parameters[i].Accept(this);
+                    parameters.Add(funcParamResult.Parameter);
+                }
+
+                ZenUserMethod method = new(methodStmt.Async, name, visibility, returnType, parameters, methodStmt.Block, environment);
+                methods.Add(method);
+            }
+
+            // parameters
+            List<ZenClass.Parameter> genericParameters = [];
+
+            foreach (ParameterDeclaration parameter in classStmt.Parameters) {
+                CurrentNode = parameter;
+
+                ZenValue? defaultValue = null;
+                if (parameter.DefaultValue != null) {
+                    defaultValue = Evaluate(parameter.DefaultValue!).Value;
+                }
+
+                ZenClass.Parameter param = new(parameter.Name, Evaluate(parameter.Type).Type, defaultValue);
+                genericParameters.Add(param);
+            }
+
+            ZenClass clazz = new ZenClass(classStmt.Identifier.Value, methods, properties, genericParameters);
+
+            // extends?
+            if (classStmt.Extends != null) {
+                ZenValue val = Evaluate(classStmt.Extends).Value;
+                if (val.Type == ZenType.Class) {
+                    clazz.SuperClass = val.Underlying!;
+                }else {
+                    throw Error($"Class '{classStmt.Identifier.Value}' cannot extend non-class type '{val.Type}'", classStmt.Extends.Location, Common.ErrorType.SyntaxError);
                 }
             }
 
-            ZenClass.Visibility visibility = ZenClass.Visibility.Public;
+            // implements?
+            foreach (ImplementsExpr implements in classStmt.Implements) {
+                CurrentNode = implements;
+                ZenValue val = Evaluate(implements.Identifier).Value;
+                if (val.Type == ZenType.Interface) {
+                    clazz.Interfaces.Add(val.Underlying!);
+                }else {
+                    throw Error($"Class '{classStmt.Identifier.Value}' cannot implement non-interface type '{val.Type}'", implements.Location, Common.ErrorType.SyntaxError);
+                }
+            }
             
-            // check modifiers
-            foreach (Token modifier in property.Modifiers)
-            {
-                if (modifier.Value == "public")
-                {
-                    visibility = ZenClass.Visibility.Public;
-                }
-                else if (modifier.Value == "private")
-                {
-                    visibility = ZenClass.Visibility.Private;
-                }
-                else if (modifier.Value == "protected")
-                {
-                    visibility = ZenClass.Visibility.Protected;
-                }
-            }
-
-            properties.Add(new ZenClass.Property(property.Identifier.Value, type, defaultValue, visibility));
+            return clazz;
+        } finally {
+            environment = previousEnvironment;
         }
-
-        // create the methods
-        List<ZenMethod> methods = [];
-
-        foreach (MethodStmt methodStmt in classStmt.Methods)
-        {
-            CurrentNode = methodStmt;
-
-            string name = methodStmt.Identifier.Value;
-            ZenClass.Visibility visibility = ZenClass.Visibility.Public;
-            ZenType returnType = ZenType.Void;
-
-            if (methodStmt.ReturnType.IsGeneric) {
-                returnType = new ZenType(methodStmt.ReturnType.Name, methodStmt.ReturnType.Nullable, generic: true);
-            }else {
-                returnType = Evaluate(methodStmt.ReturnType).Type;
-            }
-
-            // method parameters
-            List<ZenFunction.Argument> parameters = [];
-
-            for (int i = 0; i < methodStmt.Parameters.Length; i++)
-            {
-                FunctionParameterResult funcParamResult = (FunctionParameterResult) methodStmt.Parameters[i].Accept(this);
-                parameters.Add(funcParamResult.Parameter);
-            }
-
-            ZenUserMethod method = new(methodStmt.Async, name, visibility, returnType, parameters, methodStmt.Block, environment);
-            methods.Add(method);
-        }
-
-        // parameters
-        List<ZenClass.Parameter> genericParameters = [];
-
-        foreach (ParameterDeclaration parameter in classStmt.Parameters) {
-            CurrentNode = parameter;
-
-            ZenValue? defaultValue = null;
-            if (parameter.DefaultValue != null) {
-                defaultValue = Evaluate(parameter.DefaultValue!).Value;
-            }
-
-            ZenClass.Parameter param = new ZenClass.Parameter(parameter.Name, parameter.Type.GetZenType(), defaultValue);
-            genericParameters.Add(param);
-        }
-
-        ZenClass clazz = new ZenClass(classStmt.Identifier.Value, methods, properties, genericParameters);
-
-        // extends?
-        if (classStmt.Extends != null) {
-            ZenValue val = Evaluate(classStmt.Extends).Value;
-            if (val.Type == ZenType.Class) {
-                clazz.SuperClass = val.Underlying!;
-            }else {
-                throw Error($"Class '{classStmt.Identifier.Value}' cannot extend non-class type '{val.Type}'", classStmt.Extends.Location, Common.ErrorType.SyntaxError);
-            }
-        }
-
-        // implements?
-        foreach (ImplementsExpr implements in classStmt.Implements) {
-            CurrentNode = implements;
-            ZenValue val = Evaluate(implements.Identifier).Value;
-            if (val.Type == ZenType.Interface) {
-                clazz.Interfaces.Add(val.Underlying!);
-            }else {
-                throw Error($"Class '{classStmt.Identifier.Value}' cannot implement non-interface type '{val.Type}'", implements.Location, Common.ErrorType.SyntaxError);
-            }
-        }
-        
-        return clazz;
     }
 
     public IEvaluationResult Visit(PropertyStmt propertyStmt)

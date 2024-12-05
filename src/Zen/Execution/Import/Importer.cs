@@ -11,6 +11,11 @@ namespace Zen.Execution.Import;
 /// It can resolve names and nested names to namespaces, modules, and symbols.
 /// It handles the execution/initialization of modules and provides their symbols.
 /// </summary>
+/// 
+/// 
+/// TODO: There's currently a bug where if a module imports something using 'from X import Y', only X will be resolved (but not Y)
+/// 
+
 public class Importer 
 {
     public List<AbstractProvider> Providers { get; private set; } = [];
@@ -39,7 +44,7 @@ public class Importer
     /// </summary>
     public ImportResolution ResolveSymbols(string path, bool global = false)
     {
-        Logger.Instance.Debug($"Resolving symbols for path: {path}");
+        Logger.Instance.Debug($"[Importer] ResolveSymbols, path: {path}");
 
         // Check cache first
         if (_moduleCache.TryGetValue(path, out var cachedModule))
@@ -52,19 +57,15 @@ public class Importer
         ImportResolution? resolution = null;
         foreach (var provider in Providers) 
         {
-            Logger.Instance.Debug($"Trying provider {provider.GetType().Name} for path: {path}");
             resolution = provider.Resolve(path);
             if (resolution != null)
             {
-                Logger.Instance.Debug($"Provider {provider.GetType().Name} resolved {path} as {resolution.GetType().Name}");
                 break;
             }
-            Logger.Instance.Debug($"Provider {provider.GetType().Name} could not resolve {path}");
         }
 
         if (resolution == null)
         {
-            Logger.Instance.Error($"No provider could resolve path: {path}");
             throw new Exception($"Cannot resolve {path}.");
         }
 
@@ -81,7 +82,7 @@ public class Importer
     /// <summary>
     /// Phase 2: Executes modules, supporting circular dependencies
     /// </summary>
-    public Symbol[] Import(string path, bool global = false)
+    public ImportResolution Import(string path, bool global = false)
     {
         Logger.Instance.Debug($"Importing path: {path} (global: {global})");
         var resolution = ResolveSymbols(path, global);
@@ -90,10 +91,9 @@ public class Importer
         {
             var module = resolution.AsModule().Module;
             ExecuteModule(module);
-            return [.. module.Symbols];
         }
 
-        return [];
+        return resolution;
     }
 
     /// <summary>
@@ -141,7 +141,7 @@ public class Importer
             if (global) {
                 module.environment = _interpreter.globalEnvironment;
             }else {
-                module.environment = new Environment(_interpreter.globalEnvironment);
+                module.environment = new Environment(_interpreter.globalEnvironment, "module " + module.FullPath);
             }
 
             // First pass: Declare all class types with empty implementations
@@ -233,14 +233,14 @@ public class Importer
             var oldEnv = _interpreter.environment;
             try {
                 _interpreter.environment = module.environment;
-                _resolver.Resolve(module.AST, global: false);
+                _resolver.Resolve(module.AST, global);
             } finally {
                 _interpreter.environment = oldEnv;
             }
 
             module.State = State.ImportsResolved;
             _moduleCache[module.FullPath] = module;
-            Logger.Instance.Debug($"Module processing complete: {module.FullPath}");
+            Logger.Instance.Debug($"Module processing complete, adding to cache: {module.FullPath}");
         }
     }
 
@@ -256,13 +256,11 @@ public class Importer
             return;
         }
 
-        Logger.Instance.Debug($"Executing module: {module.FullPath} (State: {module.State})");
-
         // If currently executing, we have a circular dependency
         // This is fine - the module's environment is already set up
         if (module.State == State.Executing)
         {
-            Logger.Instance.Debug($"Circular dependency during execution: {module.FullPath}");
+            Logger.Instance.Debug($"Module is currently executing: {module.FullPath}");
             return;
         }
 
@@ -274,6 +272,8 @@ public class Importer
 
         // Set up module environment and mark as executing
         module.State = State.Executing;
+
+        Logger.Instance.Debug($"Executing module: {module.FullPath} (State: {module.State})...");
 
         // Execute dependencies - they may reference back to this module
         foreach (var dependency in module.Dependencies)
@@ -290,7 +290,7 @@ public class Importer
 
         // Execute the module's code in its environment
         // We pass false to awaitEvents, since that should only be done at the main script being executed.
-        Logger.Instance.Debug($"Executing module: {module.FullPath}");
+        Logger.Instance.Debug($"Executing module: {module.FullPath}...");
 
         // module.environment may be == to interpreter.environment
         // in that case, it will be executed in global scope.
@@ -304,6 +304,6 @@ public class Importer
         }
 
         module.State = State.Executed;
-        Logger.Instance.Debug($"Module execution complete: {module.FullPath}");
+        Logger.Instance.Debug($"Module execution complete: {module.FullPath}.");
     }
 }

@@ -596,25 +596,39 @@ public IEvaluationResult Visit(Grouping grouping)
     {
         CurrentNode = typeHint;
 
-        // For primitive types like 'string', return a TypeResult with the base type
-        // don't need to do this, as all primtiives are global variables, see below...
-        // if (typeHint.IsPrimitive()) {
-        //     var baseType = typeHint.GetBaseZenType();
-        //     return new TypeResult(baseType);
-        // }
-
         // Look up if this resolves to a known type.
-        // For class types, look up the class and return its type
+        // For class and interface types , look up the class and return its type
+
+        // TODO: we should probably use lookUpVariable for interface too
+        // but not for generics
+
+
+
+        if (typeHint.IsGeneric) {
+            return new TypeResult(ZenType.Type, typeHint.Nullable);
+        }
+
         VariableResult variable = LookUpVariable(typeHint.Name, typeHint);
+
         if (variable.Type == ZenType.Class) {
             ZenClass clazz = (ZenClass)variable.Value.Underlying!;
             ZenType type = clazz.Type;
+            // if (typeHint.Nullable) // this doesn't work for classes yet
+            // {
+            //     type = type.MakeNullable();
+            // }
+            return new TypeResult(type, typeHint.Nullable);
+        }
+        else if (variable.Type == ZenType.Interface) {
+            ZenInterface @interface = (ZenInterface)variable.Value.Underlying!;
+            ZenType type = @interface.Type;
             if (typeHint.Nullable)
             {
                 type = type.MakeNullable();
             }
             return new TypeResult(type, typeHint.Nullable);
-        }else {
+        }
+        else {
             return new TypeResult(variable.Value, typeHint.Nullable); // variable.Type == ZenType.Type while variable.value is ZenType.String|Int etc
         }
     }

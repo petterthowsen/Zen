@@ -19,7 +19,7 @@ public class ZenType {
     public static ZenType String = new("string");
     public static ZenType Null = new("null");
     public static ZenType Void = new("void");
-    public static ZenType Promise = new("Promise"); // Represents Promise type
+    public static ZenType Promise = new("Promise");
 
     private static readonly Dictionary<string, ZenType> _primitives = new() {
         { "int", Integer },
@@ -46,8 +46,9 @@ public class ZenType {
         }
     }
 
-    public readonly string Name;
-    public readonly bool IsNullable;
+    public ZenType? BaseType;
+    public string Name;
+    public bool IsNullable;
     public ZenType[] Parameters = [];
 
     public bool IsObject => this == Object;
@@ -70,12 +71,22 @@ public class ZenType {
         Parameters = parameters;
     }
 
+    public ZenType(string name, bool isNullable, bool isGeneric, ZenType[] parameters)
+    {
+        Name = name;
+        IsNullable = isNullable;
+        IsGeneric = isGeneric;
+        Parameters = parameters;
+    }
+
     public ZenType(string name, bool nullable, bool generic)
     {
         Name = name;
         IsNullable = nullable;
         IsGeneric = generic;
     }
+
+    public ZenType(ZenType baseType, )
 
     public ZenType MakeNullable() {
         return new ZenType(Name, true, Parameters);

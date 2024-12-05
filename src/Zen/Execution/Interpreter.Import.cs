@@ -17,7 +17,7 @@ public partial class Interpreter {
     
     public Module GetModule(string modulePath)
     {
-        var resolution = Importer.ResolveSymbols(modulePath);
+        var resolution = Importer.Import(modulePath);
         if (resolution.IsModule())
         {
             var module = resolution.AsModule().Module;
@@ -27,6 +27,12 @@ public partial class Interpreter {
         {
             throw new RuntimeError($"Cannot import '{modulePath}': not a module or namespace");
         }
+    }
+
+    public ZenValue FetchSymbol(string modulePath, string symbol)
+    {
+        var module = GetModule(modulePath);
+        return module.environment.GetValue(symbol);
     }
 
     public IEvaluationResult Visit(ImportStmt import)
@@ -42,26 +48,12 @@ public partial class Interpreter {
         // We always import the symbols
 
         // Import through the Importer
-        ImportResolution resolution = Importer.ResolveSymbols(modulePath);
+        ImportResolution resolution = Importer.Import(modulePath);
 
         if (resolution.IsModule())
         {
             var module = resolution.AsModule().Module;
-            
-            // Execute the module if it hasn't been executed yet
-            if (module.State != State.Executed)
-            {
-                Importer.Import(modulePath);
-            }
-
             ApplyModuleImport(module);
-        }
-        else if (resolution.Result is IHasModules moduleContainer) // both packages and namespaces can contain modules
-        {
-            foreach(var module in moduleContainer.Modules.Values)
-            {
-                ApplyModuleImport(module);
-            }
         }
 
         return VoidResult.Instance;

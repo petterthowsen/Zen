@@ -26,6 +26,18 @@ public partial class Interpreter
         return CallObject(obj, methodName, returnType, []);
     }
 
+    public ZenValue CallObject(ZenObject obj, string methodName)
+    {
+        ZenMethod? method = obj.GetMethodHierarchically(methodName);
+
+        if (method == null) {
+            throw Error($"{obj.Class} has no method {methodName}!");
+        }
+
+        BoundMethod boundMethod = method.Bind(obj);
+        return CallFunction(boundMethod, []).Value;
+    }
+
     public IEvaluationResult CallFunction(ZenFunction function, ZenValue[] arguments)
     {
         if (function is ZenHostFunction hostFunc)
@@ -80,10 +92,10 @@ public partial class Interpreter
                 Environment previousEnvironment = environment;
 
                 // Create outer environment for Arguments
-                Environment paramEnv = new Environment(closure);
+                environment = new Environment(closure, "function env");
                 for (int i = 0; i < arguments.Count; i++)
                 {
-                    paramEnv.Define(false, arguments[i].Name, arguments[i].Type, arguments[i].Nullable);
+                    environment.Define(false, arguments[i].Name, arguments[i].Type, arguments[i].Nullable);
 
                     ZenValue argValue = argValues[i];
 
@@ -97,11 +109,8 @@ public partial class Interpreter
                     argValue = TypeConverter.Convert(argValue, arguments[i].Type, false);
 
                     // assign
-                    paramEnv.Assign(arguments[i].Name, argValue);
+                    environment.Assign(arguments[i].Name, argValue);
                 }
-
-                // Create inner environment for method body
-                environment = new Environment(paramEnv);
 
                 try
                 {
@@ -143,10 +152,11 @@ public partial class Interpreter
             Environment previousEnvironment = environment;
 
             // Create outer environment for Arguments
-            Environment paramEnv = new Environment(closure);
+            environment = new Environment(closure, "function env");
+
             for (int i = 0; i < arguments.Count; i++)
             {
-                paramEnv.Define(false, arguments[i].Name, arguments[i].Type, arguments[i].Nullable);
+                environment.Define(false, arguments[i].Name, arguments[i].Type, arguments[i].Nullable);
 
                     ZenValue argValue = argValues[i];
 
@@ -160,11 +170,8 @@ public partial class Interpreter
                     argValue = TypeConverter.Convert(argValue, arguments[i].Type, false);
 
                     // assign
-                    paramEnv.Assign(arguments[i].Name, argValue);
+                    environment.Assign(arguments[i].Name, argValue);
             }
-
-            // Create inner environment for method body
-            environment = new Environment(paramEnv);
 
             try
             {

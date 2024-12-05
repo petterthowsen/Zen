@@ -22,7 +22,7 @@ public abstract class ZenMethod : ZenFunction
     }
 
     public virtual BoundMethod Bind(ZenObject instance) {
-        Environment environment = new Environment(Closure);
+        Environment environment = new Environment(Closure, "bound method");
         
         // assign 'this' as the instance with its specific type
         environment.Define(true, "this", instance.Type, false);

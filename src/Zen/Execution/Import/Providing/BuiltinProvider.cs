@@ -28,10 +28,9 @@ public class BuiltinProvider : AbstractProvider
             .ToList();
 
         Logger.Instance.Debug($"Found {resources.Count} builtin resources");
+        
         foreach (var resource in resources)
         {
-            Logger.Instance.Debug($"Processing resource: {resource}");
-            
             // Convert resource name to package path
             // e.g. Zen.Execution.Builtins.Packages.System.Exception.zen -> System/Exception
             var relativePath = resource.Substring(_basePath.Length + 1) // +1 for the dot
@@ -47,7 +46,6 @@ public class BuiltinProvider : AbstractProvider
             {
                 package = new Package(packageName, packageName);
                 _packages[packageName] = package;
-                Logger.Instance.Debug($"Created package: {packageName}");
             }
 
             // If this is a module (ends in .zen), create it
@@ -69,13 +67,11 @@ public class BuiltinProvider : AbstractProvider
                     var namespacePath = string.Join("/", segments.Take(segments.Length - 1));
                     var ns = FindOrCreateNamespace(package, namespacePath);
                     ns.AddModule(segments.Last(), module);
-                    Logger.Instance.Debug($"Added module {segments.Last()} to namespace {namespacePath}");
                 }
                 else
                 {
                     // Module is directly in package
                     package.AddModule(segments.Last(), module);
-                    Logger.Instance.Debug($"Added module {segments.Last()} to package {packageName}");
                 }
             }
         }
@@ -98,7 +94,6 @@ public class BuiltinProvider : AbstractProvider
                 var nsPath = string.Join("/", segments.Take(i + 1));
                 ns = new Namespace(nsPath);
                 current.AddNamespace(ns);
-                Logger.Instance.Debug($"Created namespace: {nsPath}");
             }
 
             current = ns;

@@ -64,13 +64,13 @@ public partial class Parser {
             MaybeSome(TokenType.Whitespace);
 
             // make sure we have at least one parameter
-            parameters.Add(TypeHint());
+            parameters.Add(TypeHint(genericTypes));
             MaybeSome(TokenType.Whitespace);
 
             // parse more parameters separated by comma
             while (Match(TokenType.Comma)) {
                 MaybeSome(TokenType.Whitespace);
-                parameters.Add(TypeHint());
+                parameters.Add(TypeHint(genericTypes));
                 MaybeSome(TokenType.Whitespace);
             }
 

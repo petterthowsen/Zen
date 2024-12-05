@@ -77,6 +77,24 @@ public class ArrayTests : TestRunner
     }
 
     [Fact]
+    public void TestForInLoop()
+    {
+        RestartInterpreter();
+        var result = Execute(@"
+            var arr = new Array<string>()
+            arr.Append(""one"")
+            arr.Append(""two"")
+            arr.Append(""three"")
+            for key, value in arr {
+                print ""key: "" +  key + ""\n""
+                print ""value: "" + value + ""\n""
+            }
+        ");
+
+        Assert.Equal("key: 0\nvalue: one\nkey: 1\nvalue: two\nkey: 2\nvalue: three\n", result);
+    }
+
+    [Fact]
     public void TestArrayRemoveAt()
     {
         RestartInterpreter();

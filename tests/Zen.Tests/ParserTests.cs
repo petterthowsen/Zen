@@ -24,7 +24,7 @@ public class ParserTests {
 
     private ProgramNode Parse(string code) {
         List<Token> tokens = Lexer.Tokenize(code);
-        ProgramNode node = Parser.Parse(tokens);
+        ProgramNode node = Parser.Parse(tokens, throwErrors: true);
 
         if (Verbose) {
             _output.WriteLine(Helper.PrintTokens(tokens));
@@ -311,6 +311,17 @@ public class ParserTests {
         Assert.IsType<PrintStmt>(block.Statements[0]);
     }
 
+    [Fact]
+    public void TestForInLoop() {
+        ProgramNode program = Parse(@"
+            for key, value in target {
+                print key
+            }
+        ");
+
+        Assert.Single(program.Statements);
+        Assert.IsType<ForInStmt>(program.Statements[0]);
+    }
     
     [Fact]
     public void TestCall() {

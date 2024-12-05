@@ -122,7 +122,7 @@ public class ZenClass {
                 var paramValue = paramValues[param.Name];
                 if (!param.ValidateValue(paramValue)) {
                     var expectedType = param.IsTypeParameter ? "Type" : param.Type.ToString();
-                    throw Interpreter.Error($"Invalid value for parameter '{param.Name}'. Expected {expectedType}, got {paramValue.Type}");
+                    throw Interpreter.Error($"Invalid value provided for parameter '{param.Name}'. {paramValue.Type} is not a Type.");
                 }
             }
         }
@@ -230,7 +230,7 @@ public class ZenClass {
         // it'll fallback to class methods for non-generic methods.
         var constructor = instance.GetOwnConstructor(args);
         if (constructor == null && args.Length > 0) {
-            throw Interpreter.Error("No valid constructor found for class " + Name);
+            throw Interpreter.Error($"No valid constructor found for class {Name} with arguments: {string.Join(", ", args.Select(p => $"{p.Type}"))}");
         }
         
         // call constructor
@@ -433,7 +433,8 @@ public class ZenClass {
     }
 
     public bool IsSubclassOf(ZenClass other) {
-        return other.IsAssignableFrom(this);
+        if (SuperClass == null) return false;
+        return SuperClass == other || SuperClass.IsSubclassOf(other);
     }
 
     public void Validate() {

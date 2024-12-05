@@ -12,8 +12,12 @@ public class Environment {
 
     public Dictionary<string, Variable> Variables = [];
 
-    public Environment(Environment? parent = null) {
+    public string Name;
+
+    public Environment(Environment? parent = null, string name = "env") {
         Parent = parent;
+        Name = name;
+        Logger.Instance.Debug($"Created environment {Name}");
     }
 
     /// <summary>

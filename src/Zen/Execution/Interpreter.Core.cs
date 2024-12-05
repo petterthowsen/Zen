@@ -20,7 +20,7 @@ public partial class Interpreter : IGenericVisitor<IEvaluationResult>
     /// <summary>
     /// The top level environment / global scope
     /// </summary>
-    public Environment globalEnvironment = new();
+    public Environment globalEnvironment = new(null, "global");
 
     // The current environment
     public Environment environment;
@@ -99,6 +99,7 @@ public partial class Interpreter : IGenericVisitor<IEvaluationResult>
 
     public void Resolve(Node expr, int depth = 0)
     {
+        Logger.Instance.Debug($"Resolving {expr} at depth {depth}");
         Locals.Add(expr, depth);
     }
 

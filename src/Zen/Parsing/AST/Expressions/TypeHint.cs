@@ -38,7 +38,7 @@ public class TypeHint : Expr
     public ZenType GetBaseZenType() {
         // If this is a generic parameter (like T), return ZenType.Type
         if (IsGeneric) {
-            return ZenType.Type;
+            return new ZenType(Name, Nullable, true, Parameters.Select(p => p.GetZenType()).ToArray());
         }
         return ZenType.FromString(Name, Nullable);
     }
@@ -55,13 +55,14 @@ public class TypeHint : Expr
         if (obj is TypeHint other) {
             return Name == other.Name && 
                    Nullable == other.Nullable && 
+                   IsGeneric == other.IsGeneric &&
                    Parameters.SequenceEqual(other.Parameters);
         }
         return false;
     }
 
     public override int GetHashCode() {
-        return HashCode.Combine(Name, Nullable, Parameters);
+        return HashCode.Combine(Token, Name, Parameters, Nullable, IsGeneric);
     }
 
     public override void Accept(IVisitor visitor)

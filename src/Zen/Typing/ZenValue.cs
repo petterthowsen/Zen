@@ -20,6 +20,8 @@ public readonly struct ZenValue(ZenType type, dynamic? underlying = null)
 
     public readonly bool IsNumber() => Type.IsNumeric;
 
+    public readonly bool IsObject() => Underlying is ZenObject;
+
     public readonly bool IsBool() {
         return Type == ZenType.Boolean;
     }
