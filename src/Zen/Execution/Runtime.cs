@@ -48,6 +48,7 @@ public class Runtime
         Builtins.Core.Typing.RegisterBuiltins(Interpreter);
         Builtins.Core.Interop.RegisterBuiltins(Interpreter);
         Builtins.Core.Array.RegisterBuiltins(Interpreter);
+        Builtins.Core.Time.RegisterBuiltins(Interpreter);
 
         // Import Always-Loaded modules
         // Importer.Import("System/Collections/BracketGet", true);

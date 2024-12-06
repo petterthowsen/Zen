@@ -456,7 +456,7 @@ public partial class Interpreter
                 ZenType returnType;
 
                 if (methodStmt.ReturnType.IsGeneric) {
-                    returnType = new ZenType(methodStmt.ReturnType.Name, methodStmt.ReturnType.Nullable, generic: true);
+                    returnType = ZenType.GenericParameter(methodStmt.ReturnType.Name);
                 }else {
                     returnType = Evaluate(methodStmt.ReturnType).Type;
                 }
@@ -475,7 +475,7 @@ public partial class Interpreter
             }
 
             // parameters
-            List<ZenClass.Parameter> genericParameters = [];
+            List<IZenClass.Parameter> genericParameters = [];
 
             foreach (ParameterDeclaration parameter in interfaceStmt.Parameters) {
                 ZenValue? defaultValue = null;
@@ -483,7 +483,7 @@ public partial class Interpreter
                     defaultValue = Evaluate(parameter.DefaultValue!).Value;
                 }
 
-                ZenClass.Parameter param = new(parameter.Name, Evaluate(parameter.Type).Type, defaultValue);
+                IZenClass.Parameter param = new(parameter.Name, Evaluate(parameter).Type, defaultValue);
                 genericParameters.Add(param);
             }
 
@@ -520,7 +520,7 @@ public partial class Interpreter
                     if (property.TypeHint != null)
                     {
                         if (property.TypeHint.IsGeneric) {
-                            type = new ZenType(property.TypeHint.Name, property.TypeHint.Nullable, generic: true);
+                            type = ZenType.GenericParameter(property.TypeHint.Name);
                         }else {
                             type = Evaluate(property.TypeHint).Type;
                         }
@@ -536,7 +536,7 @@ public partial class Interpreter
                     }
 
                     if (property.TypeHint.IsGeneric) {
-                        type = new ZenType(property.TypeHint.Name, property.TypeHint.Nullable, generic: true);
+                        type = ZenType.GenericParameter(property.TypeHint.Name);
                     }else {
                         // type = property.TypeHint.GetZenType();
                         type = Evaluate(property.TypeHint).Type;
@@ -578,12 +578,14 @@ public partial class Interpreter
                 ZenType returnType;
 
                 if (methodStmt.ReturnType.IsGeneric) {
-                    returnType = new ZenType(methodStmt.ReturnType.Name, methodStmt.ReturnType.Nullable, generic: true);
+                    //TODO: handle nullables
+                    returnType = ZenType.GenericParameter(methodStmt.ReturnType.Name);
                 }else {
                     returnType = Evaluate(methodStmt.ReturnType).Type;
                 }
 
                 // method parameters
+                // todo: handle generics
                 List<ZenFunction.Argument> parameters = [];
 
                 for (int i = 0; i < methodStmt.Parameters.Length; i++)
@@ -597,7 +599,7 @@ public partial class Interpreter
             }
 
             // parameters
-            List<ZenClass.Parameter> genericParameters = [];
+            List<IZenClass.Parameter> genericParameters = [];
 
             foreach (ParameterDeclaration parameter in classStmt.Parameters) {
                 CurrentNode = parameter;
@@ -607,7 +609,7 @@ public partial class Interpreter
                     defaultValue = Evaluate(parameter.DefaultValue!).Value;
                 }
 
-                ZenClass.Parameter param = new(parameter.Name, Evaluate(parameter.Type).Type, defaultValue);
+                IZenClass.Parameter param = new(parameter.Name, Evaluate(parameter).Type, defaultValue);
                 genericParameters.Add(param);
             }
 

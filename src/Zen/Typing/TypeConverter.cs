@@ -7,13 +7,15 @@ public static class TypeConverter {
     public static ZenValue Convert(ZenValue value, ZenType targetType, bool TypeCheck = false) {
         Logger.Instance.Debug($"Converting value of type {value.Type} to {targetType}");
 
-        // If target is a generic parameter (T), return the value as-is
-        // if (targetType.Name == "T") {
-        //     Logger.Instance.Debug("Target is generic parameter T, returning value as-is");
-        //     return value;
-        // }
+        // if target is Any or generic, return as is
+        if (targetType == ZenType.Any || targetType.IsGeneric) {
+            return value;
+        }
 
+        // if types are the same, return as is
         if (value.Type == targetType) return value;
+
+        // if type check is enabled, check compatibility
         if (TypeCheck && !TypeChecker.IsCompatible(value.Type, targetType)) {
             throw new RuntimeError($"Cannot convert from {value.Type} to {targetType}", Common.ErrorType.TypeError, null);
         }
@@ -37,8 +39,10 @@ public static class TypeConverter {
             return new ZenValue(ZenType.Integer, (int)value.Underlying);
         }else if (value.Type == ZenType.Float64) {
             return new ZenValue(ZenType.Integer, (int)value.Underlying);
+        }else if (value.Type == ZenType.String) {
+            return new ZenValue(ZenType.Integer, int.Parse(value.Underlying));
         }
-
+        
         throw new RuntimeError($"Cannot convert from {value.Type} to int", Common.ErrorType.TypeError, null);
     }
 
@@ -51,6 +55,8 @@ public static class TypeConverter {
             return new ZenValue(ZenType.Integer64, (long)value.Underlying);
         }else if (value.Type == ZenType.Float64) {
             return new ZenValue(ZenType.Integer64, (long)value.Underlying);
+        }else if (value.Type == ZenType.String) {
+            return new ZenValue(ZenType.Integer64, long.Parse(value.Underlying));
         }
 
         throw new RuntimeError($"Cannot convert from {value.Type} to int64", Common.ErrorType.TypeError, null);
@@ -65,6 +71,8 @@ public static class TypeConverter {
             return value;
         } else if (value.Type == ZenType.Float64) {
             return new ZenValue(ZenType.Float, (float)value.Underlying);
+        } else if (value.Type == ZenType.String) {
+            return new ZenValue(ZenType.Float, float.Parse(value.Underlying));
         }
 
         throw new RuntimeError($"Cannot convert from {value.Type} to float", Common.ErrorType.TypeError, null);
@@ -79,6 +87,8 @@ public static class TypeConverter {
             return new ZenValue(ZenType.Float64, (double)value.Underlying);
         }else if (value.Type == ZenType.Float64) {
             return value;
+        }else if (value.Type == ZenType.String) {
+            return new ZenValue(ZenType.Float64, double.Parse(value.Underlying));
         }
 
         throw new RuntimeError($"Cannot convert from {value.Type} to float64", Common.ErrorType.TypeError, null);

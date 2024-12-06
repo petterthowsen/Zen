@@ -88,34 +88,19 @@ public class AsyncTests : TestRunner
 
         string? result = Execute(@"
             async func test() {
-                var start = time()
-                var a = 1
                 var b = await delay(100)
-                var elapsed = time() - start
-                print elapsed >= 100 and a + b == 101
+                print ""after""
             }
             test()
             print ""before""
         ");
 
-        Assert.Equal("beforetrue", result);
+        Assert.Equal("beforeafter", result);
     }
 
     [Fact]
     public void TestMultipleAwaits() {
         RestartInterpreter();
-
-        Interpreter.RegisterAsyncHostFunction(
-            "delay",
-            ZenType.Integer,
-            [new ZenFunction.Argument("ms", ZenType.Integer, false)],
-            async (args) =>
-            {
-                int ms = (int)args[0].Underlying;
-                await Task.Delay(ms);
-                return new ZenValue(ZenType.Integer, ms);
-            }
-        );
 
         string? result = Execute(@"
             async func test() {

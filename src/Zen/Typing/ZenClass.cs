@@ -5,7 +5,7 @@ using Zen.Parsing.AST.Expressions;
 
 namespace Zen.Typing;
 
-public class ZenClass {
+public class ZenClass : IZenClass {
 
     public static readonly ZenClass Master = new ZenClass("Master", [
         // methods
@@ -28,7 +28,7 @@ public class ZenClass {
         public ZenValue Default;
         public Visibility Visibility;
 
-        public bool IsGeneric => Type.IsGeneric;
+        // public bool IsGeneric => Type.IsGeneric;
 
         public Property(string name, ZenType type, ZenValue defaultValue, Visibility visibility = Visibility.Public) {
             Name = name;
@@ -38,41 +38,7 @@ public class ZenClass {
         }
     }
 
-    public struct Parameter {
-        public string Name;
-        public ZenType Type;
-        public ZenValue DefaultValue;
-
-        public bool IsTypeParameter => Type == ZenType.Type;
-        public bool IsValueParameter => !IsTypeParameter;
-
-        public Parameter(string name, ZenType type, ZenValue? defaultValue = null) {
-            Name = name;
-            Type = type;  // Keep the original type (ZenType.Type for type parameters)
-            
-            if (defaultValue != null) {
-                DefaultValue = (ZenValue) defaultValue;
-            }
-            else if (IsTypeParameter) {
-                // For type parameters, default to ZenType.Any
-                DefaultValue = new ZenValue(ZenType.Type, ZenType.Any);
-            }
-            else {
-                DefaultValue = ZenValue.Null;
-            }
-        }
-
-        public bool ValidateValue(ZenValue value) {
-            if (IsTypeParameter) {
-                // For type parameters, value must be a ZenType.Type
-                // and its underlying value must be a ZenType
-                return value.Type == ZenType.Type;
-            }
-            return Type.IsAssignableFrom(value.Type);
-        }
-    }
-
-    public string Name;
+    public string Name { get; set; }
     
     public ZenClass SuperClass = Master;
 
@@ -80,17 +46,17 @@ public class ZenClass {
 
     public List<ZenMethod> Methods = [];
     public Dictionary<string, Property> Properties = [];
-    public ZenTypeClass Type;
-    public List<Parameter> Parameters = [];
+    public ZenType Type { get; set; }
+    public List<IZenClass.Parameter> Parameters { get; set; }
 
-    public ZenClass(string name, List<ZenMethod> methods, List<Property> properties, List<Parameter> parameters) {
+    public ZenClass(string name, List<ZenMethod> methods, List<Property> properties, List<IZenClass.Parameter> parameters) {
         Name = name;
         Methods = methods;
         Properties = properties.ToDictionary(x => x.Name, x => x);
         Parameters = parameters;
 
         var parameterTypeList = parameters.Select(p => p.Type).ToArray();
-        Type = new ZenTypeClass(this, Name, parameterTypeList);
+        Type = ZenType.FromClass(this);
     }
 
     public ZenClass(string name, List<ZenMethod> methods) : this(name, methods, [], []) {}
@@ -111,7 +77,7 @@ public class ZenClass {
     }
 
     public void ValidateParameters(Dictionary<string, ZenValue> paramValues) {
-        foreach (Parameter param in Parameters) {
+        foreach (IZenClass.Parameter param in Parameters) {
             if (!paramValues.ContainsKey(param.Name)) {
                 if (param.DefaultValue.IsNull()) {
                     throw Interpreter.Error($"No value provided for parameter '{param.Name}' and it has no default value");
@@ -126,6 +92,13 @@ public class ZenClass {
                 }
             }
         }
+    }
+
+    public static ZenType ResolveTypeParameters(ZenType type, Dictionary<string, ZenType> substitutions) {
+        if (type.IsGeneric) {
+            return type.MakeGenericType(substitutions);
+        }
+        return type;
     }
 
     public ZenObject CreateInstance(Interpreter interpreter, ZenValue[] args, Dictionary<string, ZenValue> paramValues) {
@@ -151,23 +124,26 @@ public class ZenClass {
         var typeSubstitutions = ResolveTypeParameters(paramValues);
 
         // create the concrete type, I.E ClassName<T> becomes ClassName<string> etc.
-        instance.Type = new ZenTypeClass(this, Name, [..typeSubstitutions.Values]);
+        instance.Type = Type.MakeGenericType(typeSubstitutions);
 
         // set properties
         foreach (Property property in Properties.Values) {
             if (property.Type.IsGeneric) {
-                string genericParamName = property.Type.Name;
-                if (instance.HasParameter(genericParamName)) {
-                    Logger.Instance.Debug($"Property '{property.Name}' uses generic type '{genericParamName}'.");
+                ZenType concreteType = ResolveTypeParameters(property.Type, typeSubstitutions);
+                instance.Properties.Add(property.Name, new ZenValue(concreteType, property.Default.Underlying));
+
+                // string genericParamName = property.Type.Name;
+                // if (instance.HasParameter(genericParamName)) {
+                //     Logger.Instance.Debug($"Property '{property.Name}' uses generic type '{genericParamName}'.");
                     
-                    // resolve the concrete type
-                    ZenType concreteType = instance.GetParameter(genericParamName).Underlying!;
+                //     // resolve the concrete type
+                //     ZenType concreteType = instance.GetParameter(genericParamName).Underlying!;
                     
-                    Logger.Instance.Debug($"Property {property.Name} substituted from generic {genericParamName} to {concreteType}");
-                    instance.Properties.Add(property.Name, new ZenValue(concreteType, property.Default.Underlying));
-                }else {
-                    throw Interpreter.Error($"Property {property.Name} uses an unknown parametric type {property.Type}. This sholdn't happen!");
-                }
+                //     Logger.Instance.Debug($"Property {property.Name} substituted from generic {genericParamName} to {concreteType}");
+                //     instance.Properties.Add(property.Name, new ZenValue(concreteType, property.Default.Underlying));
+                // }else {
+                //     throw Interpreter.Error($"Property {property.Name} uses an unknown parametric type {property.Type}. This sholdn't happen!");
+                // }
             }else {
                 Logger.Instance.Debug($"Property '{property.Name}' is just a {property.Type}.");
                 instance.Properties.Add(property.Name, property.Default);
@@ -415,7 +391,7 @@ public class ZenClass {
         }
     }
 
-    public bool IsAssignableFrom(ZenClass other) {
+    public bool IsAssignableFrom(IZenClass other) {
         return this == other || SuperClass == other || SuperClass.IsAssignableFrom(other);
     }
 

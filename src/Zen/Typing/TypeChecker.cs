@@ -60,24 +60,23 @@ public class TypeChecker {
         }
 
         // Handle class types
-        if (source is ZenTypeClass sourceClass && target is ZenTypeClass targetClass) {
-            Logger.Instance.Debug($"Both types are class types: source={sourceClass.Clazz.Name}, target={targetClass.Clazz.Name}");
-            return sourceClass.Clazz.IsAssignableFrom(targetClass.Clazz);
+        if (source.IsClass && target.IsClass) {
+            return source.Clazz!.IsAssignableFrom(target.Clazz!);
         }
 
         // Handle nullable types
-        if (target.IsNullable) {
-            // A non-nullable type can be assigned to its nullable version
-            if (!source.IsNullable && source.Name == target.Name) {
-                Logger.Instance.Debug("Non-nullable to nullable assignment allowed");
-                return true;
-            }
-            // Null can be assigned to any nullable type
-            if (source == ZenType.Null) {
-                Logger.Instance.Debug("Null to nullable assignment allowed");
-                return true;
-            }
-        }
+        // if (target.IsNullable) {
+        //     // A non-nullable type can be assigned to its nullable version
+        //     if (!source.IsNullable && source.Name == target.Name) {
+        //         Logger.Instance.Debug("Non-nullable to nullable assignment allowed");
+        //         return true;
+        //     }
+        //     // Null can be assigned to any nullable type
+        //     if (source == ZenType.Null) {
+        //         Logger.Instance.Debug("Null to nullable assignment allowed");
+        //         return true;
+        //     }
+        // }
 
         Logger.Instance.Debug("No compatibility rules matched, returning false");
         return false;

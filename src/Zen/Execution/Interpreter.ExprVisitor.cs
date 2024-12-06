@@ -267,22 +267,23 @@ public IEvaluationResult Visit(Grouping grouping)
             throw Error($"Object does not support bracket assignment (missing 'set' method)", bracketSet.Location);
         }
 
-        return (ValueResult)instance.Call(this, method, [target.Value, element.Value, value.Value]);
+        return (ValueResult)instance.Call(this, method, [element.Value, value.Value]);
     }
 
     public IEvaluationResult Visit(ParameterDeclaration parameter)
     {
         CurrentNode = parameter;
 
-        // For type parameters, just evaluate the type
+        // For type parameters, we just return ZenType.Type
         if (parameter.IsTypeParameter)
         {
-            return Evaluate(parameter.Type);
+            return (TypeResult) ZenType.Type;
         }
 
-        // For value constraints, evaluate both type and default value if present
+        // For non-type parameters (constraints), evaluate the type
         IEvaluationResult type = Evaluate(parameter.Type);
         
+        // default value?
         if (parameter.DefaultValue != null)
         {
             IEvaluationResult defaultValue = Evaluate(parameter.DefaultValue);
@@ -352,7 +353,7 @@ public IEvaluationResult Visit(Grouping grouping)
         catch (Exception ex)
         {
             throw Error($"Promise rejected with error: {ex.Message}", 
-                @await.Location, Common.ErrorType.RuntimeError);
+                @await.Expression.Location, Common.ErrorType.RuntimeError);
         }
     }
 
@@ -447,20 +448,15 @@ public IEvaluationResult Visit(Grouping grouping)
         string name = funcParameter.Identifier.Value;
 
         // parameter type
-        ZenType type = ZenType.Null;
+        ZenType type = ZenType.Any;
         bool nullable = true;
 
+        // type hint?
         if (funcParameter.TypeHint != null)
         {
-            if (funcParameter.TypeHint.IsGeneric) {
-                type = new ZenType(funcParameter.TypeHint.Name, funcParameter.TypeHint.Nullable, generic: true);
-            }else {
-                type = Evaluate(funcParameter.TypeHint).Type;
-            }
-
+            type = Evaluate(funcParameter.TypeHint).Type;
             nullable = funcParameter.TypeHint.Nullable;
         }
-
 
         ZenFunction.Argument parameter = new(name, type, nullable);
 
@@ -494,7 +490,7 @@ public IEvaluationResult Visit(Grouping grouping)
             arguments.Add(Evaluate(argument).Value);
         }
 
-        // Evaluate parameters and build parameter values dictionary
+        // Evaluate generic<parameters> and build parameter values dictionary
         Dictionary<string, ZenValue> paramValues = [];
         
         // If no parameters provided but class has type parameters,
@@ -508,22 +504,25 @@ public IEvaluationResult Visit(Grouping grouping)
             Logger.Instance.Debug($"Processing {instantiation.Parameters.Count} parameters");
 
             int paramIndex = 0;
-            foreach (ZenClass.Parameter param in clazz.Parameters)
+            // loop through class parameters
+            foreach (IZenClass.Parameter param in clazz.Parameters)
             {
+                // no more parameters?
                 if (paramIndex >= instantiation.Parameters.Count) {
                     // provides default value ?
-                    if (param.DefaultValue.IsNull() == false) {
-                        ZenValue val = (ZenValue) param.DefaultValue;
-                        paramValues[param.Name] = val;
-                    }else {
+                    if (param.DefaultValue.IsNull()) {
                         throw Error($"{clazz.Name} expects a '{param.Name}' parameter.!", 
                             instantiation.Location);
                     }
+
+                    ZenValue val = param.DefaultValue;
+                    paramValues[param.Name] = val;
                 }else {
+                    // evaluate the parameter
                     Expr valueExpr = instantiation.Parameters[paramIndex];
                     IEvaluationResult paramResult = Evaluate(valueExpr);
                     
-                    // For type parameters (like T)
+                    // For type parameters (like "T" or "T:Type")
                     if (param.IsTypeParameter) {
                         // If it's a TypeResult
                         if (paramResult is TypeResult typeResult) {
@@ -534,10 +533,9 @@ public IEvaluationResult Visit(Grouping grouping)
                             paramValues[param.Name] = varResult.Value;
                         }
                         // If it's a class type
-                        else if (paramResult.Type == ZenType.Class) {
-                            ZenClass resultingClass = paramResult.Value.Underlying!;
-                            var baseType = new ZenTypeClass(resultingClass, resultingClass.Name);
-                            paramValues[param.Name] = new ZenValue(ZenType.Type, baseType);
+                        else if (paramResult.Type.IsClass) {
+                            IZenClass resultingClass = paramResult.Value.Underlying!;
+                            paramValues[param.Name] = new ZenValue(ZenType.Type, ZenType.FromClass(resultingClass));
                         }
                         else {
                             throw Error($"{clazz.Name} expects parameter '{param.Name}' to be a Type. You passed a {paramResult.Type}!", 
@@ -561,7 +559,7 @@ public IEvaluationResult Visit(Grouping grouping)
             }
 
             // Check if we have all required parameters
-            foreach (ZenClass.Parameter param in clazz.Parameters)
+            foreach (IZenClass.Parameter param in clazz.Parameters)
             {
                 if (!paramValues.ContainsKey(param.Name))
                 {
@@ -592,45 +590,65 @@ public IEvaluationResult Visit(Grouping grouping)
         return (ValueResult) result;
     }
 
+    public ZenType ResolveTypeHint(TypeHint typeHint) {
+        // if the typeHint is "T", just return a generic type
+        if (typeHint.IsGeneric) {
+            // todo: handle nullable
+            return ZenType.GenericParameter(typeHint.Name);
+        }
+
+        // For concrete types, we need to resolve the type by looking up the variable
+        // look up the variable
+        // The resolver has already resolved this.
+        // The variable is a ZenValue but its type can resolve to a ZenType.Type, ZenType.Class, ZenType.Interface etc.
+        // We need to handle these cases.
+        ZenValue val = LookUpVariable(typeHint.Name, typeHint).Value;
+        ZenType type;
+
+        // in the case of primitives like 'string', 'int' etc. These are stored as a ZenValue with type 'Type' (ZenType.Type):
+        // in this case, we simply get the underlying ZenType (ZenType.String, or other custom types.)
+        if (val.Type == ZenType.Type) {
+            type = val.Underlying!;
+        }
+        else if (val.Type.IsPrimitive) {
+            type = val.Type;
+        }
+        else if (val.Type == ZenType.Class || val.Type == ZenType.Interface) {
+            IZenClass clazz = val.Underlying!;
+            type = ZenType.FromClass(clazz);
+        }
+        else if (val.Type == ZenType.Object) {
+            throw Error($"'{typeHint.Name}' is an object, not a class, interface or primitive type.",
+                typeHint.Location);
+        }else {
+            throw Error($"Type '{typeHint.Name}' is a {val.Type}! Should be a class, interface or primitive type.", 
+                typeHint.Location);
+        }
+
+        // resolve the parameters
+        if (typeHint.Parameters.Length > 0) {
+
+            // check if the resolved type has the same number of parameters
+            if (type.Parameters.Length != typeHint.Parameters.Length) {
+                throw Error($"Type '{type.Name}' expects {type.Parameters.Length} parameters, not {typeHint.Parameters.Length}",
+                    typeHint.Location);
+            }
+
+            // resolve the parameters
+            for (int i = 0; i < typeHint.Parameters.Length; i++) {
+                TypeHint param = typeHint.Parameters[i];
+                type.Parameters[i] = ResolveTypeHint(param);
+            }
+        }
+
+        return type;        
+    }
+    
     public IEvaluationResult Visit(TypeHint typeHint)
     {
         CurrentNode = typeHint;
 
-        // Look up if this resolves to a known type.
-        // For class and interface types , look up the class and return its type
-
-        // TODO: we should probably use lookUpVariable for interface too
-        // but not for generics
-
-
-
-        if (typeHint.IsGeneric) {
-            return new TypeResult(ZenType.Type, typeHint.Nullable);
-        }
-
-        VariableResult variable = LookUpVariable(typeHint.Name, typeHint);
-
-        if (variable.Type == ZenType.Class) {
-            ZenClass clazz = (ZenClass)variable.Value.Underlying!;
-            ZenType type = clazz.Type;
-            // if (typeHint.Nullable) // this doesn't work for classes yet
-            // {
-            //     type = type.MakeNullable();
-            // }
-            return new TypeResult(type, typeHint.Nullable);
-        }
-        else if (variable.Type == ZenType.Interface) {
-            ZenInterface @interface = (ZenInterface)variable.Value.Underlying!;
-            ZenType type = @interface.Type;
-            if (typeHint.Nullable)
-            {
-                type = type.MakeNullable();
-            }
-            return new TypeResult(type, typeHint.Nullable);
-        }
-        else {
-            return new TypeResult(variable.Value, typeHint.Nullable); // variable.Type == ZenType.Type while variable.value is ZenType.String|Int etc
-        }
+        return (TypeResult) ResolveTypeHint(typeHint);
     }
 
     public IEvaluationResult Visit(TypeCheck typeCheck)
@@ -639,13 +657,6 @@ public IEvaluationResult Visit(Grouping grouping)
 
         IEvaluationResult exprResult = Evaluate(typeCheck.Expression);
         ZenType sourceType = exprResult.Type;
-        ZenClass? sourceClass = null;
-
-        // if it's an object, get the class
-        if (sourceType == ZenType.Object) {
-            ZenObject sourceObject = (ZenObject)exprResult.Value.Underlying!;
-            sourceClass = sourceObject.Class;
-        }
 
         // If the expression evaluates to a type, it's a type-to-type comparison which we don't allow
         if (sourceType == ZenType.Type)
@@ -654,38 +665,12 @@ public IEvaluationResult Visit(Grouping grouping)
                 typeCheck.Token.Location, Common.ErrorType.TypeError);
         }
         
-        // If the expression evaluates to a class, it's a class comparison
-        if (sourceClass != null) {
-            // get target class
-            TypeResult targetTypeResult = (TypeResult) Evaluate(typeCheck.Type);
-            
-            if ( ! targetTypeResult.IsClass()) {
-                throw Error($"Invalid type check. Comparison to non-class type '{targetTypeResult.Type}'", 
-                    typeCheck.Token.Location, Common.ErrorType.TypeError);
-            }
+        // Resolve the target type from the type hint
+        TypeResult targetTypeResult = (TypeResult)Evaluate(typeCheck.Type);
+        ZenType targetType = targetTypeResult.Type;
 
-            ZenTypeClass targetClassType = (ZenTypeClass) targetTypeResult.Type;
-            ZenClass targetClass = targetClassType.Clazz;
-
-            bool isCompatible = sourceClass.IsAssignableFrom(targetClass);
-            if (isCompatible) {
-                return (ValueResult) ZenValue.True;
-            }else {
-                return (ValueResult) ZenValue.False;
-            }
-        }else {
-            // get target
-            TypeResult targetTypeResult = (TypeResult) Evaluate(typeCheck.Type);
-            ZenType targetType = targetTypeResult.Type;
-            
-            // we're comparing a value to a type
-            bool isCompatible = targetType.IsAssignableFrom(sourceType);
-            if (isCompatible) {
-                return (ValueResult) ZenValue.True;
-            }else {
-                return (ValueResult) ZenValue.False;
-            }
-        }
+        // Now perform the assignability check in the correct direction:
+        return (ValueResult) targetType.IsAssignableFrom(sourceType);
     }
         
     public IEvaluationResult Visit(TypeCast typeCast)

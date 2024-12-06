@@ -30,14 +30,15 @@ public class GenericsTest : TestRunner
         ZenClass Class = Container.Underlying!;
         Assert.IsType<ZenClass>(Class);
 
-        // ZenClass is generic - I.E has a parameter
+        // ZenClass has parameters
         Assert.NotEmpty(Class.Parameters);
 
+        IZenClass.Parameter T = Class.Parameters[0];
+
         // name is "T"
-        ZenClass.Parameter T = Class.Parameters[0];
         Assert.Equal("T", T.Name);
 
-        // standalone "T" is inferred to be a ZenType.Type - I.E a Type, not a integer constraint or other type.
+        // T is a Type parameter (not a constraint like int)
         Assert.Equal(ZenType.Type, T.Type);
 
         // for *Type* parameters the default value is "any"
@@ -82,13 +83,13 @@ public class GenericsTest : TestRunner
                 this.second = b
             }
             
-            toString(): string {
+            ToString(): string {
                 return ""("" + this.first + "", "" + this.second + "")""
             }
         }
         
         var pair = new Pair<int, string>(42, ""hello"")
-        print pair.toString()
+        print pair.ToString()
         ");
         
         Assert.Equal("(42, hello)", result);

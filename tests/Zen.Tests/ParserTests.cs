@@ -138,10 +138,6 @@ public class ParserTests {
         Assert.Equal("string", typeHint.Name);
         Assert.False(typeHint.Nullable);
         Assert.False(typeHint.IsParametric);
-        Assert.IsType<ZenType>(typeHint.GetBaseZenType());
-
-        ZenType zenType = typeHint.GetZenType();
-        Assert.Equal(ZenType.String, zenType);
 
         Assert.IsType<Literal>(varStmt.Initializer);
 
@@ -430,7 +426,7 @@ public class ParserTests {
         Assert.IsType<TypeHint>(funcStmt.ReturnType);
         var typeHint = (TypeHint)funcStmt.ReturnType;
         
-        Assert.Equal(ZenType.Void, typeHint.GetZenType());
+        Assert.Equal("void", typeHint.Name);
     }
 
     [Fact]
@@ -464,7 +460,7 @@ public class ParserTests {
         Assert.IsType<TypeHint>(funcStmt.Parameters[0].TypeHint);
 
         var paramTypeHint = (TypeHint)funcStmt.Parameters[0].TypeHint!;
-        Assert.Equal(ZenType.String, paramTypeHint.GetZenType());
+        Assert.Equal("string", paramTypeHint.Name);
         
         Assert.IsType<Block>(funcStmt.Block);
         Assert.IsType<TypeHint>(funcStmt.ReturnType);
@@ -490,7 +486,6 @@ public class ParserTests {
         Assert.Equal("Test", classStmt.Identifier.Value);
         Assert.Single(classStmt.Properties);
         Assert.Equal("name", classStmt.Properties[0].Identifier.Value);
-        Assert.Equal(ZenType.String, classStmt.Properties[0].TypeHint!.GetZenType());
     }
 
     
@@ -504,7 +499,6 @@ public class ParserTests {
         Assert.Equal("Test", classStmt.Identifier.Value);
         Assert.Single(classStmt.Properties);
         Assert.Equal("name", classStmt.Properties[0].Identifier.Value);
-        Assert.Equal(ZenType.String, classStmt.Properties[0].TypeHint!.GetZenType());
 
         Assert.IsType<Literal>(classStmt.Properties[0].Initializer);
         Literal literal = (Literal) classStmt.Properties[0].Initializer!;
@@ -728,13 +722,8 @@ public class ParserTests {
 
         Assert.Single(instantiation.Parameters);
         Assert.IsType<Identifier>(instantiation.Parameters[0]);
-        ParameterDeclaration param = (ParameterDeclaration) instantiation.Parameters[0];
+        Identifier param = (Identifier) instantiation.Parameters[0];
         Assert.Equal("string", param.Name);
-        TypeHint typeHint = param.Type;
-        Assert.Equal("string", typeHint.Name);
-        Assert.False(typeHint.Nullable);
-        ZenType zenType = typeHint.GetZenType();
-        Assert.Equal(ZenType.String, zenType);
     }
 
     [Fact]

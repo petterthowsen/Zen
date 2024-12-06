@@ -58,6 +58,7 @@ public class EventLoop
             catch (Exception ex) {
                 // Log or handle the error
                 Logger.Instance.Error($"Error in event loop task: {ex}");
+                throw ex;
             }
             finally
             {
@@ -121,7 +122,7 @@ public class EventLoop
                 catch (Exception ex)
                 {
                     // Log or handle the error
-                    Logger.Instance.Error($"Error in event loop task: {ex}");
+                    Logger.Instance.Error($"ERROR IN EVENT LOOP TASK: {ex}");
                 }
             }
             else

@@ -10,7 +10,7 @@ public class ZenObject {
 
     public ZenClass Class;
 
-    public ZenTypeClass Type;
+    public ZenType Type;
 
     public Dictionary<string, ZenValue> Properties = [];
 

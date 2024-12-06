@@ -7,15 +7,14 @@ namespace Zen.Parsing.AST.Expressions;
 public class TypeHint : Expr
 {
     public Token Token;
+
+    public string Name;
     public TypeHint[] Parameters = [];
     public bool Nullable = false;
-    
-    public string Name;
-    public bool IsParametric => Parameters.Length > 0;
-
-    public override SourceLocation Location => Token.Location;
-
     public bool IsGeneric = false;
+    
+    public bool IsParametric => Parameters.Length > 0;
+    public override SourceLocation Location => Token.Location;
 
     public TypeHint(Token token, TypeHint[] parameters, bool nullable = false, bool generic = false) {
         Token = token;
@@ -31,40 +30,6 @@ public class TypeHint : Expr
         Nullable = nullable;
     }
 
-    public bool IsPrimitive() {
-        return ZenType.Exists(Name);
-    }
-
-    public ZenType GetBaseZenType() {
-        // If this is a generic parameter (like T), return ZenType.Type
-        if (IsGeneric) {
-            return new ZenType(Name, Nullable, true, Parameters.Select(p => p.GetZenType()).ToArray());
-        }
-        return ZenType.FromString(Name, Nullable);
-    }
-
-    public ZenType GetZenType() {
-        if (IsParametric) {
-            var paramTypes = Parameters.Select(p => p.GetZenType()).ToArray();
-            return new ZenType(Name, Nullable, paramTypes);
-        }
-        return GetBaseZenType();
-    }
-
-    public override bool Equals(object? obj) {
-        if (obj is TypeHint other) {
-            return Name == other.Name && 
-                   Nullable == other.Nullable && 
-                   IsGeneric == other.IsGeneric &&
-                   Parameters.SequenceEqual(other.Parameters);
-        }
-        return false;
-    }
-
-    public override int GetHashCode() {
-        return HashCode.Combine(Token, Name, Parameters, Nullable, IsGeneric);
-    }
-
     public override void Accept(IVisitor visitor)
     {
         visitor.Visit(this);
@@ -77,7 +42,7 @@ public class TypeHint : Expr
 
     public override string ToString()
     {
-        string s = $"TypeHint: {Name}";
+        string s = $"TypeHint({Name}";
         
         if (IsParametric) {
             s += "<" + string.Join<TypeHint>(", ", Parameters) + ">";
@@ -86,6 +51,6 @@ public class TypeHint : Expr
         if (Nullable) {
             s += "?";
         }
-        return s;
+        return s + ")";
     }
 }

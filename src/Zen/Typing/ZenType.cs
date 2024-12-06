@@ -1,54 +1,49 @@
+using System.Data;
+
 namespace Zen.Typing;
 
+/// <summary>
+/// Represents a kind of type.
+/// </summary>
+public enum ZenTypeKind {
+    Primitive,       // For primitive types like int, string, null etc.
+    Class,           // For classes
+    Interface,       // For interfaces
+    GenericParameter // For placeholders like 'T'
+}
+
 public class ZenType {
-    public static ZenType Type = new("type"); // Represents type values themselves
-    public static ZenType Keyword = new("keyword");
-    public static ZenType Any = new("any");
-    public static ZenType Object = new("Object");
-    public static ZenType DotNetObject = new("DotNetObject");
-    public static ZenType DotNetType = new("DotNetType");
-    public static ZenType Class = new("Class");
-    public static ZenType Interface = new("Interface");
-    public static ZenType Function = new("func");
-    public static ZenType BoundMethod = new("BoundMethod");
-    public static ZenType Integer = new("int");
-    public static ZenType Float = new("float");
-    public static ZenType Integer64 = new("int64");
-    public static ZenType Float64 = new("float64");
-    public static ZenType Boolean = new("bool");
-    public static ZenType String = new("string");
-    public static ZenType Null = new("null");
-    public static ZenType Void = new("void");
-    public static ZenType Promise = new("Promise");
+    // Primitive types
+    public static readonly ZenType DotNetObject = new(ZenTypeKind.Primitive, "DotNetObject");
+    public static readonly ZenType DotNetType = new(ZenTypeKind.Primitive, "DotNetType");
 
-    private static readonly Dictionary<string, ZenType> _primitives = new() {
-        { "int", Integer },
-        { "float", Float },
-        { "int64", Integer64 },
-        { "float64", Float64 },
-        { "bool", Boolean },
-        { "string", String },
-        { "null", Null },
-        { "void", Void },
-        { "func", Function },
-        { "Promise", Promise },
-        { "any", Any },
-    };
+    public static readonly ZenType Type = new(ZenTypeKind.Primitive, "type");
+    public static readonly ZenType Boolean = new(ZenTypeKind.Primitive, "bool");
+    public static readonly ZenType Null = new(ZenTypeKind.Primitive, "null");
+    public static readonly ZenType Void = new(ZenTypeKind.Primitive, "void");
+    public static readonly ZenType Integer = new(ZenTypeKind.Primitive, "int");
+    public static readonly ZenType Integer64 = new(ZenTypeKind.Primitive, "int64");
+    public static readonly ZenType Float = new(ZenTypeKind.Primitive, "float");
+    public static readonly ZenType Float64 = new(ZenTypeKind.Primitive, "float64");
+    public static readonly ZenType String = new(ZenTypeKind.Primitive, "string");
 
-    public static bool Exists(string name) => _primitives.ContainsKey(name);
+    public static readonly ZenType Any = new(ZenTypeKind.Primitive, "any");
+    public static readonly ZenType Object = new(ZenTypeKind.Primitive, "object");
 
-    public static ZenType FromString(string name, bool nullable = false) {
-        ZenType type;
-        if (_primitives.TryGetValue(name, out type)) {
-            return nullable ? type.MakeNullable() : type;
-        } else {
-            return new ZenType(name, nullable);
-        }
-    }
+    public static readonly ZenType Function = new(ZenTypeKind.Primitive, "func");
+    public static readonly ZenType Class = new(ZenTypeKind.Primitive, "class");
+    public static readonly ZenType Interface = new(ZenTypeKind.Primitive, "interface");
+    public static readonly ZenType BoundMethod = new(ZenTypeKind.Primitive, "BoundMethod");
+    public static readonly ZenType Promise = new(ZenTypeKind.Primitive, "Promise", null, [new(ZenTypeKind.GenericParameter, "T")]);
+    public static readonly ZenType Keyword = new(ZenTypeKind.Primitive, "Keyword");
 
-    public ZenType? BaseType;
+    // Nullable    
+    public static readonly ZenClass NullableClass = new ZenClass("Nullable", [], [], [new IZenClass.Parameter("T", Type)]);
+    public static readonly ZenType NullableType = FromClass(NullableClass);
+
+    public ZenTypeKind Kind;
     public string Name;
-    public bool IsNullable;
+    public IZenClass? Clazz;
     public ZenType[] Parameters = [];
 
     public bool IsObject => this == Object;
@@ -56,69 +51,114 @@ public class ZenType {
     public bool IsNumeric => this == Integer || this == Float || this == Integer64 || this == Float64;
     public bool IsParametric => Parameters.Length > 0;
     public bool IsPromise => this == Promise || (IsParametric && Name == "Promise"); // New: Check if type is Promise
+    public bool IsClass => Kind == ZenTypeKind.Class || Kind == ZenTypeKind.Interface;
 
-    public bool IsGeneric = false;
+    /// <summary>
+    /// Returns true if this type or any of its parameters is generic and hence unresolved.
+    /// See <see cref="MakeGenericType"/> to substitute generic parameters with concrete types.
+    /// </summary>
+    public bool IsGeneric => Kind == ZenTypeKind.GenericParameter || Parameters.Any(p => p.IsGeneric);
 
-    public ZenType(string name, params ZenType[] parameters) {
+    // Factory constructor for primitives
+    private ZenType(ZenTypeKind kind, string name) {
+        Kind = kind;
         Name = name;
+        Parameters = [];
+    }
+
+    // Factory constructor for classes/interfaces with parameters
+    private ZenType(ZenTypeKind kind, IZenClass clazz, ZenType[] parameters) {
+        Kind = kind;
+        Clazz = clazz;
+        Name = clazz.Name;
         Parameters = parameters;
-        IsNullable = false;
     }
 
-    public ZenType(string name, bool isNullable, params ZenType[] parameters) {
+    // Generic parameter factory
+    private ZenType(string paramName) {
+        Kind = ZenTypeKind.GenericParameter;
+        Name = paramName;
+        Parameters = [];
+    }
+
+    private ZenType(ZenTypeKind kind, string name, IZenClass? clazz, ZenType[] parameters) {
+        Kind = kind;
         Name = name;
-        IsNullable = isNullable;
+        Clazz = clazz;
         Parameters = parameters;
     }
 
-    public ZenType(string name, bool isNullable, bool isGeneric, ZenType[] parameters)
-    {
-        Name = name;
-        IsNullable = isNullable;
-        IsGeneric = isGeneric;
-        Parameters = parameters;
+    // Generic parameter placeholder
+    public static ZenType GenericParameter(string name) => new(name);
+
+    // Create a non-generic class type
+    public static ZenType FromClass(IZenClass clazz) {
+        ZenTypeKind kind = clazz is ZenInterface ? ZenTypeKind.Interface : ZenTypeKind.Class;
+
+        if (clazz.Parameters.Count > 0) {
+            // Return the generic type definition by using generic parameters from class definition
+            var parameters = clazz.Parameters
+                                  .Select(p => GenericParameter(p.Name))
+                                  .ToArray();
+            return new ZenType(kind, clazz, parameters);
+        } else {
+            return new ZenType(kind, clazz, []);
+        }
     }
 
-    public ZenType(string name, bool nullable, bool generic)
-    {
-        Name = name;
-        IsNullable = nullable;
-        IsGeneric = generic;
+    /// <summary>
+    /// Create a constructed generic type from this base type, where generic parameters are substituted with the types in given dictionary.
+    /// Substitutions can be recursive.
+    /// </summary>
+    /// <param name="substitutions"></param>
+    /// <returns></returns>
+    /// <exception cref="InvalidOperationException"></exception>
+    public ZenType MakeGenericType(Dictionary<string, ZenType> substitutions) {
+        if (Kind != ZenTypeKind.Class && Kind != ZenTypeKind.Interface)
+            throw new InvalidOperationException("Cannot make generic type from non-class/interface type");
+
+        if (Clazz!.Parameters.Count == 0 || substitutions.Count != Clazz.Parameters.Count)
+            return this; // nothing to do
+
+        // if this type is for example: Array<T>, return Array<U> where U is the substitution for T
+        // we support multiple substitutions as well as recursive substitutions
+
+        return SubstitutedGenerics(substitutions);
     }
 
-    public ZenType(ZenType baseType, )
+    /// <summary>
+    /// Returns a copy of this type.
+    /// </summary>
+    private ZenType Copy() {
+        return new ZenType(Kind, Name, Clazz, Parameters);
+    }
 
-    public ZenType MakeNullable() {
-        return new ZenType(Name, true, Parameters);
+    /// <summary>
+    /// Returns a copy of this type with generic parameters substituted with the given dictionary.
+    /// For example, if this type is Array<T> and substitutions contains T -> U, then the result is Array<U>.
+    /// </summary>
+    /// <param name="substitutions"></param>
+    /// <returns></returns>
+    private ZenType SubstitutedGenerics(Dictionary<string, ZenType> substitutions) {
+        var copy = Copy();
+
+        if (Kind == ZenTypeKind.GenericParameter) {
+            if (substitutions.ContainsKey(Name)) {
+                return substitutions[Name];
+            }
+        }
+
+        return copy;
     }
 
     // Returns true if this type can be assigned a value of the given type
+    //TODO: move this to the TypeChecker
     public bool IsAssignableFrom(ZenType other) {
         if (other == this) return true;
 
         // Any type can be assigned to Any
         if (this == Any) {
             return true;
-        }
-
-        // Null can be assigned to any nullable type
-        if (other == Null && IsNullable) {
-            return true;
-        }
-
-        // If types are exactly the same, they're assignable
-        if (Name == other.Name && IsNullable == other.IsNullable) {
-            return true;
-        }
-
-        // A non-nullable type can be assigned to its nullable version
-        if (IsNullable && !other.IsNullable && Name == other.Name) {
-            return true;
-        }
-
-        // A nullable type cannot be assigned to its non-nullable version
-        if (!IsNullable && other.IsNullable) {
-            return false;
         }
 
         // Check parametric types
@@ -147,25 +187,51 @@ public class ZenType {
             result = Name;
         }
 
-        if (IsNullable) {
-            result += "?";
-        }
-
         return result;
     }
 
-    public override bool Equals(object? obj)
+    public static bool operator ==(ZenType left, ZenType right)
     {
-        if (obj is ZenType zenType) {
-            return Name == zenType.Name && 
-                   IsNullable == zenType.IsNullable && 
-                   Parameters.SequenceEqual(zenType.Parameters);
-        }
-        return base.Equals(obj);
+        // If both sides are null, return true
+        if (ReferenceEquals(left, right)) return true;
+
+        // If one side is null, return false
+        if (left is null || right is null) return false;
+
+        // Otherwise, use the overridden Equals method
+        return left.Equals(right);
     }
 
-    public override int GetHashCode()
+    public static bool operator !=(ZenType left, ZenType right)
     {
-        return HashCode.Combine(Name, IsNullable, Parameters);
+        return !(left == right);
+    }
+
+    // Type equality check
+    public override bool Equals(object? obj) {
+        if (obj is not ZenType other) return false;
+        if (Kind != other.Kind) return false;
+
+        // For primitive
+        if (Kind == ZenTypeKind.Primitive)
+            return Name == other.Name;
+
+        // For generic parameter
+        if (Kind == ZenTypeKind.GenericParameter)
+            return Name == other.Name; // parameter name matches
+
+        // For class/interface:
+        if (Clazz != other.Clazz) return false;
+        return Parameters.SequenceEqual(other.Parameters);
+    }
+
+    // TODO: might need to include Clazz here.
+    public override int GetHashCode() {
+        // If using .NET 5 or higher, you can use HashCode.Combine:
+        var hash = HashCode.Combine(Name, Kind, Clazz);
+        foreach (var p in Parameters) {
+            hash = HashCode.Combine(hash, p);
+        }
+        return hash;
     }
 }

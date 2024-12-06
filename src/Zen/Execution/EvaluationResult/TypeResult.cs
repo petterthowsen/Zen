@@ -13,17 +13,17 @@ public readonly struct TypeResult : IEvaluationResult {
     // 
     public ZenValue Value { get; } = ZenValue.Void; // this is always a ZenType
     
-    public bool IsTruthy() => true;
-    public bool IsCallable() => false;
+    public bool IsTruthy() => Value.IsTruthy();
+    public bool IsCallable() => Value.IsCallable();
 
-    public bool IsClass() => Type is ZenTypeClass;
+    public bool IsClass() => Type.IsClass;
 
     public TypeResult(ZenType type, bool nullable = false)
     {
         Type = type;
-        if (nullable && Type.IsNullable == false) {
-            Type = Type.MakeNullable();
-        }
+        // if (nullable && Type.IsNullable == false) {
+        //     Type = Type.MakeNullable();
+        // }
         Value = new ZenValue(ZenType.Type, Type);
     }
 
@@ -35,9 +35,9 @@ public readonly struct TypeResult : IEvaluationResult {
             Type = value.Type;
         }
 
-        if (nullable && Type.IsNullable == false) {
-            Type = Type.MakeNullable();
-        }
+        // if (nullable && Type.IsNullable == false) {
+        //     Type = Type.MakeNullable();
+        // }
 
         Value = new ZenValue(ZenType.Type, Type);
     }

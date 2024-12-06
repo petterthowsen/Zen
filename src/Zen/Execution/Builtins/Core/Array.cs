@@ -12,7 +12,7 @@ public class Array : IBuiltinsProvider
         var env = interp.globalEnvironment;
 
         ArrayClass = new ZenClass("Array", [], [], [
-            new ZenClass.Parameter("T", ZenType.Type)
+            new IZenClass.Parameter("T", ZenType.Type)
         ]);
 
         env.Define(true, "Array", ZenType.Class, false);
@@ -94,7 +94,7 @@ public class Array : IBuiltinsProvider
         ));
 
         // _BracketGet
-        ArrayClass.Methods.Add(new ZenHostMethod(false, "_BracketGet", ZenClass.Visibility.Public, new ZenType("T", false, generic: true),
+        ArrayClass.Methods.Add(new ZenHostMethod(false, "_BracketGet", ZenClass.Visibility.Public, ZenType.GenericParameter("T"),
             // arguments
             [
                 new("index", ZenType.Integer, false)
@@ -113,7 +113,7 @@ public class Array : IBuiltinsProvider
             // arguments
             [
                 new("index", ZenType.Integer, false),
-                new("value", new ZenType("T", false, generic: true), false)
+                new("value", ZenType.GenericParameter("T"), false)
             ],
             (ZenObject obj, ZenValue[] args) => {
                 var idx = args[0].Underlying;
@@ -129,7 +129,7 @@ public class Array : IBuiltinsProvider
         ArrayClass.Methods.Add(new ZenHostMethod(false, "Append", ZenClass.Visibility.Public, ZenType.Void,
             // arguments
             [
-                new("val", new ZenType("T", false, generic: true), false)
+                new("val", ZenType.GenericParameter("T"), false)
             ],
             (ZenObject obj, ZenValue[] args) => {
                 List<ZenValue> list = obj.Data["list"]!;
@@ -143,7 +143,7 @@ public class Array : IBuiltinsProvider
         ArrayClass.Methods.Add(new ZenHostMethod(false, "Prepend", ZenClass.Visibility.Public, ZenType.Void,
             // arguments
             [
-                new("val", new ZenType("T", false, generic: true), false)
+                new("val", ZenType.GenericParameter("T"), false)
             ],
             (ZenObject obj, ZenValue[] args) => {
                 List<ZenValue> list = obj.Data["list"]!;
@@ -156,7 +156,7 @@ public class Array : IBuiltinsProvider
         // Remove First
         
         // Remove First
-        ArrayClass.Methods.Add(new ZenHostMethod(false, "RemoveFirst", ZenClass.Visibility.Public, new ZenType("T", false, generic: true),
+        ArrayClass.Methods.Add(new ZenHostMethod(false, "RemoveFirst", ZenClass.Visibility.Public, ZenType.GenericParameter("T"),
             // arguments
             [],
             (ZenObject obj, ZenValue[] args) => {
@@ -172,7 +172,7 @@ public class Array : IBuiltinsProvider
         ));
 
         // RemoveLast
-        ArrayClass.Methods.Add(new ZenHostMethod(false, "RemoveLast", ZenClass.Visibility.Public, new ZenType("T", false, generic: true),
+        ArrayClass.Methods.Add(new ZenHostMethod(false, "RemoveLast", ZenClass.Visibility.Public, ZenType.GenericParameter("T"),
             // arguments
             [],
             (ZenObject obj, ZenValue[] args) => {
@@ -222,7 +222,7 @@ public class Array : IBuiltinsProvider
         ));
 
         // First
-        ArrayClass.Methods.Add(new ZenHostMethod(false, "First", ZenClass.Visibility.Public, new ZenType("T", false, generic: true),
+        ArrayClass.Methods.Add(new ZenHostMethod(false, "First", ZenClass.Visibility.Public, ZenType.GenericParameter("T"),
             // arguments
             [],
             (ZenObject obj, ZenValue[] args) => {
@@ -237,7 +237,7 @@ public class Array : IBuiltinsProvider
         ));
 
         // Last
-        ArrayClass.Methods.Add(new ZenHostMethod(false, "Last", ZenClass.Visibility.Public, new ZenType("T", false, generic: true),
+        ArrayClass.Methods.Add(new ZenHostMethod(false, "Last", ZenClass.Visibility.Public, ZenType.GenericParameter("T"),
             // arguments
             [],
             (ZenObject obj, ZenValue[] args) => {
@@ -255,7 +255,7 @@ public class Array : IBuiltinsProvider
         ArrayClass.Methods.Add(new ZenHostMethod(false, "IndexOf", ZenClass.Visibility.Public, ZenType.Integer,
             // arguments
             [
-                new("val", new ZenType("T", false, generic: true), false)
+                new("val", ZenType.GenericParameter("T"), false)
             ],
             (ZenObject obj, ZenValue[] args) => {
                 List<ZenValue> list = obj.Data["list"]!;
@@ -273,15 +273,13 @@ public class Array : IBuiltinsProvider
         ArrayClass.Methods.Add(new ZenHostMethod(false, "Contains", ZenClass.Visibility.Public, ZenType.Boolean,
             // arguments
             [
-                new("val", new ZenType("T", false, generic: true), false)
+                new("val", ZenType.GenericParameter("T"), false)
             ],
             (ZenObject obj, ZenValue[] args) => {
                 List<ZenValue> list = obj.Data["list"]!;
                 return new ZenValue(ZenType.Boolean, list.Contains(args[0]));
             }
         ));
-
-        ZenTypeClass type = ArrayClass.Type;
 
         // Slice
         ArrayClass.Methods.Add(new ZenHostMethod(false, "Slice", ZenClass.Visibility.Public,

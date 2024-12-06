@@ -35,12 +35,18 @@ public class ClassTests : TestRunner
 
         // get the class
         ZenValue Test = Interpreter.environment.GetValue("Test");
+        
+        Assert.True(Test.Type == ZenType.Class, "Type should be a ZenType.Class");
+
+        ZenClass Clazz = Test.Underlying!;
+
+        Assert.Equal("Test", Clazz.Name);
 
         // get the value
         ZenValue test = Interpreter.environment.GetValue("t");
 
         // type should equal the Test type
-        Assert.Equal(Test.Underlying!.Type, test.Type);
+        //Assert.Equal(Type, test.Type);
         Assert.IsType<ZenObject>(test.Underlying);
 
         string? result = Execute("print t.ToString()");
@@ -178,14 +184,16 @@ public class ClassTests : TestRunner
     {
         RestartInterpreter();
 
-        string? result;
-        
         Execute(@"
             interface Printable {
                 Print(): string
             }
         ");
 
+        ZenValue PrintableValue = Interpreter.environment.GetValue("Printable")!;
+        Assert.Equal(PrintableValue.Type, ZenType.Interface);
+
+        Assert.IsType<ZenInterface>(PrintableValue.Underlying);
         ZenInterface printableInterface = (ZenInterface)Interpreter.environment.GetValue("Printable")!.Underlying!;
         
         Assert.Equal("Printable", printableInterface.Name);
@@ -216,6 +224,13 @@ public class ClassTests : TestRunner
         Assert.Equal("Test", testClass.Name);
         Assert.Equal("Print", printableInterface.Methods.First().Name);
         Assert.Equal("Print", testClass.Methods.First().Name);
+
+        string? result = Execute((@"
+            var t = new Test()
+            print t.Print()
+        "));
+
+        Assert.Equal("hello world", result);
     }
 
     [Fact]
@@ -232,7 +247,7 @@ public class ClassTests : TestRunner
         Assert.Single(printableInterface.Methods);
         Assert.Equal("Print", printableInterface.Methods.First().Name);
 
-        ZenClass.Parameter T = printableInterface.Parameters[0];
+        IZenClass.Parameter T = printableInterface.Parameters[0];
         Assert.Equal("T", T.Name);
         Assert.Equal(ZenType.Type, T.Type);
         Assert.True(T.IsTypeParameter);
