@@ -238,6 +238,8 @@ public class Resolver : IVisitor
 
     public void Visit(ForInStmt forInStmt)
     {
+        BeginScope();
+
         if (forInStmt.KeyIdentifier != null) {
             Declare((Token) forInStmt.KeyIdentifier);
             Define((Token) forInStmt.KeyIdentifier);
@@ -247,6 +249,9 @@ public class Resolver : IVisitor
         Define(forInStmt.ValueIdentifier);
 
         Resolve(forInStmt.Expression);
+        Resolve(forInStmt.Block.Statements);
+
+        EndScope();
     }
 
     public void Visit(ExpressionStmt expressionStmt)

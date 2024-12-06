@@ -117,6 +117,10 @@ public class ZenType {
         if (Kind != ZenTypeKind.Class && Kind != ZenTypeKind.Interface)
             throw new InvalidOperationException("Cannot make generic type from non-class/interface type");
 
+        if ( ! IsGeneric) return this;
+
+        ZenType t = Copy();
+
         if (Clazz!.Parameters.Count == 0 || substitutions.Count != Clazz.Parameters.Count)
             return this; // nothing to do
 
@@ -139,16 +143,20 @@ public class ZenType {
     /// </summary>
     /// <param name="substitutions"></param>
     /// <returns></returns>
-    private ZenType SubstitutedGenerics(Dictionary<string, ZenType> substitutions) {
-        var copy = Copy();
+    public ZenType SubstitutedGenerics(Dictionary<string, ZenType> substitutions) {
+        ZenType newType;
 
-        if (Kind == ZenTypeKind.GenericParameter) {
-            if (substitutions.ContainsKey(Name)) {
-                return substitutions[Name];
-            }
+        if (Kind == ZenTypeKind.GenericParameter && substitutions.ContainsKey(Name)) {
+            newType = substitutions[Name].Copy();
+        }else {
+            newType = Copy();
         }
 
-        return copy;
+        for (int i = 0; i < Parameters.Length; i++) {
+            newType.Parameters[i] = Parameters[i].SubstitutedGenerics(substitutions);
+        }
+
+        return newType;
     }
 
     // Returns true if this type can be assigned a value of the given type

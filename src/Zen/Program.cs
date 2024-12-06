@@ -55,6 +55,9 @@ public class Program
         } else {
             ISourceCode script;
 
+            bool debugEnabled = args.Contains("--debug");
+            Logger.Instance.SetDebug(debugEnabled);
+            
             // check if it's a .zen file
             if (args[0].EndsWith(".zen")) {
                 // check if file exists

@@ -96,7 +96,7 @@ public class ZenClass : IZenClass {
 
     public static ZenType ResolveTypeParameters(ZenType type, Dictionary<string, ZenType> substitutions) {
         if (type.IsGeneric) {
-            return type.MakeGenericType(substitutions);
+            return type.SubstitutedGenerics(substitutions);
         }
         return type;
     }
@@ -168,7 +168,7 @@ public class ZenClass : IZenClass {
                     if (arg.Type.IsGeneric) {
                         string genericParamName = arg.Type.Name;
                         
-                        ZenType concreteType = instance.GetParameter(genericParamName).Underlying!;
+                        ZenType concreteType = ResolveTypeParameters(arg.Type, typeSubstitutions);
 
                         Logger.Instance.Debug($"Substituting parameter {arg.Name} from {arg.Type} to {concreteType}");
                         return new ZenFunction.Argument(arg.Name, concreteType, false);
