@@ -12,14 +12,16 @@ public class Program
 {
     public static void Main(string[] args)
     {
+
+        Console.WriteLine(typeof(System.Net.HttpListener));
+
         // Handle unhandled exceptions
         AppDomain.CurrentDomain.UnhandledException += (sender, eventArgs) =>
         {
             // Retrieve and display exception details
             if (eventArgs.ExceptionObject is Exception ex)
             {
-                Console.WriteLine("Oops! Unhandled Exception!");
-                Console.WriteLine(ex.ToString()); // Print the full exception details
+                Console.WriteLine(ex); // Print the full exception details
             }
 
             // Perform any additional cleanup if needed
@@ -82,7 +84,7 @@ public class Program
     {
         Console.WriteLine("Executing script " + script);
         Runtime runtime = new();
-
+        
         runtime.Execute(script);
     }
 

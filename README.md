@@ -328,10 +328,12 @@ Zen provides an extensible builtin system through the `IBuiltinsProvider` interf
   - Core.Time: Provides time-related functions
 - New builtin modules can be easily added by implementing IBuiltinsProvider
 
-## TODO
+## BUGS
+- When calling async functions without 'await', exceptions thrown inside the async function are not handled.
 
+## TODO
 - [x] Typing
-- - [x] Nullable types
+- - [] Nullable types
 - - [x] Type casting using parenthesis
 - - [x] Type comparison using 'is'
 - - [] Byte type, to make Interop with C# easier

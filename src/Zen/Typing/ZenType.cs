@@ -30,7 +30,7 @@ public class ZenType {
     public static readonly ZenType Any = new(ZenTypeKind.Primitive, "any");
     public static readonly ZenType Object = new(ZenTypeKind.Primitive, "object");
 
-    public static readonly ZenType Function = new(ZenTypeKind.Primitive, "func");
+    public static readonly ZenType Function = new(ZenTypeKind.Primitive, "Func");
     public static readonly ZenType Class = new(ZenTypeKind.Primitive, "class");
     public static readonly ZenType Interface = new(ZenTypeKind.Primitive, "interface");
     public static readonly ZenType BoundMethod = new(ZenTypeKind.Primitive, "BoundMethod");
@@ -47,7 +47,7 @@ public class ZenType {
     public ZenType[] Parameters = [];
 
     public bool IsObject => this == Object;
-    public bool IsPrimitive => this == Integer || this == Float || this == Integer64 || this == Float64 || this == Boolean || this == String || this == Null || this == Void;
+    public bool IsPrimitive => this == Integer || this == Function || this == Float || this == Integer64 || this == Float64 || this == Boolean || this == String || this == Null || this == Void;
     public bool IsNumeric => this == Integer || this == Float || this == Integer64 || this == Float64;
     public bool IsParametric => Parameters.Length > 0;
     public bool IsPromise => this == Promise || (IsParametric && Name == "Promise"); // New: Check if type is Promise

@@ -21,11 +21,13 @@ public class Namespace : IHasNamespaces, IHasModules
 
     public void AddModule(string name, Module module)
     {
+        if (Modules.ContainsKey(name)) return;
         Modules[name] = module;
     }
 
     public void AddNamespace(Namespace @namespace)
     {
+        if (Namespaces.ContainsKey(@namespace.Name)) return;
         Namespaces[@namespace.Name] = @namespace;
     }
 }

@@ -18,11 +18,13 @@ public class Package : IHasNamespaces, IHasModules
 
     public void AddNamespace(Namespace @namespace)
     {
+        if (Namespaces.ContainsKey(@namespace.Name)) return;
         Namespaces[@namespace.Name] = @namespace;
     }
 
     public void AddModule(string name, Module module)
     {
+        if (Modules.ContainsKey(name)) return;
         Modules[name] = module;
     }
 }

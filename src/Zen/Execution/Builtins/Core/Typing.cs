@@ -52,8 +52,8 @@ public class Typing : IBuiltinsProvider
         interp.globalEnvironment.Define(true, "bool", ZenType.Type, false);
         interp.globalEnvironment.Assign("bool", new ZenValue(ZenType.Type, ZenType.Boolean));
 
-        interp.globalEnvironment.Define(true, "func", ZenType.Type, false);
-        interp.globalEnvironment.Assign("func", new ZenValue(ZenType.Type, ZenType.Function));
+        interp.globalEnvironment.Define(true, "Func", ZenType.Type, false);
+        interp.globalEnvironment.Assign("Func", new ZenValue(ZenType.Type, ZenType.Function));
 
         interp.globalEnvironment.Define(true, "object", ZenType.Type, false);
         interp.globalEnvironment.Assign("object", new ZenValue(ZenType.Type, ZenType.Object));

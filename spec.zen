@@ -1,89 +1,89 @@
-//---------------------------//
-// Zen Language Specification
-//---------------------------//
-// Zen draws inspiration from many languages, including: C#, Java, Scala, Gdscript, Python and others.
+#
+#    _____                
+#   / _  /  ___  _ __   
+#   \// /  / _ \| '_ \    
+#    / //\|  __/| | | |   
+#   /____/ \___||_| |_|   
+#
+#          v0.1
+#
+# Zen supports many features, including:
+# - Strict typing with type inference where possible
+# - OOP: Classes, Interfaces, Inheritence, Operator overloading and more.
+# - Functions
+# - Lambda functions
+# - Arrays and Maps
+# - Tuples for multiple return values from functions
+# - Ranges
+# - For, For In and While loops
+# - file include with return values
+# - Modules, Namespaces and Packages
+# - Mutable and Immutable Variables (var and const)
+# - Smart nullable types (var nullable:string?) similar to C#
 
-// Zen supports many features, including:
-// - Classes
-// - Interfaces
-// - Functions
-// - Arrays
-// - Maps
-// - Tuples for multiple return values from functions
-// - Ranges
-// - For, For In and While loops
-// - Powerful switch statements
-// - Lambdas
-// - file include with return values
-// - Namespaces
-// - Mutable and Immutable Variables (var and const)
-// - Smart nullable types (var nullable:string?)
 
 
-//---------------//
-// Variables and Primitive Types
-//---------------//
+#-------------------------------
+# Variables and Types
+#-------------------------------
+# Zen uses 'var' to declare mutable variables and 'const' for immutable/constant values.
 
-// mutable (can change) variables can be declared (and assigned an initial value) using 'var' and the assignment operator (=):
 var name = "zen"
-
-
-// immutable (cannot change) variables can be declared using 'const':
 const awesome = true
+awesome = false # < will cause a syntax error: constants can't be reassigned.
 
-// zen is strictly typed: all variables and constants must have a defined type.
-// however, this is often not needed when declaring and assigning a value - the initial value infers the type.
-// so name is a string type and awesome is a bool type.
+name = "Zen!"   # < can be re-assigned
+                # however,
+name = 42       # < this will fail because 'name' is a 'string', not a 'int'!
 
-// to declare the type explicitly, use colon and the type.
+# the type of the above variables have been inferred from the initial value.
+# but we can declare the type using ':' and the type.
 var title:string = "Welcome to Zen"
 
-// it is recommended to always specify the type for readability.
-// also: string literals are written with double-quotes only. This is to help support consistency.
-// (And to reserve single-quotes for a potential future language feature. Maybe regular expressions?)
-
-// Though strictly typed, you do have the option to use 'any' to denote an untyped variable:
+# While zen is strictly typed - I.E, all variables (and class properties) must have a type, 
+# we can use the special 'any' type for dynamic values.
 var anything:any = 5
-anything = "hello" // OK: anything is 'any' type.
+anything = "hello" # OK: anything is 'any' type and can hold anything, 
+anything = null    # including 'null' as well.
 
-// Zen has a concept of null, like most languages (aka nil) but variables are not nullable by default.
-// To make a nullable variable, use a question mark after the type:
-var subtitle:string?
 
-var something:any // this is like any old care-free scripting language now, an untyped nullable! This is not recommended, but supported.
-something = "and now it has a value" // it's now a string
-something = 5
-something = null
+# Oh, and about null: Variables are not nullable by default (except for 'any')
+# To make a nullable variable, use a question mark after the type:
+var subtitle:string? # this is initialized as 'null'
+subtitle = "hello"   # now it has a string value
 
-// you can check the type of something using the appropriately named "is" keyword:
-if something is int {
-    something += 10 // this is OK
+# you can check the type of something using the appropriately named "is" keyword:
+if subtitle is string {     # < this will check the type of the value - not the variable.
+    something += ", world!" #   The variable is 'string?' but its value is of the type 'string'.
 }
 
-// Here's a float type
-var price = 0.5 // creates a float (a signed 32 bit decimal number)
+# you can get the type of something using the built in 'typeof' function:
+if typeof(subtitle) == string { # this is equivalent to the above. the 'is' is just syntactic sugar.
+    print "subtitle is a string type"
+}
 
-var coins = 10 // creates an integer (a signed 32 bit integer number)
-
-// to create 64 bit floats or integers, float64 and int64 can be used:
+# to create 64 bit floats or integers, float64 and int64 can be used:
 var distance:float64 = 12345678.9
 var num_planets:int64 = 123456789
 
-// the basic operators + - * and / are available of course.
+# the basic operators + - * and / are available of course.
 coins = coins + 1
 
-// as well as +=, -=, /=, and *=
+# as well as +=, -=, /=, and *=
 coins += 1
 
-// there's also increment and decrement operators ++ and --:
-coins++ // equivalent to coins = coins + 1
-coins-- // equivalent to coins = coins - 1
+# there's also increment and decrement operators ++ and --:
+coins++ # equivalent to coins = coins + 1
+coins-- # equivalent to coins = coins - 1
 
 
-//---------------//
-// Conditional Statements
-//---------------//
-// to control logic flow using conditional statements, Zen has standard if, else if and else statements:
+
+#------------------------#
+# Conditional Statements
+#------------------------#
+#
+# to control logic flow using conditional statements, Zen has standard if, else if and else statements:
+#
 if coins > 10 {
     print("lots of coins!")
 }else if coins >= 5 {
@@ -94,160 +94,117 @@ if coins > 10 {
     print("We're in debt!")
 }
 
-// logical and:
+# logical and:
 if coins > 10 and hungry {
     buyFood()
 }
 
-// logical 'or' and 'not' as inversion
+# logical 'or' and 'not' as inversion
 if coins < 5 or not hungry {
     print("not buying food")
 }
 
-// unary operator is also available:
-print -coins // equivalent to: coins = couns * -1
+# unary operator is also available:
+print -coins # equivalent to: couns * -1
 
-// + and - operators also work on certain other objects, like strings (+ for concatenation)
-// Zen will take care of casting "coins" to a string. For objects, you'll also by default get a string representation of the object.
+# + and - operators also work on certain other objects, like strings (+ for concatenation)
+# Zen will take care of casting "coins" to a string. For objects, you'll also by default get a string representation of the object.
 print "You have " + coins
 
 
-//---------------//
-// Collections
-//---------------//
-// Collections are generic classes that implement some special interfaces which provide syntactic sugar for operating
-// on containers/lists/boxes of data.
-// The two most important ones being the Array and Map classes.
 
-// Under the hood, they are generics:
-class Map<KeyType, ValueType> {}
+#---------------#
+# Collection Types
+#---------------#
+#
+# Collections are generic classes that implement some special interfaces which provide syntactic sugar for operating
+# on containers/lists/boxes of data.
+# The two most important ones being the Array and Map classes.
+#
 
-// The map requires two generic type parameters: a "key" type and a "value" type. The type can be any value type (not null and void because they are constant types)
-// Additionally, they implement the BracketAccess interface which lets one use brackets to access values within the map:
-
-interface BracketGet<K, V> {
-    protected _bracketGet(key:K): V
-}
-
-interface BracketSet<K, V> {
-    protected _bracketSet(key:K)
-}
-
-// main.zen:
-import zen/collections:BracketGet
-import zen/collections:BracketSet
-
-class Map<K, V, S> implements BracketGet<K, V>, BracketSet<K, V> {
-
-    private keys:Array[K, S]
-    private values:Array[V, S]
-
-    _bracketGet(key:K): V {
-        var idx = keys.indexOf(k)
-        return values[idx]
-    }
-
-    _bracketSet(key:K, value:V) {
-        var idx = keys.indexOf(key)
-        values[idx] = value
-    }
-}
+# Under the hood, they are generics:
+class Array<T> implements BracketGet<int, T> and BracketSet<int, T> and Iterable<T> {}
 
 
-//---------------//
-// Collections: Arrays
-//---------------//
-// Arrays are a sequental lists of things. They are mutable, and of fixed length (number of elements).
+#---------------#
+# Collections: Arrays
+#---------------#
+# Arrays are a sequental lists of things.
 
-// this declares an array of 3 floats and assigns the elements 3, 1, 4 to it.
-var position : Array<float, 3> = [3, 1, 4]
+# this declares an array of 3 floats and assigns the elements 3.5, 1.2, 4.0 to it.
+var position : Array<float, 3> = [3.5, 1.2, 4.0]
 
-// when you declare and assign an array in one statement, you can infer the type.
-var position = [3.0, 1.0, 4.0] // inferred as Array<float, 3>
+# when you declare and assign an array in one statement, you can infer the type.
+var position = [3.0, 2.0, -1.0] # inferred as Array<float, 3>
 
-// arrays can be sorted, reversed etc. using various method calls on the array object.
-position.reverse()
+# To get the length of the array, just access the Length property:
+print position.Length # = 3
 
 
 
-//---------------//
-// Collections: Lists
-//---------------//
-// Lists are essentially arrays of flexible length - I.E, they can grow and shrink.
-var vector : List<float> = [3, 1, 4]
+#---------------#
+# Collections: Maps
+#---------------#
+# While arrays are useful to store ordered lists of items, maps can associate keys or "names" to many items.
 
-vector.append(-1) // our list is now 3, 1, 4, -1. Making it like a 4-dimensional vector perhaps.
+# to declare a map of string to any for example:
+var config : Map<string, any>
 
-// you can seemlessly convert between arrays and lists:
-var vecArray : Array<float, 3> = vector.toArray()
-
-
-
-//---------------//
-// Collections: Maps
-//---------------//
-// While arrays are useful to store ordered lists of items, maps can associate keys or "names" to many items.
-// Maps have dynamic size.
-
-// to declare a map of string to any for example:
-var config : Map<string, any>? // nullable map where keys map to any type.
-var ages : Map<string, int> // initialized as an empty map
-
-// you can initialize a map with a "map literal", which uses curly braces:
-config = {
+# you can initialize a map with a "map literal", which uses curly braces:
+var config = {
     "volume": 0.5
     "dark_mode": true
 }
 
-// commas are required when declared on one line:
+# commas are required when declared on one line:
 config = {"volume": 0.5, "dark_mode": true}
 
 
-// like arrays, they have useful methods:
-config.getSize() // 2
+# like arrays, they have useful methods:
+config.Count # 2
 
-// check if a key exists
-config.has("volume") // true
-config.get("volume") // 0.5
-config.contains(0.5) // true, it has a key whose value is 0.5
+# check if a key exists
+config.has("volume") # true
+config.get("volume") # 0.5
+config.contains(0.5) # true, it has a key whose value is 0.5
 
-// collections use "Curly Access":
-config{"dark_mode"} = false
+# maps also support bracket access:
+config["dark_mode"] = false
 
-// like bracket access, it supports any expression:
+# like bracket access, it supports any expression:
 var dark = "dark"
-config{dark + "_mode"} // false
+config[dark + "_mode"] # false
 
 
 
-//---------------//
-// Collections: Extending
-//---------------//
-// The Array and Map collection types are two special classes that provide a special type (Array<T, S>) and access (my_array[index])
-// These can be extended like any other class to create custom collection behavior.
-class CustomArray<T, S> extends Array<T, S> {
-
+#---------------#
+# Collections: Extending
+#---------------#
+# The Array and Map collection types are two special classes that provide a special type (Array<T, S>) and access (my_array[index])
+# These can be extended like any other class to create custom collection behavior.
+class CustomArray<T, SIZE:int = 99> extends Array<T> {
+    _array = new Array<T>()
 }
 
 
 
-//---------------//
-// Tuples
-//---------------//
-// Tuples are a special construct in Zen. They are not collections, nor are they a generic type.
-// Tuples are a list of elements that are:
-// - ordered
-// - named
-// - typed per-element
-// - immutable
-// They exist solely to support functions that return more than one value.
-// You can loop through them by key or value, much like maps.
+#---------------#
+# Tuples
+#---------------#
+# Tuples are a special construct in Zen. They are not collections, nor are they a generic type.
+# Tuples are a list of elements that are:
+# - ordered
+# - named
+# - typed per-element
+# - immutable
+# They exist solely to support functions that return more than one value.
+# You can loop through them by key or value, much like maps.
 
-// this can be useful in some contexts where you don't want to change the values.
-// but again, they're power is in functions:
+# this can be useful in some contexts where you don't want to change the values.
+# but again, they're power is in functions:
 
-// Consider a httpRequest method that returns an HTTP status code and a response body.
-// We could return a map:
+# Consider a httpRequest method that returns an HTTP status code and a response body.
+# We could return a map:
 func httpRequest(): Map<string, any> {
     return {
         "statusCode": 404,
@@ -255,85 +212,89 @@ func httpRequest(): Map<string, any> {
     }
 }
 
-// However, the caller of httpRequest can't be sure of the contents of the returned map - only that the keys are strings.
-// This is where tuples are useful:
+# However, the caller of httpRequest can't be sure of the contents of the returned map - only that the keys are strings.
+# This is where tuples are useful:
 func httpRequest() : statusCode:int, body:string {
     return 404, "not found"
 }
 
-// Now when we call httpRequest, we know that we're getting a statusCode which is an integer, and a body which is a string.
+# Now when we call httpRequest, we know that we're getting a statusCode which is an integer, and a body which is a string.
 
 var result = httpRequest()
-result.statusCode // 404
-result.body // "not found"
+result.statusCode # 404
+result.body # "not found"
 
-// You can also use the destructuring syntax to unpack the tuple into local variables:
+# You can also use the destructuring syntax to unpack the tuple into local variables:
 var statusCode, body <= httpRequest()
-statusCode // 404
-body // "not found"
+print statusCode  # 404
+print body        # "not found"
 
 
 
-//---------------//
-// Loops
-//---------------//
-// Zen provides the traditional for loop:
+#---------------#
+# Loops
+#---------------#
+# Zen provides the traditional for loop:
 
 for i = 0; i < 10; i++ {
     print(i)
 }
-// prints 0123456789
+# prints 0123456789
 
-// and the standard while loop, which runs once each time the condition is true
+# and the standard while loop, which runs once each time the condition is true
 while true {
-    // infinite loop!
+    # infinite loop!
 }
 
-// and we can iterate through collections, for example this array:
+# and we can iterate through collections, for example this array:
 for number in [1, 5, 7] {
-    print(number)
+    print number
 }
+# prints:
+# 1
+# 5
+# 7
 
-// when looping through an array using a single variable for each element ("number in this case)
-// number gets assigned the *value* of the element (1, 5 and 7)
+# when looping through an array using a single variable for each element ("number" in this case)
+# number gets assigned the *value* of the element (1, 5 and 7)
 
-// however, if you specify two variables, you can get the index too:
+# however, if you specify two variables, you can get the index too:
 for index, number in [1, 5, 7] {
-    print("index " + string(index) + " is number " + string(number))
+    print "index " + string(index) + " is number " + string(number)
 }
 
-// Looping through ranges
-// you can also loop through any range of numbers (up to but not including the last number):
+# Looping through ranges
+# you can also loop through any range of numbers (up to but not including the last number):
 for number in 2 {
-    print(number)
+    print number
 }
-// this prints 0,1
+# this prints 0,1
 
-// if you want to specify the starting number:
+# if you want to specify the starting number:
 for i in 3..5 {
-    print(i + "\n")
+    print i + "\n"
 }
-// this prints 3 and 4
+# this prints 3 and 4
 
 
-// inside a for loop is a special 'loop' variable which contains useful properties:
+# inside a for loop is a special 'loop' variable which contains useful properties:
 for name in ["john", "jane", "dave"] {
     if loop.first {
-        print("Names: ")
+        print "Names: "
     }
-    print(name)
+    print name
     if not loop.last {
-        print(", ")
+        print ", "
     }
 }
-// this would print "Names: john, jane, dave"
+# this would print "Names: john, jane, dave"
 
-// There's also loop.first which is true for the first element
+# There's also loop.first which is true for the first element
 
-// an iteration can be skipped by using 'continue' and you can exit the loop using 'break'
+# an iteration can be skipped by using 'continue' and you can exit the loop using 'break'
 
 
-// of course, maps can also be iterated on:
+# of course, maps can also be iterated on:
 var weather : Map<string, int> = {
     "Tokyo": 18,
     "Florida": 28
@@ -343,25 +304,25 @@ for place, degrees in weather {
     print("It's " + string(degrees) + " in " + place)
 }
 
-// "for in" loops can optionally have one or more conditions right in the for statement for simplicity
+# "for in" loops can optionally have one or more conditions right in the for statement for simplicity
 for article in articles where article.views > 100 {
-    // do something with popular articles
+    # do something with popular articles
 }
 
 
 
-//---------------//
-// Named loop blocks
-//---------------//
-// Loops can be named and references in break and continue statements
-// TODO: implement this.
+#---------------#
+# Named loop blocks
+#---------------#
+# Loops can be named and references in break and continue statements
+# TODO: implement this.
 
 
 
-//---------------//
-// Match
-//---------------//
-// Zen features a powerful match statement that allows matching on values, ranges, types, and patterns:
+#---------------#
+# Match
+#---------------#
+# Zen features a powerful match statement that allows matching on values, ranges, types, and patterns:
 
 var name = "john"
 when name {
@@ -376,7 +337,7 @@ when name {
     }
 }
 
-// Range matching
+# Range matching
 var age = 25
 when age {
     0..12 {
@@ -393,7 +354,7 @@ when age {
     }
 }
 
-// Type-based matching
+# Type-based matching
 var data: Any = 42
 when data {
     is int {
@@ -407,7 +368,7 @@ when data {
     }
 }
 
-// Combining conditions in match statements
+# Combining conditions in match statements
 when name {
     "john" or "jane" {
         print("Hello, friend!")
@@ -422,13 +383,13 @@ when name {
 
 
 
-//---------------//
-// Filtering
-//---------------//
-// Maps and Arrays both have a filter method that can be used to return a subset of the collection:
-// filter receives a func(a):bool which is called for each element. The element whose calls return true are kept.
-// Finally, it returns a new collection - but the elements are references - not copies.
-// For example:
+#---------------#
+# Filtering
+#---------------#
+# Maps and Arrays both have a filter method that can be used to return a subset of the collection:
+# filter receives a func(a):bool which is called for each element. The element whose calls return true are kept.
+# Finally, it returns a new collection - but the elements are references - not copies.
+# For example:
 people = [
     {
         "name": "John"
@@ -444,22 +405,22 @@ peopleOver20 = people.filter(func(person:Person) {
     return person{"age"} > 20
 })
 
-// However, since filtering collections is something one does very often, Zen has a filter mechanism as a language feature.
+# However, since filtering collections is something one does very often, Zen has a filter mechanism as a language feature.
 peopleOver20 = people where person{"age"} > 20
 
-// As you can see, this is both shorter and easier to read. It's almost english.
-// the syntax is [variable] where [conditions]
+# As you can see, this is both shorter and easier to read. It's almost english.
+# the syntax is [variable] where [conditions]
 
-// the variable for the element can be any valid non-existing identifier
-// however, 'key', 'value' and 'index' can be used to refer specifically to either an element's index in an array, or keys and values of an element in a map.
-peopleOver20 = people where index > 0 // this will return [{"name": "jane", "age": 25}]
+# the variable for the element can be any valid non-existing identifier
+# however, 'key', 'value' and 'index' can be used to refer specifically to either an element's index in an array, or keys and values of an element in a map.
+peopleOver20 = people where index > 0 # this will return [{"name": "jane", "age": 25}]
 
 
-//---------------//
-// With
-//---------------//
-// Zen features a 'with' block statement, which lets you temporarily treat the values of a nested map as variables
-// consider this Map
+#---------------#
+# With
+#---------------#
+# Zen features a 'with' block statement, which lets you temporarily treat the values of a nested map as variables
+# consider this Map
 const person = {
     "occupation": {
         "mechanic": {
@@ -469,62 +430,62 @@ const person = {
     }
 }
 
-// If you want to deal with a certain occupation for a while, you can temporarily assign it a variable
-var occuption = person.occupation // {"machanic": {...}}
+# If you want to deal with a certain occupation for a while, you can temporarily assign it a variable
+var occuption = person.occupation # {"machanic": {...}}
 
-print(occupation.skill_level) // 9
+print(occupation.skill_level) # 9
 
-// 'with' offers a neater solution:
+# 'with' offers a neater solution:
 with person.occupation {
-    print(started_year) // 1995
-    print(skill_level) // 9
+    print(started_year) # 1995
+    print(skill_level) # 9
 }
-print(skill_level) // error: undefined variable because this is outside the scope of the with block above.
+print(skill_level) # error: undefined variable because this is outside the scope of the with block above.
 
 
 
-//---------------//
-// Asserts & Testing
-//---------------//
-// Zen has testing facilities built in to the language with the assert statement
-// which is in the form: assert [condition(s)], "fail message"
+#---------------#
+# Asserts & Testing
+#---------------#
+# Zen has testing facilities built in to the language with the assert statement
+# which is in the form: assert [condition(s)], "fail message"
 assert 5 + 5 == 10, "should equal 10"
 
-// if we imagine this assertion failing, it will throw a AssertionFailedException
-// This Exception is handled automatically when running tests.
-// For running tests, the zen executable can be used to run all functions that begin with 'Test' provided they take no arguments.
+# if we imagine this assertion failing, it will throw a AssertionFailedException
+# This Exception is handled automatically when running tests.
+# For running tests, the zen executable can be used to run all functions that begin with 'Test' provided they take no arguments.
 class MyTestClass {
     func TestSomething() {
         assert 5 + 5 == 10, "should equal 10"
     }
 }
 
-// To execute all tests in a file, run 'zen -tests MyTestClass.zen'
-// To run a single test function, add a colon and specify the method or function
-// `zun -tests MyTestClass.zen:TestSomething`
-// whether the test file defines functions or a class doesn't matter - Zen will automatically instantiate any class with any Test* functions that don't take constructor arguments.
-// the output of the test run is by default a pretty-printed result, but you can get the result as JSON by passing the -json option.
-// This can be useful for integration with IDEs.
+# To execute all tests in a file, run 'zen -tests MyTestClass.zen'
+# To run a single test function, add a colon and specify the method or function
+# `zun -tests MyTestClass.zen:TestSomething`
+# whether the test file defines functions or a class doesn't matter - Zen will automatically instantiate any class with any Test* functions that don't take constructor arguments.
+# the output of the test run is by default a pretty-printed result, but you can get the result as JSON by passing the -json option.
+# This can be useful for integration with IDEs.
 
 
-//---------------//
-// Functions
-//---------------//
+#---------------#
+# Functions
+#---------------#
 
-// functions are declared using the 'func' keyword followed by a name, arguments in parenthesis and a code block using curly braces:
+# functions are declared using the 'func' keyword followed by a name, arguments in parenthesis and a code block using curly braces:
 func say_hi() {
     print("hi")
 }
 
-// functions can take arguments and can also return values
+# functions can take arguments and can also return values
 func say_hi(name:string) : string {
     return "Hi, " + name
 }
 
-// calling a function:
-say_hi("John") // returns the string "Hi, John"
+# calling a function:
+say_hi("John") # returns the string "Hi, John"
 
-// function arguments can be made "optional" by using a nullable type:
+# function arguments can be made "optional" by using a nullable type:
 func say_hi(name:string, suffix:string?) : string {
     str = "Hi, " name
     if suffix {
@@ -533,9 +494,9 @@ func say_hi(name:string, suffix:string?) : string {
     return str
 }
 
-// Variadic functions
-// Functions can take a flexible number of arguments with the variadic syntax:
-func sum(numbers: int...) : int {
+# Variadic functions
+# Functions can take a flexible number of arguments with the variadic syntax:
+func sum(args numbers: int) : int {
     var total = 0
     for num in numbers {
         total += num
@@ -543,125 +504,125 @@ func sum(numbers: int...) : int {
     return total
 }
 
-var result = sum(1, 2, 3, 4)  // result is 10
+var result = sum(1, 2, 3, 4)  # result is 10
 
-// You can also use the spread operator to pass an existing array as variadic arguments
+# You can also use the spread operator to pass an existing array as variadic arguments
 var nums = [5, 10, 15]
-var total = sum(...nums)  // Expands nums array into individual arguments, total is 30
+var total = sum(...nums)  # Expands nums array into individual arguments, total is 30
 
-// if you have a map where keys are strings, you can unpack them to local variables
+# if you have a map where keys are strings, you can unpack them to local variables
 var person = {
     "name": "John",
     "email": "john@example.com"
 }
 
 unpack(person)
-//this is equivalent to to:
-//var name = person.name
-//var email = person.email
+#this is equivalent to to:
+#var name = person.name
+#var email = person.email
 
-//---------------//
-// Lambdas and Closures
-//---------------//
+#---------------#
+# Lambdas and Closures
+#---------------#
 
-// Zen supports lambdas, which are inline, anonymous functions that can capture variables from the surrounding scope (making them closures).
+# Zen supports lambdas, which are inline, anonymous functions that can capture variables from the surrounding scope (making them closures).
 
-// Lambda syntax uses { parameters -> expression } for concise inline functions:
+# Lambda syntax uses { parameters -> expression } for concise inline functions:
 var double = { x -> x * 2 }
-print(double(5))  // Outputs 10
+print(double(5))  # Outputs 10
 
-// Lambdas can capture variables from their surrounding scope:
+# Lambdas can capture variables from their surrounding scope:
 func make_counter(start: int): func(): int {
     var count = start
-    return { -> count += 1 }  // Lambda captures `count` as a closure
+    return { -> count += 1 }  # Lambda captures `count` as a closure
 }
 
 var counter = make_counter(10)
-print(counter())  // Outputs 11
-print(counter())  // Outputs 12
+print(counter())  # Outputs 11
+print(counter())  # Outputs 12
 
-// Lambdas support type inference and multi-line syntax:
-// Multi-line lambda with { ... } braces for complex logic
+# Lambdas support type inference and multi-line syntax:
+# Multi-line lambda with { ... } braces for complex logic
 var complex_op = { x, y ->
     var result = x * y
     result += 10
     return result
 }
 
-print(complex_op(2, 3))  // Outputs 16
+print(complex_op(2, 3))  # Outputs 16
 
-// Lambdas can also be assigned to function types:
+# Lambdas can also be assigned to function types:
 var op: func(int, int): int = { a, b -> a + b }
-print(op(3, 4))  // Outputs 7
+print(op(3, 4))  # Outputs 7
 
 
 
-//---------------//
-// Classes
-//---------------//
-// Zen provides classes and interfaces to support object-oriented programming
+#---------------#
+# Classes
+#---------------#
+# Zen provides classes and interfaces to support object-oriented programming
 
-// the simplest class is:
+# the simplest class is:
 class Person {}
 
-// to create an instance of Person
+# to create an instance of Person
 var p = new Person()
 
-//---------------//
-// Constructors
-//---------------//
+#---------------#
+# Constructors
+#---------------#
 
-// Zen supports inferred and custom constructors. Properties declared in a class automatically generate an inferred constructor.
-// If a custom constructor is provided, it overrides the inferred constructor. Multiple constructors are supported, but all auxiliary
-// constructors must go through a primary constructor to ensure consistent initialization logic.
+# Zen supports inferred and custom constructors. Properties declared in a class automatically generate an inferred constructor.
+# If a custom constructor is provided, it overrides the inferred constructor. Multiple constructors are supported, but all auxiliary
+# constructors must go through a primary constructor to ensure consistent initialization logic.
 
-// Example with an inferred constructor:
+# Example with an inferred constructor:
 class Person {
     name: string
 }
-var person = new Person("Alice")  // Automatically creates a Person with name = "Alice"
+var person = new Person("Alice")  # Automatically creates a Person with name = "Alice"
 
-// Example with a primary and auxiliary constructors
+# Example with a primary and auxiliary constructors
 class Person {
     name: string
     age: int
 
-    // Primary constructor: core initialization logic is here
+    # Primary constructor: core initialization logic is here
     func init(name: string, age: int) {
         this.name = name.capitalized()
         this.age = age
     }
 
-    // Auxiliary constructor 1: uses default age, calls primary constructor
+    # Auxiliary constructor 1: uses default age, calls primary constructor
     func init(name: string) {
-        this.init(name, 0)  // Default age of 0
+        this.init(name, 0)  # Default age of 0
     }
 
-    // Auxiliary constructor 2: uses default name and age, calls auxiliary constructor 1
+    # Auxiliary constructor 2: uses default name and age, calls auxiliary constructor 1
     func init() {
-        this.init("Unknown")  // Default name of "Unknown" and age of 0
+        this.init("Unknown")  # Default name of "Unknown" and age of 0
     }
 }
 
-// Using the constructors
-var person1 = Person("Alice", 30)   // Calls primary constructor
-var person2 = Person("Bob")         // Calls auxiliary constructor 1
-var person3 = Person()              // Calls auxiliary constructor 2
+# Using the constructors
+var person1 = Person("Alice", 30)   # Calls primary constructor
+var person2 = Person("Bob")         # Calls auxiliary constructor 1
+var person3 = Person()              # Calls auxiliary constructor 2
 
 
 
-//---------------//
-// Interface
-//---------------//
-// interfaces allow you to declare a class signature but not the implementation
-// allowing for modular code with different kinds of implementations
-// For example, a File System may have a read and write method.
-class FileSystemInterface {
+#---------------#
+# Interface
+#---------------#
+# interfaces allow you to declare a class signature but not the implementation
+# allowing for modular code with different kinds of implementations
+# For example, a File System may have a read and write method.
+interface FileSystemInterface {
     read(file:string): string
     write(file:string, contents:string): void
 }
 
-// which can be implemented in different ways, for example a FileSystem on the local computer:
+# which can be implemented in different ways, for example a FileSystem on the local computer:
 class LocalFileSystem implements FileSystemInterface {
     read(file:string): string {
         var file = fs.open(file)
@@ -679,11 +640,11 @@ class LocalFileSystem implements FileSystemInterface {
 
 
 
-//---------------//
-// Interface Checking
-//---------------//
+#---------------#
+# Interface Checking
+#---------------#
 
-// Zen supports both explicit and structural interface checks using the `is` and `has` keywords for flexibility:
+# Zen supports both explicit and structural interface checks using the `is` and `has` keywords for flexibility:
 
 interface Drawable {
     draw(): void
@@ -700,67 +661,67 @@ class Circle {
 
 var shape = Circle()
 
-// `is` keyword for explicit interface implementation
+# `is` keyword for explicit interface implementation
 if shape is Drawable {
     print("shape explicitly implements Drawable")
     shape.draw()
     print(shape.position)
 }
 
-// `has` keyword for structural interface checking
-// Full structural check: checks if shape has all properties and methods of Drawable
+# `has` keyword for structural interface checking
+# Full structural check: checks if shape has all properties and methods of Drawable
 if shape has Drawable {
     print("shape structurally matches Drawable")
     shape.draw()
     print(shape.position)
 }
 
-// Partial structural check: only checks specific methods or properties
+# Partial structural check: only checks specific methods or properties
 if shape has Drawable.draw {
     shape.draw()
 }
 
-//------------------//
-// Type Unions
-//------------------//
-//Whenever you write a type, for example for a function parameter, you can type multiple types with a pipe symbol.
-// For example:
+#------------------#
+# Type Unions
+#------------------#
+#Whenever you write a type, for example for a function parameter, you can type multiple types with a pipe symbol.
+# For example:
 func say(value:string|int|float|bool) {
-    //...
+    #...
 }
 
 
-//------------------//
-// Type aliases
-//------------------//
-// Type aliases provide a way to create an alias for a type.
+#------------------#
+# Type aliases
+#------------------#
+# Type aliases provide a way to create an alias for a type.
 
-// The following would in effect create an alias called 'ConfigurationMap' for the type 'Map<String, any>'
-// This can be useful to centralize the type needed for configuration, instead of a Configuration system needing to reference Map<String, any> in many places.
-// This helps in cases where you may want to change the type.
+# The following would in effect create an alias called 'ConfigurationMap' for the type 'Map<String, any>'
+# This can be useful to centralize the type needed for configuration, instead of a Configuration system needing to reference Map<String, any> in many places.
+# This helps in cases where you may want to change the type.
 
 type ConfigurationMap = Map<String, any>
 
-// Now you can use 'ConfigurationMap' instead of 'Map<String, any>'
+# Now you can use 'ConfigurationMap' instead of 'Map<String, any>'
 var config: ConfigurationMap = {
     "volume": 0.5
 }
 
-// They can also be recursive
+# They can also be recursive
 type ConfigValue = string|float|int|bool
 type ConfigurationMap = Map<String, ConfigurationMap|ConfigValue>
 
-//ConfigurationMap is now essentially a JSON-like structure.
+#ConfigurationMap is now essentially a JSON-like structure.
 
-//---------------//
-// Traits
-//---------------//
-// Classes can only extend a single class, but can implement multiple interfaces.
-// However, interfaces only describe what a class should implement, but not how it should be implemented.
-// Sometimes you may want to share some behavior between many different classes.
-// This is where Traits are useful.
+#---------------#
+# Traits
+#---------------#
+# Classes can only extend a single class, but can implement multiple interfaces.
+# However, interfaces only describe what a class should implement, but not how it should be implemented.
+# Sometimes you may want to share some behavior between many different classes.
+# This is where Traits are useful.
 
-// Here's an example of a class that "uses" a Serialize trait:
+# Here's an example of a class that "uses" a Serialize trait:
 
 trait Serialization {
     init(fields Array<string>) {
@@ -793,127 +754,127 @@ var p = new Person("john", 354, 25)
 print(p.serialize())
 
 
-//-----------------------------------//
-// Namespaces, Packages, and Imports
-//-----------------------------------//
-// Zen organizes code into namespaces based on folder structure.
-// - Folders represent namespaces.
-// - Each `.zen` file in a given namespace is a "module".
-// - Modules can define one or more symbols (functions, classes, etc.).
-// - Zen projects define their root namespace through a `package.zen` file.
-// - When importing, Zen automatically treats modules as namespaces if they
-//   contain more than one symbol, simplifying import syntax and scoping.
-//
-// Note: Zen ignores any files starting with an underscore.
-// This is to allow developers to create .zen files in their package for other purposes.
+#-----------------------------------#
+# Namespaces, Packages, and Imports
+#-----------------------------------#
+# Zen organizes code into namespaces based on folder structure.
+# - Folders represent namespaces.
+# - Each `.zen` file in a given namespace is a "module".
+# - Modules can define one or more symbols (functions, classes, etc.).
+# - Zen projects define their root namespace through a `package.zen` file.
+# - When importing, Zen automatically treats modules as namespaces if they
+#   contain more than one symbol, simplifying import syntax and scoping.
+#
+# Note: Zen ignores any files starting with an underscore.
+# This is to allow developers to create .zen files in their package for other purposes.
 
-//-----------------------------------
-// Example Directory Structure:
+#-----------------------------------
+# Example Directory Structure:
 
-// GameEngine/
-// - package.zen
-// - Core/
-// -- Vector2.zen
-// -- Utils.zen
-// -- Nested/
-// --- Special.zen
+# GameEngine/
+# - package.zen
+# - Core/
+# -- Vector2.zen
+# -- Utils.zen
+# -- Nested/
+# --- Special.zen
 
-// where `package.zen` contains
+# where `package.zen` contains
 package GameEngine
 
-// where `Utils.zen` contains:
+# where `Utils.zen` contains:
 func hello() {}
 func world() {}
  
-// where `Vector2.zen` contains:
+# where `Vector2.zen` contains:
 class Vector2 {
     x: int
     y: int
 }
 
-// where `Special.zen` contains:
+# where `Special.zen` contains:
 func specialFunc() {}
 
-//-----------------------------------
-// Import Syntax
+#-----------------------------------
+# Import Syntax
 
-// Zen supports multiple ways to import modules and symbols within namespaces, 
-// with automatic handling for single-symbol vs. multi-symbol modules:
+# Zen supports multiple ways to import modules and symbols within namespaces, 
+# with automatic handling for single-symbol vs. multi-symbol modules:
 
-// 1. Import Namespace: Imports all symbols from all modules directly under
-//    the specified namespace if the module has multiple symbols.
+# 1. Import Namespace: Imports all symbols from all modules directly under
+#    the specified namespace if the module has multiple symbols.
 
 import GameEngine/Core
-hello()         // Available directly
-world()         // Available directly
-var vec2 = Vector2() // Only if Vector2 is defined as part of GameEngine/Core
+hello()         # Available directly
+world()         # Available directly
+var vec2 = Vector2() # Only if Vector2 is defined as part of GameEngine/Core
 
-// 2. Import Namespace with Scoped Alias: Imports all symbols but keeps them
-//    scoped under an alias.
+# 2. Import Namespace with Scoped Alias: Imports all symbols but keeps them
+#    scoped under an alias.
 
 import GameEngine/Core as gec
-gec.hello()     // Scoped access
-gec.world()     // Scoped access
+gec.hello()     # Scoped access
+gec.world()     # Scoped access
 
-// 3. Importing a Single-symbol Module Directly: If a module defines only
-//    a single symbol, it is imported directly by default.
+# 3. Importing a Single-symbol Module Directly: If a module defines only
+#    a single symbol, it is imported directly by default.
 
 import GameEngine/Core/Vector2
-var vec2 = Vector2() // Direct access without specifying symbol name
+var vec2 = Vector2() # Direct access without specifying symbol name
 
-// 4. Importing a Single-symbol Module with Alias: You can alias a single-symbol
-//    module for clarity or disambiguation.
+# 4. Importing a Single-symbol Module with Alias: You can alias a single-symbol
+#    module for clarity or disambiguation.
 
 import GameEngine/Core/Vector2 as CoreVector2
 var vec2 = CoreVector2()
 
-// 5. Importing Specific Symbols from a Multi-symbol Module: If a module defines 
-//    multiple symbols, you can selectively import symbols using the `from` syntax.
+# 5. Importing Specific Symbols from a Multi-symbol Module: If a module defines 
+#    multiple symbols, you can selectively import symbols using the `from` syntax.
 
 from GameEngine/Core/Utils import hello
-hello()        // Directly accessible
-world()        // Error: not imported
+hello()        # Directly accessiblew
+world()        # Error: not imported
 
-// Notes:
-// - Modules with more than one symbol are treated as namespaces, 
-//   allowing flexible import and scoping.
-// - Single-symbol modules are directly accessible upon import, 
-//   reducing verbosity and improving readability.
-// - Aliasing with `as` works for both single-symbol and multi-symbol modules.
+# Notes:
+# - Modules with more than one symbol are treated as namespaces, 
+#   allowing flexible import and scoping.
+# - Single-symbol modules are directly accessible upon import, 
+#   reducing verbosity and improving readability.
+# - Aliasing with `as` works for both single-symbol and multi-symbol modules.
 
 
 
-//-----------------------------------//
-// Include
-//-----------------------------------//
-// Zen's `include` function allows files to be included directly, either as code within scope or as a structured data return if a `return` statement is present in the included file.
-const config = include("config.zen")  // Loads return value from config.zen, such as {"key": "value"}
+#-----------------------------------#
+# Include
+#-----------------------------------#
+# Zen's `include` function allows files to be included directly, either as code within scope or as a structured data return if a `return` statement is present in the included file.
+const config = include("config.zen")  # Loads return value from config.zen, such as {"key": "value"}
 
-// File Return Values and Structured Data Support
-// Files with `return` statements can return structured data, and `include` supports various data formats like JSON directly.
-const settings = include("settings.json")  // Loads JSON as a structured map
+# File Return Values and Structured Data Support
+# Files with `return` statements can return structured data, and `include` supports various data formats like JSON directly.
+const settings = include("settings.json")  # Loads JSON as a structured map
 
-// Include is mainly implemented to support loading of various structured data such as configuration files.
-// However, it's also possible to execute code from another file directly in the current scope.
-// given a file 'myfile.zen' containing "var helloFromMyFile = 5"
-// one can do this:
+# Include is mainly implemented to support loading of various structured data such as configuration files.
+# However, it's also possible to execute code from another file directly in the current scope.
+# given a file 'myfile.zen' containing "var helloFromMyFile = 5"
+# one can do this:
 include("helloFromMyFile.zen")
-print(helloFromMyFile) // 5
+print(helloFromMyFile) # 5
 
 
-// Include can also be used to split class methods into multiple files
-// It's recommended to prefix those files by and underscore to prevent Zen's importer to scan them.
-// For example, if you have a file "MyClass.zen":
+# Include can also be used to split class methods into multiple files
+# It's recommended to prefix those files by and underscore to prevent Zen's importer to scan them.
+# For example, if you have a file "MyClass.zen":
 package MyPackage
 class MyClass {
     include("_MyClass_methods.zen")
 }
 
-// and a file "_MyClass_methods.zen":
+# and a file "_MyClass_methods.zen":
 func init() {
-    // constructor
+    # constructor
 }
 
-// and importing the MyClass
+# and importing the MyClass
 from MyPackage import MyClass
 var obj = new MyClass()

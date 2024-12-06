@@ -28,15 +28,8 @@ public partial class Interpreter
 
             if (awaitEvents) {
                 // Then wait for all event loop tasks to complete
-                var timeout = TimeSpan.FromSeconds(5);
-                var startTime = DateTime.Now;
-
                 while (EventLoop.HasPendingTasks)
                 {
-                    if (DateTime.Now - startTime >= timeout)
-                    {
-                        throw Error("Event loop tasks did not complete within timeout period");
-                    }
                     Thread.Sleep(1); // Small delay to prevent CPU spinning
                 }
             }
@@ -134,7 +127,11 @@ public partial class Interpreter
         }
         else
         {
-            Console.WriteLine(str);
+            if (OutputHandler != null) {
+                OutputHandler(str);
+            }else {
+                Console.Write(str);
+            }
         }
 
         return (ValueResult)ZenValue.Void;
@@ -236,7 +233,7 @@ public partial class Interpreter
         }
 
         // perform the assignment operation
-        ZenValue newValue = PerformAssignment(assignment.Operator, (ZenValue) leftVariable.Value!, right.Value);
+        ZenValue newValue = PerformAssignment(assignment.Operator, leftVariable.Type, right.Value);
 
         // update the variable
         leftVariable.Assign(newValue);

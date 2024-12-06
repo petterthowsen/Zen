@@ -29,9 +29,6 @@ public class TestRunner
         Logger.Instance.SetDebug(true);
         
         Runtime = new Runtime();
-        
-        // Start with a fresh interpreter state
-        RestartInterpreter();
     }
 
     protected virtual void RestartInterpreter()
@@ -43,8 +40,10 @@ public class TestRunner
     protected string? Execute(ISourceCode source)
     {
         // Enable output buffering before executing
-        Runtime.Interpreter.GlobalOutputBufferingEnabled = true;
+        Runtime.Interpreter.GlobalOutputBufferingEnabled = false;
         Runtime.Interpreter.GlobalOutputBuffer.Clear();
+
+        Runtime.Interpreter.OutputHandler = Output.WriteLine;
 
         try
         {

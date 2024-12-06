@@ -381,7 +381,7 @@ public IEvaluationResult Visit(Grouping grouping)
                 return new PrimitiveMethodResult(result.Value, method, args);
             }
         }
-
+        
         throw Error($"Cannot find method '{get.Identifier.Value}' on '{result.Type}' with argument types '{string.Join<ZenValue>(", ", argValues)}'", get.Identifier.Location, Common.ErrorType.TypeError);
     }
 

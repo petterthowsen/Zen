@@ -132,7 +132,7 @@ public class Lexer {
     }
 
     /// <summary>
-    /// Scans a comment from the current position, starting with '#'.
+    /// Scans a line comment from the current position, starting with '#'.
     /// The comment is considered to continue until a newline is encountered.
     /// The created token is of type TokenType.Comment.
     /// </summary>
@@ -146,6 +146,30 @@ public class Lexer {
             Advance();
         }
         if (createCommentTokken) {
+            AddToken(TokenType.Comment, SourceCode.Substring(start.._position));
+        }
+    }
+
+    protected void ScanBlockComment(bool createCommentToken = false) {
+        if (Current != '#') {
+            throw new Exception("Block comment must start with '#!'");
+        }
+        // skip the #!
+        Advance(2);
+
+        int start = _position;
+        while ( ! EOF && ! MatchSequence("!#")) {
+            Advance();
+        }
+
+        if ( ! MatchSequence("!#")) {
+            Error("Unclosed block comment!");
+            return;
+        }
+
+        Advance(2);
+
+        if (createCommentToken) {
             AddToken(TokenType.Comment, SourceCode.Substring(start.._position));
         }
     }
@@ -275,7 +299,10 @@ public class Lexer {
             }
 
             // Parse multiple character tokens
-            if (Current == '#') {
+            if (MatchSequence("#!")) {
+                ScanBlockComment();
+                continue;
+            } else if (Current == '#') {
                 // # comments
                 ScanComment();
                 continue;

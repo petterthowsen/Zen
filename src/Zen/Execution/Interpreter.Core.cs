@@ -33,6 +33,9 @@ public partial class Interpreter : IGenericVisitor<IEvaluationResult>
     // Global Output Buffering - useful for testing
     public bool GlobalOutputBufferingEnabled = false;
     public readonly StringBuilder GlobalOutputBuffer = new();
+    
+    // OutputHandler func takes a string and returns void
+    public Action<string>? OutputHandler;
 
     // Event loop for managing async operations
     public readonly EventLoop EventLoop;
@@ -226,6 +229,11 @@ public partial class Interpreter : IGenericVisitor<IEvaluationResult>
         {
             return ZenValue.False;
         }
+    }
+
+    private static ZenValue PerformAssignment(Token op, ZenType leftType, ZenValue right)
+    {
+        return PerformAssignment(op, new ZenValue(leftType, null), right);
     }
 
     private static ZenValue PerformAssignment(Token op, ZenValue left, ZenValue right)

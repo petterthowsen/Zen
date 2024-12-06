@@ -574,7 +574,7 @@ public partial class Parser
 	}
 
 	private static readonly string[] methodModifiers = ["async", "public", "protected", "private", "abstract", "override", "final"];
-	private static readonly string[] propertyModifiers = ["public", "protected", "private", "readonly"];
+	private static readonly string[] propertyModifiers = ["public", "protected", "private"];
 
 	private bool CheckMethodDeclaration() {
 		int index = _index;

@@ -130,7 +130,7 @@ public class Interop : IBuiltinsProvider
     private static async Task<ZenValue> CallDotNetInternal(ZenValue[] args, bool asyncExecution)
     {
        if (args.Length < 2)
-        throw new ArgumentException("CallDotNet requires at least two arguments: target and method name.");
+            throw new ArgumentException("CallDotNet requires at least two arguments: target and method name.");
         
         // Convert arguments to .NET-compatible values
         dynamic?[] dotNetArgs = args.Select(ToDotNet).ToArray();
@@ -144,7 +144,38 @@ public class Interop : IBuiltinsProvider
         else if (target is string targetName)
         {
             Logger.Instance.Debug($"Resolving type: {targetName}...");
-            target = Type.GetType(targetName) ?? throw new ArgumentException($"Type '{targetName}' not found.");
+
+            // Attempt to resolve the type directly
+            target = Type.GetType(targetName);
+
+            if (target == null)
+            {
+                Logger.Instance.Debug($"Type '{targetName}' not found directly. Searching loaded assemblies...");
+                
+                // Search all loaded assemblies
+                target = AppDomain.CurrentDomain.GetAssemblies()
+                    .SelectMany(a => a.GetTypes())
+                    .FirstOrDefault(t => t.FullName == targetName || t.Name == targetName);
+
+                // Attempt to load missing assembly if still not found
+                if (target == null)
+                {
+                    try
+                    {
+                        Logger.Instance.Debug($"Attempting to load missing assembly...");
+                        var assembly = Assembly.Load("System.Net.HttpListener");
+                        target = assembly.GetType(targetName);
+                        Logger.Instance.Debug($"Loaded type: {target}");
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new ArgumentException($"Type '{targetName}' not found in loaded assemblies or system libraries.", ex);
+                    }
+                }
+            }
+
+            if (target == null)
+                throw new ArgumentException($"Type '{targetName}' not found in loaded assemblies.");
         }
         else
         {
@@ -163,6 +194,39 @@ public class Interop : IBuiltinsProvider
         var targetType = target as Type ?? target.GetType();
 
         // Find matching method
+        // constructor?
+        if (methodName == "new")
+        {
+            Logger.Instance.Debug($"Creating new instance of {targetType.FullName}...");
+
+            try
+            {
+                // Find the constructor matching the argument types
+                var constructors = targetType.GetConstructors();
+                var constructor = constructors.FirstOrDefault(ctor =>
+                {
+                    var parameters = ctor.GetParameters();
+                    return parameters.Length == methodArgs.Length &&
+                        parameters.Select(p => p.ParameterType).SequenceEqual(methodArgs.Select(a => a?.GetType() ?? typeof(object)));
+                });
+
+                if (constructor == null)
+                {
+                    Logger.Instance.Debug($"No matching constructor found for {targetType.FullName} with parameter types {string.Join(", ", methodArgs.Select(a => a?.GetType().Name ?? "null"))}");
+                    throw new ArgumentException($"No matching constructor found for {targetType.FullName}");
+                }
+
+                // Invoke the constructor
+                var instance = constructor.Invoke(methodArgs);
+                return ToZen(instance);
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Debug($"Error creating instance of {targetType.FullName}: {ex.Message}");
+                throw;
+            }
+        }
+
         var methods = targetType.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static)
             .Where(m => m.Name == methodName && m.GetParameters().Length == methodArgs.Length)
             .ToList();
@@ -178,16 +242,12 @@ public class Interop : IBuiltinsProvider
         }
 
         var method = methods.FirstOrDefault();
-        if (method == null)
-        {
-            throw new ArgumentException($"No suitable overload found for {methodName} on {targetType.FullName}.");
-        }
 
         Logger.Instance.Debug($"Resolved method: {method.Name}");
 
         try
         {
-            var result = method.Invoke(target is Type || target is null ? null : target, methodArgs);
+            var result = method.Invoke(target is Type || target is null || methodName == "new" ? null : target, methodArgs);
             if (result is Task task)
             {
                 if (asyncExecution)
@@ -211,7 +271,7 @@ public class Interop : IBuiltinsProvider
         }
         catch (Exception ex)
         {
-            Logger.Instance.Debug($"Error invoking method {methodName} on {target}: {ex.Message}");
+            Logger.Instance.Error($"INTEROP: invoking method {methodName} on {target}: {ex.Message}");
             throw;
         }
     }
