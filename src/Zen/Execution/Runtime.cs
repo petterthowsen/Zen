@@ -15,7 +15,7 @@ public class Runtime
     public readonly Lexer Lexer;
     public readonly Parser Parser;
 
-    public readonly EventLoop EventLoop;
+    public readonly ZenSynchronizationContext SyncContext;
     public readonly Resolver Resolver;
     public readonly Interpreter Interpreter;
     public readonly ModuleHelper ModuleHelper;
@@ -26,11 +26,15 @@ public class Runtime
     {
         Lexer = new Lexer();
         Parser = new Parser();
-        EventLoop = new EventLoop();
-        EventLoop.Start();
+        SyncContext = new ZenSynchronizationContext();
+        
+        // Set the synchronization context for async operations
+        // This ensures that all async operations are executed on the same thread
+        // as the event loop, without the need for locks.
+        SynchronizationContext.SetSynchronizationContext(SyncContext);
         
         // Create interpreter first
-        Interpreter = new Interpreter(EventLoop);
+        Interpreter = new Interpreter(SyncContext);
 
         // Then create a resolver, with the interpreter
         // The resolver handles scope resolution and populates the Interpreters.Locals
@@ -49,9 +53,6 @@ public class Runtime
         Builtins.Core.Interop.RegisterBuiltins(Interpreter);
         Builtins.Core.Array.RegisterBuiltins(Interpreter);
         Builtins.Core.Time.RegisterBuiltins(Interpreter);
-
-        // Import Always-Loaded modules
-        // Importer.Import("System/Collections/BracketGet", true);
     }
 
     private string GetPackageName(string? scriptDirectory)
@@ -77,8 +78,6 @@ public class Runtime
     /// </summary>
     public string? Execute(ISourceCode source)
     {
-        EventLoop.Start();
-
         // Create a module for the main script
         string moduleName = source is FileSourceCode fs ? 
             Path.GetFileNameWithoutExtension(fs.FilePath) : 
@@ -109,16 +108,16 @@ public class Runtime
                 throw new Exception("Failed to parse main module");
             }
 
-            // Resolve scope
+            // Run the Resolver in global scope (imported modules will be resolved in their own scope.)
             Resolver.Resolve(mainModule.AST, global: true);
             if (Resolver.Errors.Count > 0)
             {
                 throw new Exception("Resolver errors: " + string.Join("\n", Resolver.Errors));
             }
 
-            // Execute the module
-            // We pass true to awaitEvents since this is the main script
-            Interpreter.Interpret(mainModule.AST, awaitEvents: true);
+            // Execute the module and run the event loop on the current thread
+            // this will block until the event loop is finished.
+            Interpreter.Execute(mainModule.AST);
             
             string output = Interpreter.GlobalOutputBuffer.ToString();
             return output;
@@ -127,7 +126,7 @@ public class Runtime
         {
             // Clean up the provider on error
             Importer.Providers.Remove(mainProvider);
-            EventLoop.Stop();
+            SyncContext.Stop();
             throw;
         }
     }
@@ -136,6 +135,6 @@ public class Runtime
 
     public void Shutdown()
     {
-        EventLoop.Stop();
+        SyncContext.Stop();
     }
 }

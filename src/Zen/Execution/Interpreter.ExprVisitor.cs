@@ -1,6 +1,4 @@
-using System.Linq.Expressions;
 using Zen.Common;
-using Zen.Execution.Builtins.Core;
 using Zen.Execution.EvaluationResult;
 using Zen.Parsing.AST;
 using Zen.Parsing.AST.Expressions;
@@ -10,17 +8,17 @@ namespace Zen.Execution;
 
 public partial class Interpreter
 {
-    private IEvaluationResult Evaluate(Expr expr)
+    private async Task<IEvaluationResult> Evaluate(Expr expr)
     {
         return expr.Accept(this)!;
     }
 
-    public IEvaluationResult Visit(Binary binary)
+    public async Task<IEvaluationResult> Visit(Binary binary)
     {
         CurrentNode = binary;
 
-        IEvaluationResult leftRes = Evaluate(binary.Left);
-        IEvaluationResult rightRes = Evaluate(binary.Right);
+        IEvaluationResult leftRes = await Evaluate(binary.Left);
+        IEvaluationResult rightRes = await Evaluate(binary.Right);
 
         ZenValue left = leftRes.Value;
         ZenValue right = rightRes.Value;
@@ -331,30 +329,41 @@ public IEvaluationResult Visit(Grouping grouping)
         CurrentNode = await;
 
         // Evaluate the expression being awaited
-        IEvaluationResult result = Evaluate(@await.Expression);
+        IEvaluationResult result = Evaluate(await.Expression);
         
         // Get the value
         ZenValue value = result.Value;
         
-        // If it's not a promise, throw an error
-        if (value.Underlying is not ZenPromise promise)
+        // If it's not a task, throw an error
+        if (!value.Type.IsTask)
         {
-            throw Error($"Cannot await non-promise value of type '{value.Type}'", 
-                @await.Location, Common.ErrorType.TypeError);
+            throw Error($"Cannot await non-task value of type '{value.Type}'", 
+                await.Location, Common.ErrorType.TypeError);
         }
 
-        // Wait for the promise to complete and get its result
-        try 
+        // Get the task from the value
+        var task = (Task<ZenValue>)value.Underlying!;
+
+        // Create a TaskCompletionSource to bridge the async gap
+        var tcs = new TaskCompletionSource<ZenValue>();
+
+        // Post continuation to our sync context
+        SyncContext.Post(async _ =>
         {
-            // Await the task directly and get the result
-            ZenValue promiseResult = promise.AsTask().GetAwaiter().GetResult();
-            return  (ValueResult) promiseResult;
-        }
-        catch (Exception ex)
-        {
-            throw Error($"Promise rejected with error: {ex.Message}", 
-                @await.Expression.Location, Common.ErrorType.RuntimeError);
-        }
+            try 
+            {
+                var taskResult = await task;
+                tcs.SetResult(taskResult);
+            }
+            catch (Exception ex)
+            {
+                tcs.SetException(ex);
+                throw; // Re-throw to stop execution
+            }
+        }, null);
+
+        // Return a new task that will complete when the awaited task completes
+        return (ValueResult)new ZenValue(ZenType.Task, tcs.Task);
     }
 
     public IEvaluationResult EvaluateGetMethod(Get get, ZenValue[] argValues)

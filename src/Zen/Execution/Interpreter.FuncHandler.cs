@@ -43,7 +43,7 @@ public partial class Interpreter
         if (function is ZenHostFunction hostFunc)
         {
             var result = hostFunc.Call(this, arguments);
-            // If the result is a Promise, don't await it - let the caller handle it
+            // If the result is a Task, don't await it - let the caller handle it
             return (ValueResult)result;
         }
         else if (function is ZenUserFunction userFunc)
@@ -83,11 +83,11 @@ public partial class Interpreter
         // If this is an async function
         if (async)
         {
-            // Create a promise that will be resolved when the function completes
-            var promise = new ZenPromise(environment, returnType);
+            // Create a TaskCompletionSource that will be completed when the function finishes
+            var tcs = new TaskCompletionSource<ZenValue>();
             
-            // Schedule the function execution on the event loop
-            EventLoop.EnqueueTask(() =>
+            // Schedule the function execution on the sync context
+            SyncContext.Post(_ =>
             {
                 Environment previousEnvironment = environment;
 
@@ -118,33 +118,47 @@ public partial class Interpreter
                     {
                         statement.Accept(this);
                     }
-                    promise.Resolve(ZenValue.Void);
+                    tcs.SetResult(ZenValue.Void);
                 }
                 catch (ReturnException returnException)
                 {
-                    // type check return value against the promise's inner type
+                    // type check return value against the function's return type
                     if (!TypeChecker.IsCompatible(returnException.Result.Type, returnType))
                     {
-                        promise.Reject(new ZenValue(ZenType.String, 
-                            $"Cannot return value of type '{returnException.Result.Type}' from async function expecting '{returnType}'"));
+                        var error = Error($"Cannot return value of type '{returnException.Result.Type}' from async function expecting '{returnType}'",
+                            returnException.Location, ErrorType.TypeError);
+                        tcs.SetException(error);
+                        throw error; // Re-throw to stop execution
                     }
                     else
                     {
-                        promise.Resolve(returnException.Result.Value);
+                        tcs.SetResult(returnException.Result.Value);
                     }
                 }
                 catch (Exception ex)
                 {
-                    promise.Reject(new ZenValue(ZenType.String, ex.Message));
+                    // If it's already a RuntimeError, use it directly
+                    if (ex is RuntimeError runtimeError)
+                    {
+                        tcs.SetException(runtimeError);
+                        throw runtimeError; // Re-throw to stop execution
+                    }
+                    else
+                    {
+                        // Wrap other exceptions in a RuntimeError
+                        var error = Error(ex.Message, CurrentNode?.Location, ErrorType.RuntimeError, ex);
+                        tcs.SetException(error);
+                        throw error; // Re-throw to stop execution
+                    }
                 }
                 finally
                 {
                     environment = previousEnvironment;
                 }
-            });
+            }, null);
 
-            // Return the promise immediately without waiting
-            return (ValueResult)new ZenValue(ZenType.Promise, promise);
+            // Return the task immediately without waiting
+            return (ValueResult)new ZenValue(ZenType.Task, tcs.Task);
         }
         else
         {

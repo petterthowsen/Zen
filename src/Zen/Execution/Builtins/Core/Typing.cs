@@ -67,7 +67,11 @@ public class Typing : IBuiltinsProvider
         interp.globalEnvironment.Define(true, "DotNetObject", ZenType.Type, false);
         interp.globalEnvironment.Assign("DotNetObject", new ZenValue(ZenType.Type, ZenType.DotNetObject));
 
+        // deprecated?
         interp.globalEnvironment.Define(true, "Promise", ZenType.Type, false);
         interp.globalEnvironment.Assign("Promise", new ZenValue(ZenType.Type, ZenType.Promise));
+        
+        interp.globalEnvironment.Define(true, "Task", ZenType.Type, false);
+        interp.globalEnvironment.Assign("Task", new ZenValue(ZenType.Type, ZenType.Task));
     }
 }

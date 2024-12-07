@@ -13,37 +13,10 @@ public partial class Interpreter
     public IEvaluationResult Visit(ProgramNode programNode)
     {
         CurrentNode = programNode;
-        return Visit(programNode, true);
-    }
-
-    public IEvaluationResult Visit(ProgramNode programNode, bool awaitEvents)
-    {
-        CurrentNode = programNode;
-        // try {
-            // First, process all top-level statements
-            foreach (var statement in programNode.Statements)
-            {
-                statement.Accept(this);
-            }
-
-            if (awaitEvents) {
-                // Then wait for all event loop tasks to complete
-                while (EventLoop.HasPendingTasks)
-                {
-                    Thread.Sleep(1); // Small delay to prevent CPU spinning
-                }
-            }
-        // } catch (Exception ex) {
-        //     // Wrap unknown exceptions in a RuntimeError with source code info
-        //     if (ex is not Common.Error) {
-        //         ex = Error("Unhandled exception in program: ", CurrentNode?.Location, ErrorType.RuntimeError, ex);
-        //     }
-
-        //     // log it
-        //     Logger.Instance.Error(ex.ToString());
-
-        //     throw ex;
-        // }
+        foreach (var statement in programNode.Statements)
+        {
+            statement.Accept(this);
+        }
 
         return VoidResult.Instance;
     }

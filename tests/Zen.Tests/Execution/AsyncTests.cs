@@ -39,9 +39,9 @@ public class AsyncTests : TestRunner
     }
 
     [Fact]
-    public void TestAsyncFuncWithPromiseReturn() {
+    public void TestAsyncFuncWithTaskReturn() {
         RestartInterpreter();
-        Execute("async func hello(): Promise<int> {}");
+        Execute("async func hello(): Task<int> { return 42 }");
 
         Assert.True(Interpreter.environment.Exists("hello"));
         
@@ -61,23 +61,40 @@ public class AsyncTests : TestRunner
         Assert.Equal(0, function.Arity);
 
         // returns Promise<int>
-        Assert.True(function.ReturnType.IsPromise);
+        Assert.True(function.ReturnType.IsTask);
         Assert.Equal(ZenType.Integer, function.ReturnType.Parameters[0]);
+    }
+
+    [Fact]
+    public void TestAwait()
+    {
+        RestartInterpreter();
+
+        string? result = Execute(@"
+            async func test() {
+                print ""before""
+            }
+            await test()
+            print ""after""
+        ", true);
+
+        Assert.Equal("beforeafter", result);
     }
 
     [Fact]
     public void TestAsyncDelay() {
         RestartInterpreter();
-
+        
         string? result = Execute(@"
             async func test() {
                 var start = time()
                 await delay(100)
                 var elapsed = time() - start
                 print elapsed >= 100
+                print true
             }
             test()
-        ");
+        ", true);
 
         Assert.Equal("true", result);
     }
@@ -114,5 +131,18 @@ public class AsyncTests : TestRunner
         ");
 
         Assert.Equal("true", result);
+    }
+
+    [Fact]
+    public void TestAsyncError() {
+        RestartInterpreter();
+
+        string? result = Execute(@"
+            async func test() {
+                print ""this should throw an error""
+                var error = 5 / 0
+            }
+            test()
+        ");
     }
 }

@@ -8,7 +8,7 @@ using Zen.Execution.Import;
 
 namespace Zen.Execution;
 
-public partial class Interpreter : IGenericVisitor<IEvaluationResult>
+public partial class Interpreter : IGenericVisitor<Task<IEvaluationResult>>
 {
     public static RuntimeError Error(string message, SourceLocation? location = null, ErrorType errorType = ErrorType.RuntimeError, Exception? innerException = null)
     {
@@ -37,18 +37,56 @@ public partial class Interpreter : IGenericVisitor<IEvaluationResult>
     // OutputHandler func takes a string and returns void
     public Action<string>? OutputHandler;
 
-    // Event loop for managing async operations
-    public readonly EventLoop EventLoop;
+    // Synchronization context for managing async operations
+    public readonly ZenSynchronizationContext SyncContext;
 
     public Importer Importer;
 
     public Node? CurrentNode {get; protected set;}
 
-    public Interpreter(EventLoop eventLoop)
+    public Interpreter(ZenSynchronizationContext syncContext)
     {
         environment = globalEnvironment;
-        EventLoop = eventLoop;
+        SyncContext = syncContext;
         Instance = this;
+    }
+
+    public void Interpret(Node node)
+    {
+        node.Accept(this);
+    }
+
+    /// <summary>
+    /// Interpret a program as a main script and run the event loop.
+    /// </summary>
+    /// <param name="programNode"></param>
+    /// <returns></returns>
+    public IEvaluationResult Execute(ProgramNode programNode)
+    {
+        try {
+            Visit(programNode);
+            SyncContext.RunOnCurrentThread();
+        } catch (Exception ex) {
+            // Wrap unknown exceptions in a RuntimeError with source code info
+            if (ex is not Common.Error) {
+                ex = Error("Unhandled exception in program: " + ex.Message, CurrentNode?.Location, ErrorType.RuntimeError, ex);
+            }
+
+            // log it
+            Logger.Instance.Error(ex.ToString());
+
+            // Stop the event loop on error
+            SyncContext.Stop();
+
+            throw ex;
+        }
+
+        return VoidResult.Instance;
+    }
+
+    public void Shutdown()
+    {
+        SyncContext.Stop();
     }
 
     public ZenHostFunction RegisterHostFunction(string name, ZenType returnType, List<ZenFunction.Argument> parameters, Func<ZenValue[], ZenValue> func, bool variadic = false)
@@ -64,20 +102,25 @@ public partial class Interpreter : IGenericVisitor<IEvaluationResult>
     {
         var hostFunc = new ZenHostFunction(true, returnType, parameters, args =>
         {
-            var promise = new ZenPromise(environment, returnType);
-            EventLoop.EnqueueTask(async () =>
+            // Create a TaskCompletionSource to bridge the async gap
+            var tcs = new TaskCompletionSource<ZenValue>();
+            
+            // Post the async work to our sync context
+            SyncContext.Post(async _ =>
             {
                 try
                 {
                     var result = await func(args);
-                    promise.Resolve(result);
+                    tcs.SetResult(result);
                 }
                 catch (Exception ex)
                 {
-                    promise.Reject(new ZenValue(ZenType.String, ex.Message));
+                    tcs.SetException(ex);
                 }
-            });
-            return new ZenValue(ZenType.Promise, promise);
+            }, null);
+
+            // Return a ZenValue that wraps the Task
+            return new ZenValue(ZenType.Task, tcs.Task);
         }, globalEnvironment);
 
         hostFunc.Variadic = variadic;
@@ -279,21 +322,5 @@ public partial class Interpreter : IGenericVisitor<IEvaluationResult>
         if (a is null) return false;
 
         return a.Equals(b);
-    }
-
-    public void Interpret(Node node)
-    {
-        node.Accept(this);
-    }
-
-    public void Interpret(ProgramNode node, bool awaitEvents = true)
-    {
-        Instance = this;
-        Visit(node, awaitEvents);
-    }
-
-    public void Shutdown()
-    {
-        EventLoop.Stop();
     }
 }

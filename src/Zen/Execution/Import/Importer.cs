@@ -298,7 +298,7 @@ public class Importer
         var oldEnv = _interpreter.environment;
         try {
             _interpreter.environment = module.environment;
-            _interpreter.Interpret(module.AST, awaitEvents: false);
+            _interpreter.Interpret(module.AST);
         } finally {
             _interpreter.environment = oldEnv;
         }

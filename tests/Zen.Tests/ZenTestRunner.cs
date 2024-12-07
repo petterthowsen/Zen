@@ -17,7 +17,6 @@ public class TestRunner
     protected Parser Parser => Runtime.Parser;
     protected Resolver Resolver => Runtime.Resolver;
     protected Interpreter Interpreter => Runtime.Interpreter;
-    protected EventLoop EventLoop => Runtime.EventLoop;
     protected Importer Importer => Runtime.Importer;
 
     public TestRunner(ITestOutputHelper output)
@@ -33,21 +32,23 @@ public class TestRunner
 
     protected virtual void RestartInterpreter()
     {
-        Runtime.EventLoop.Stop();
+        Runtime.SyncContext.Stop();
         Runtime = new Runtime();
     }
 
-    protected string? Execute(ISourceCode source)
+    protected string? Execute(ISourceCode source, bool outputBuffering = false)
     {
-        // Enable output buffering before executing
-        Runtime.Interpreter.GlobalOutputBufferingEnabled = false;
+        // Enable output buffering before executing?
+        Runtime.Interpreter.GlobalOutputBufferingEnabled = outputBuffering;
         Runtime.Interpreter.GlobalOutputBuffer.Clear();
 
         Runtime.Interpreter.OutputHandler = Output.WriteLine;
 
         try
         {
-            return Runtime.Execute(source);
+            Runtime.Execute(source);
+
+            return Runtime.Interpreter.GlobalOutputBuffer.ToString();
         }
         finally
         {
@@ -56,5 +57,5 @@ public class TestRunner
         }
     }
 
-    protected string? Execute(string source) => Execute(new InlineSourceCode(source));
+    protected string? Execute(string source, bool outputBuffering = false) => Execute(new InlineSourceCode(source), outputBuffering);
 }

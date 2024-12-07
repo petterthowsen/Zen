@@ -15,7 +15,7 @@ public class ArrayTests : TestRunner
     {
         Execute("var arr = new Array<int>()");
 
-        var result = Execute("print arr.Length");
+        string? result = Execute("print arr.Length", true);
         Assert.Equal("0", result);
     }
 
@@ -28,7 +28,7 @@ public class ArrayTests : TestRunner
             arr.Append(1)
             arr.Append(2)
         ");
-        var result = Execute("print arr.Length");
+        var result = Execute("print arr.Length", true);
         Assert.Equal("2", result);
     }
 
