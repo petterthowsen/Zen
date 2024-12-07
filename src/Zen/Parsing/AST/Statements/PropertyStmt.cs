@@ -34,6 +34,11 @@ public class PropertyStmt : Stmt
         return visitor.Visit(this);
     }
 
+    public override ReturnType AcceptAsync<ReturnType>(IGenericVisitorAsync<ReturnType> visitor)
+    {
+        return visitor.VisitAsync(this);
+    }
+
     public override string ToString()
     {
         return "PropertyStmt";

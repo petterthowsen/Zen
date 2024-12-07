@@ -15,7 +15,7 @@ public class ZenUserMethod : ZenMethod
         Closure = closure;
     }
 
-    public override ZenValue Call(Interpreter interpreter, ZenValue[] arguments)
+    public override Task<ZenValue> Call(Interpreter interpreter, ZenValue[] arguments)
     {
         throw new Exception("User Methods cannot be called directly.");
     }

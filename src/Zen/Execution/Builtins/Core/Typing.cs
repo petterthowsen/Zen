@@ -8,7 +8,7 @@ namespace Zen.Execution.Builtins.Core;
 /// </summary>
 public class Typing : IBuiltinsProvider
 {
-    public static void RegisterBuiltins(Interpreter interp)
+    public async static Task RegisterBuiltins(Interpreter interp)
     {
         // 'type' returns the type of a value as a ZenValue of type ZenType.Type
         interp.RegisterHostFunction("type", ZenType.Type, [new ZenFunction.Argument("val", ZenType.Any)], (ZenValue[] args) =>
@@ -70,8 +70,10 @@ public class Typing : IBuiltinsProvider
         // deprecated?
         interp.globalEnvironment.Define(true, "Promise", ZenType.Type, false);
         interp.globalEnvironment.Assign("Promise", new ZenValue(ZenType.Type, ZenType.Promise));
-        
+
         interp.globalEnvironment.Define(true, "Task", ZenType.Type, false);
         interp.globalEnvironment.Assign("Task", new ZenValue(ZenType.Type, ZenType.Task));
+
+        await Task.CompletedTask;
     }
 }

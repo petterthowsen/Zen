@@ -35,6 +35,11 @@ public class VarStmt : Stmt {
         visitor.Visit(this);
     }
 
+    public override ReturnType AcceptAsync<ReturnType>(IGenericVisitorAsync<ReturnType> visitor)
+    {
+        return visitor.VisitAsync(this);
+    }
+
     public override ReturnType Accept<ReturnType>(IGenericVisitor<ReturnType> visitor)
     {
         return visitor.Visit(this);

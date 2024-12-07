@@ -12,7 +12,7 @@ public class ZenUserFunction : ZenFunction {
         Block = block;
     }
 
-    public override ZenValue Call(Interpreter interpreter, ZenValue[] argValues) {
+    public override Task<ZenValue> Call(Interpreter interpreter, ZenValue[] argValues) {
         if (Block == null)
         {
             throw new Exception("Cannot call placeholder function - implementation not yet available");

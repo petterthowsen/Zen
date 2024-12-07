@@ -10,9 +10,9 @@ public class AsyncTests : TestRunner
     }
 
     [Fact]
-    public void TestAsyncFuncDeclaration() {
+    public async void TestAsyncFuncDeclaration() {
         RestartInterpreter();
-        Execute("async func hello() {}");
+        await Execute("async func hello() {}");
 
         Assert.True(Interpreter.environment.Exists("hello"));
         
@@ -39,9 +39,9 @@ public class AsyncTests : TestRunner
     }
 
     [Fact]
-    public void TestAsyncFuncWithTaskReturn() {
+    public async void TestAsyncFuncWithTaskReturn() {
         RestartInterpreter();
-        Execute("async func hello(): Task<int> { return 42 }");
+        await Execute("async func hello(): Task<int> { return 42 }");
 
         Assert.True(Interpreter.environment.Exists("hello"));
         
@@ -60,17 +60,17 @@ public class AsyncTests : TestRunner
         // takes 0 arguments
         Assert.Equal(0, function.Arity);
 
-        // returns Promise<int>
+        // returns Task<int>
         Assert.True(function.ReturnType.IsTask);
         Assert.Equal(ZenType.Integer, function.ReturnType.Parameters[0]);
     }
 
     [Fact]
-    public void TestAwait()
+    public async void TestAwait()
     {
         RestartInterpreter();
 
-        string? result = Execute(@"
+        string? result = await Execute(@"
             async func test() {
                 print ""before""
             }
@@ -82,10 +82,10 @@ public class AsyncTests : TestRunner
     }
 
     [Fact]
-    public void TestAsyncDelay() {
+    public async void TestAsyncDelay() {
         RestartInterpreter();
         
-        string? result = Execute(@"
+        string? result = await Execute(@"
             async func test() {
                 var start = time()
                 await delay(100)
@@ -100,10 +100,10 @@ public class AsyncTests : TestRunner
     }
 
     [Fact]
-    public void TestAsyncFuncWithLocalVars() {
+    public async void TestAsyncFuncWithLocalVars() {
         RestartInterpreter();
 
-        string? result = Execute(@"
+        string? result = await Execute(@"
             async func test() {
                 var b = await delay(100)
                 print ""after""
@@ -116,10 +116,10 @@ public class AsyncTests : TestRunner
     }
 
     [Fact]
-    public void TestMultipleAwaits() {
+    public async void TestMultipleAwaits() {
         RestartInterpreter();
 
-        string? result = Execute(@"
+        string? result = await Execute(@"
             async func test() {
                 var start = time()
                 await delay(50)
@@ -134,10 +134,10 @@ public class AsyncTests : TestRunner
     }
 
     [Fact]
-    public void TestAsyncError() {
+    public async void TestAsyncError() {
         RestartInterpreter();
 
-        string? result = Execute(@"
+        string? result = await Execute(@"
             async func test() {
                 print ""this should throw an error""
                 var error = 5 / 0

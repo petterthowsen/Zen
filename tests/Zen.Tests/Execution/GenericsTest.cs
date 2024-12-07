@@ -11,9 +11,11 @@ public class GenericsTest : TestRunner
     }
 
     [Fact]
-    public void TestGenericType()
+    public async void TestGenericType()
     {
-        Execute(@"
+        await RestartInterpreter();
+
+        await Execute(@"
         class Container<T> {
             instance: T
             Container(inst: T) {
@@ -48,9 +50,10 @@ public class GenericsTest : TestRunner
     }
 
     [Fact]
-    public void TestGenericInstantiation()
+    public async void TestGenericInstantiation()
     {
-        var result = Execute(@"
+        await RestartInterpreter();
+        var result = await Execute(@"
         class Container<T> {
             instance: T
             
@@ -65,15 +68,16 @@ public class GenericsTest : TestRunner
         
         var strBox = new Container<string>(""hello"")
         print strBox.Get()
-        ");
+        ", true);
         
         Assert.Equal("hello", result);
     }
 
     [Fact]
-    public void TestMultipleTypeParameters()
+    public async void TestMultipleTypeParameters()
     {
-        var result = Execute(@"
+        await RestartInterpreter();
+        var result = await Execute(@"
         class Pair<T, U> {
             first: T
             second: U
@@ -96,9 +100,10 @@ public class GenericsTest : TestRunner
     }
 
     [Fact]
-    public void TestValueParameter()
+    public async void TestValueParameter()
     {
-        var result = Execute(@"
+        await RestartInterpreter();
+        var result = await Execute(@"
         class FixedArray<SIZE: int> {
             values: Array<int>
             
@@ -129,15 +134,16 @@ public class GenericsTest : TestRunner
         arr.set(2, 30)
         arr.set(3, 40)  // Should print ""Index out of bounds""
         print arr.get(1)
-        ");
+        ", true);
         
         Assert.Equal("20", result);
     }
 
     [Fact]
-    public void TestDefaultTypeParameter()
+    public async void TestDefaultTypeParameter()
     {
-        var result = Execute(@"
+        await RestartInterpreter();
+        var result = await Execute(@"
         class Container<T = int> {
             value: T
             Container(v: T) {
@@ -150,15 +156,16 @@ public class GenericsTest : TestRunner
         
         var box = new Container(42)  // T defaults to int
         print box.get()
-        ");
+        ", true);
         
         Assert.Equal("42", result);
     }
 
     [Fact]
-    public void TestGenericMethodInGenericClass()
+    public async void TestGenericMethodInGenericClass()
     {
-        var result = Execute(@"
+        await RestartInterpreter();
+        var result = await Execute(@"
         class Container<T> {
             value: T
             Container(v: T) {
@@ -173,15 +180,16 @@ public class GenericsTest : TestRunner
         var box = new Container<int>(42)
         var strBox = box.map((x) => x.toString())
         print strBox.value
-        ");
+        ", true);
         
         Assert.Equal("42", result);
     }
 
     [Fact]
-    public void TestNestedGenerics()
+    public async void TestNestedGenerics()
     {
-        var result = Execute(@"
+        await RestartInterpreter();
+        var result = await Execute(@"
         class Container<T> {
             value: T
             Container(v: T) {
@@ -201,7 +209,7 @@ public class GenericsTest : TestRunner
         
         var wrapper = new Wrapper<string>(""hello"")
         print wrapper.get()
-        ");
+        ", true);
         
         Assert.Equal("hello", result);
     }

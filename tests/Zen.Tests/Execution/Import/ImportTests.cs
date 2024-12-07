@@ -21,43 +21,43 @@ public class ImportTests : TestRunner
     }
 
     [Fact]
-    public void TestBasicImport()
+    public async void TestBasicImport()
     {        
         // Execute Main.zen which imports and uses PrintHello
         var mainPath = Path.Combine(_projectPath, "Main.zen");
         var source = new FileSourceCode(mainPath);
-        var result = Execute(source);
+        var result = await Execute(source);
 
         Assert.Equal("hello", result?.Trim());
     }
 
     [Fact]
-    public void TestClassImport()
+    public async void TestClassImport()
     {
         // Execute ClassImport.zen which imports OOP/Point.zen class
         var mainPath = Path.Combine(_projectPath, "ClassImport.zen");
         var source = new FileSourceCode(mainPath);
-        var result = Execute(source);
+        var result = await Execute(source);
 
         Assert.Equal("10", result?.Trim());
     }
 
     [Fact]
-    public void TestCyclicImport()
+    public async void TestCyclicImport()
     {
         // Execute Cyclic.zen which imports cyclic/A which in turn depends on B, which depends on A cyclicly
         var path = Path.Combine(_projectPath, "Cyclic.zen");
         var source = new FileSourceCode(path);
-        var result = Execute(source);
+        var result = await Execute(source);
 
         Assert.Equal("hello from Ahello from B", result);
     }
 
     [Fact]
-    public void TestImportClassModuleFromSystemPackage()
+    public async void TestImportClassModuleFromSystemPackage()
     {
         // Execute Main.zen which imports and uses PrintHello
-        var result = Execute(@"
+        var result = await Execute(@"
             from System import Exception
             var e = new Exception(""test message"")
             print e.Message
@@ -67,9 +67,9 @@ public class ImportTests : TestRunner
     }
 
     [Fact]
-    public void TestImportModuleFromSystem_Time()
+    public async void TestImportModuleFromSystem_Time()
     {
-        string? result = Execute(@"
+        string? result = await Execute(@"
         from System/Time import CurrentTimeMillis
         print CurrentTimeMillis()
         ");
@@ -79,31 +79,31 @@ public class ImportTests : TestRunner
     }
 
     [Fact]
-    public void TestAsyncImport()
+    public async void TestAsyncImport()
     {    
         // Execute AsyncMain.zen which imports and uses DelayAndReturn
         var mainPath = Path.Combine(_projectPath, "AsyncMain.zen");
         var source = new FileSourceCode(mainPath);
-        var result = Execute(source);
+        var result = await Execute(source);
 
         Assert.Equal("true", result?.Trim());
     }
 
     [Fact]
-    public void TestFromImport()
+    public async void TestFromImport()
     {
         // Create and execute source that uses from-import syntax
         var source = @"
             from MyPackage/Utils import PrintHello
             PrintHello()
         ";
-        var result = Execute(source);
+        var result = await Execute(source);
 
         Assert.Equal("hello", result?.Trim());
     }
 
     [Fact]
-    public void TestFromImportAsync()
+    public async void TestFromImportAsync()
     {        
         // Create and execute source that uses from-import syntax with async function
         var source = @"
@@ -116,7 +116,7 @@ public class ImportTests : TestRunner
 
             test()
         ";
-        var result = Execute(source);
+        var result = await Execute(source);
 
         Assert.Equal("true", result?.Trim());
     }

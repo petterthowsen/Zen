@@ -10,10 +10,10 @@ public partial class Interpreter
 {
     private async Task<IEvaluationResult> Evaluate(Expr expr)
     {
-        return expr.Accept(this)!;
+        return await expr.AcceptAsync(this)!;
     }
 
-    public async Task<IEvaluationResult> Visit(Binary binary)
+    public async Task<IEvaluationResult> VisitAsync(Binary binary)
     {
         CurrentNode = binary;
 
@@ -63,18 +63,18 @@ public partial class Interpreter
         }
     }
 
-public IEvaluationResult Visit(Grouping grouping)
+public async Task<IEvaluationResult> VisitAsync(Grouping grouping)
     {
         CurrentNode = grouping;
 
-        return Evaluate(grouping.Expression);
+        return await Evaluate(grouping.Expression);
     }
 
-    public IEvaluationResult Visit(Unary unary)
+    public async Task<IEvaluationResult> VisitAsync(Unary unary)
     {
         CurrentNode = unary;
 
-        IEvaluationResult eval = Evaluate(unary.Right);
+        IEvaluationResult eval = await Evaluate(unary.Right);
 
         if (unary.IsNot())
         {
@@ -129,14 +129,14 @@ public IEvaluationResult Visit(Grouping grouping)
     }
 
 
-    public IEvaluationResult Visit(Literal literal)
+    public async Task<IEvaluationResult> VisitAsync(Literal literal)
     {
         CurrentNode = literal;
 
         return (ValueResult)literal.Value;
     }
 
-    public IEvaluationResult Visit(Identifier identifier)
+    public async Task<IEvaluationResult> VisitAsync(Identifier identifier)
     {
         CurrentNode = identifier;
 
@@ -145,12 +145,12 @@ public IEvaluationResult Visit(Grouping grouping)
         return LookUpVariable(name, identifier);
     }
 
-    public IEvaluationResult Visit(Get get)
+    public async Task<IEvaluationResult> VisitAsync(Get get)
     {
         CurrentNode = get;
 
         // evaluate the object expression
-        IEvaluationResult result = Evaluate(get.Expression);
+        IEvaluationResult result = await Evaluate(get.Expression);
 
         if (result.Value.Underlying is ZenObject instance)
         {
@@ -174,11 +174,11 @@ public IEvaluationResult Visit(Grouping grouping)
         }
     }
 
-    public IEvaluationResult Visit(Set set) {
+    public async Task<IEvaluationResult> VisitAsync(Set set) {
         CurrentNode = set;
 
         // evaluate the object expression
-        IEvaluationResult objectExpression = Evaluate(set.ObjectExpression);
+        IEvaluationResult objectExpression = await Evaluate(set.ObjectExpression);
         string propertyName = set.Identifier.Value;
 
         // get the object
@@ -191,7 +191,7 @@ public IEvaluationResult Visit(Grouping grouping)
             }
 
             // evaluate the value expression
-            IEvaluationResult valueExpression = Evaluate(set.ValueExpression);
+            IEvaluationResult valueExpression = await Evaluate(set.ValueExpression);
 
             // Get the property's type and value's type for comparison
             ZenValue propertyValue = instance.GetProperty(propertyName);
@@ -217,12 +217,12 @@ public IEvaluationResult Visit(Grouping grouping)
         }
     }
 
-    public IEvaluationResult Visit(BracketGet bracketGet)
+    public async Task<IEvaluationResult> VisitAsync(BracketGet bracketGet)
     {
         CurrentNode = bracketGet;
 
-        IEvaluationResult target = Evaluate(bracketGet.Target);
-        IEvaluationResult element = Evaluate(bracketGet.Element);
+        IEvaluationResult target = await Evaluate(bracketGet.Target);
+        IEvaluationResult element = await Evaluate(bracketGet.Element);
 
         if (target.Value.Underlying is not ZenObject instance)
         {
@@ -239,18 +239,16 @@ public IEvaluationResult Visit(Grouping grouping)
 
         BoundMethod boundMethod = method.Bind(instance);
 
-        return CallUserFunction(boundMethod, [element.Value]);
-
-        //return (ValueResult)instance.Call(this, method, [new ZenValue(instance.Type, instance), element.Value]);
+        return await CallUserFunction(boundMethod, [element.Value]);
     }
 
-    public IEvaluationResult Visit(BracketSet bracketSet)
+    public async Task<IEvaluationResult> VisitAsync(BracketSet bracketSet)
     {
         CurrentNode = bracketSet;
 
-        IEvaluationResult target = Evaluate(bracketSet.Target);
-        IEvaluationResult element = Evaluate(bracketSet.Element);
-        IEvaluationResult value = Evaluate(bracketSet.ValueExpression);
+        IEvaluationResult target = await Evaluate(bracketSet.Target);
+        IEvaluationResult element = await Evaluate(bracketSet.Element);
+        IEvaluationResult value = await Evaluate(bracketSet.ValueExpression);
 
         if (target.Value.Underlying is not ZenObject instance)
         {
@@ -265,10 +263,10 @@ public IEvaluationResult Visit(Grouping grouping)
             throw Error($"Object does not support bracket assignment (missing 'set' method)", bracketSet.Location);
         }
 
-        return (ValueResult)instance.Call(this, method, [element.Value, value.Value]);
+        return (ValueResult) await instance.Call(this, method, [element.Value, value.Value]);
     }
 
-    public IEvaluationResult Visit(ParameterDeclaration parameter)
+    public async Task<IEvaluationResult> VisitAsync(ParameterDeclaration parameter)
     {
         CurrentNode = parameter;
 
@@ -279,12 +277,12 @@ public IEvaluationResult Visit(Grouping grouping)
         }
 
         // For non-type parameters (constraints), evaluate the type
-        IEvaluationResult type = Evaluate(parameter.Type);
+        IEvaluationResult type = await Evaluate(parameter.Type);
         
         // default value?
         if (parameter.DefaultValue != null)
         {
-            IEvaluationResult defaultValue = Evaluate(parameter.DefaultValue);
+            IEvaluationResult defaultValue = await Evaluate(parameter.DefaultValue);
             
             // Verify default value matches the type
             if (!TypeChecker.IsCompatible(defaultValue.Type, type.Type))
@@ -299,11 +297,11 @@ public IEvaluationResult Visit(Grouping grouping)
 
     // public IEvaluationResult Visit(BracketSet bracketSet)
 
-    public IEvaluationResult Visit(Logical logical)
+    public async Task<IEvaluationResult> VisitAsync(Logical logical)
     {
         CurrentNode = logical;
 
-        IEvaluationResult left = Evaluate(logical.Left);
+        IEvaluationResult left = await Evaluate(logical.Left);
 
         if (logical.Token.Value == "or")
         {
@@ -314,22 +312,22 @@ public IEvaluationResult Visit(Grouping grouping)
             if (!left.IsTruthy()) return left;
         }
 
-        return Evaluate(logical.Right);
+        return await Evaluate(logical.Right);
     }
 
-    public IEvaluationResult Visit(This dis)
+    public async Task<IEvaluationResult> VisitAsync(This dis)
     {
         CurrentNode = dis;
 
         return LookUpVariable("this", dis);
     }
 
-    public IEvaluationResult Visit(Await await)
+    public async Task<IEvaluationResult> VisitAsync(Await await)
     {
-        CurrentNode = await;
+        CurrentNode = @await;
 
         // Evaluate the expression being awaited
-        IEvaluationResult result = Evaluate(await.Expression);
+        IEvaluationResult result = await Evaluate(@await.Expression);
         
         // Get the value
         ZenValue value = result.Value;
@@ -338,7 +336,7 @@ public IEvaluationResult Visit(Grouping grouping)
         if (!value.Type.IsTask)
         {
             throw Error($"Cannot await non-task value of type '{value.Type}'", 
-                await.Location, Common.ErrorType.TypeError);
+                @await.Location, Common.ErrorType.TypeError);
         }
 
         // Get the task from the value
@@ -366,11 +364,11 @@ public IEvaluationResult Visit(Grouping grouping)
         return (ValueResult)new ZenValue(ZenType.Task, tcs.Task);
     }
 
-    public IEvaluationResult EvaluateGetMethod(Get get, ZenValue[] argValues)
+    public async Task<IEvaluationResult> EvaluateGetMethod(Get get, ZenValue[] argValues)
     {
         CurrentNode = get;
 
-        IEvaluationResult result = Evaluate(get.Expression);
+        IEvaluationResult result = await Evaluate(get.Expression);
         ZenMethod? method;
 
         if (result.Value.Underlying is ZenObject instance)
@@ -394,21 +392,23 @@ public IEvaluationResult Visit(Grouping grouping)
         throw Error($"Cannot find method '{get.Identifier.Value}' on '{result.Type}' with argument types '{string.Join<ZenValue>(", ", argValues)}'", get.Identifier.Location, Common.ErrorType.TypeError);
     }
 
-    public IEvaluationResult Visit(Call call)
+
+    public async Task<IEvaluationResult> VisitAsync(Call call)
     {
         CurrentNode = call;
 
         IEvaluationResult callee;
-        ZenValue[] argValues = call.Arguments.Select(e => Evaluate(e).Value).ToArray();
+        var argTasks = call.Arguments.Select(async e => (await Evaluate(e)).Value);
+        ZenValue[] argValues = await Task.WhenAll(argTasks);
 
         // is the callee a Get Expression?
         if (call.Callee is Get get)
         {
             // resolve the get expression
-            callee = EvaluateGetMethod(get, argValues);
+            callee = await EvaluateGetMethod(get, argValues);
         }else {
             // evaluate the callee
-            callee = Evaluate(call.Callee);
+            callee = await Evaluate(call.Callee);
         }
         
         if (callee.IsCallable() == false) {
@@ -426,7 +426,7 @@ public IEvaluationResult Visit(Grouping grouping)
                 throw Error($"Too many arguments for function {method}", call.Location, Common.ErrorType.RuntimeError);
             }
 
-            return CallFunction(method, args);
+            return await CallFunction(method, args);
         }
         else if (callee.Value.Underlying is ZenFunction function) {
             // check number of arguments is at least equal to the number of non-nullable parameters
@@ -441,7 +441,7 @@ public IEvaluationResult Visit(Grouping grouping)
                 throw Error($"Too many arguments for function {function}", call.Location, Common.ErrorType.RuntimeError);
             }
 
-            return CallFunction(function, argValues);
+            return await CallFunction(function, argValues);
         }
         else
         {
@@ -449,7 +449,7 @@ public IEvaluationResult Visit(Grouping grouping)
         }
     }
 
-    public IEvaluationResult Visit(FuncParameter funcParameter)
+    public async Task<IEvaluationResult> VisitAsync(FuncParameter funcParameter)
     {
         CurrentNode = funcParameter;
 
@@ -463,7 +463,7 @@ public IEvaluationResult Visit(Grouping grouping)
         // type hint?
         if (funcParameter.TypeHint != null)
         {
-            type = Evaluate(funcParameter.TypeHint).Type;
+            type = (await Evaluate(funcParameter.TypeHint)).Type;
             nullable = funcParameter.TypeHint.Nullable;
         }
 
@@ -472,12 +472,12 @@ public IEvaluationResult Visit(Grouping grouping)
         return (FunctionParameterResult)parameter;
     }
 
-    public IEvaluationResult Visit(Instantiation instantiation)
+    public async Task<IEvaluationResult> VisitAsync(Instantiation instantiation)
     {
         CurrentNode = instantiation;
 
         Call call = instantiation.Call;
-        IEvaluationResult clazzResult = Evaluate(call.Callee);
+        IEvaluationResult clazzResult = await Evaluate(call.Callee);
 
         // make sure it's a Class type
         if (clazzResult.Type != ZenType.Class)
@@ -496,7 +496,7 @@ public IEvaluationResult Visit(Grouping grouping)
         List<ZenValue> arguments = [];
         foreach (var argument in call.Arguments)
         {
-            arguments.Add(Evaluate(argument).Value);
+            arguments.Add((await Evaluate(argument)).Value);
         }
 
         // Evaluate generic<parameters> and build parameter values dictionary
@@ -529,7 +529,7 @@ public IEvaluationResult Visit(Grouping grouping)
                 }else {
                     // evaluate the parameter
                     Expr valueExpr = instantiation.Parameters[paramIndex];
-                    IEvaluationResult paramResult = Evaluate(valueExpr);
+                    IEvaluationResult paramResult = await Evaluate(valueExpr);
                     
                     // For type parameters (like "T" or "T:Type")
                     if (param.IsTypeParameter) {
@@ -653,18 +653,18 @@ public IEvaluationResult Visit(Grouping grouping)
         return type;        
     }
     
-    public IEvaluationResult Visit(TypeHint typeHint)
+    public async Task<IEvaluationResult> VisitAsync(TypeHint typeHint)
     {
         CurrentNode = typeHint;
 
         return (TypeResult) ResolveTypeHint(typeHint);
     }
 
-    public IEvaluationResult Visit(TypeCheck typeCheck)
+    public async Task<IEvaluationResult> VisitAsync(TypeCheck typeCheck)
     {
         CurrentNode = typeCheck;
 
-        IEvaluationResult exprResult = Evaluate(typeCheck.Expression);
+        IEvaluationResult exprResult = await Evaluate(typeCheck.Expression);
         ZenType sourceType = exprResult.Type;
 
         // If the expression evaluates to a type, it's a type-to-type comparison which we don't allow
@@ -675,19 +675,19 @@ public IEvaluationResult Visit(Grouping grouping)
         }
         
         // Resolve the target type from the type hint
-        TypeResult targetTypeResult = (TypeResult)Evaluate(typeCheck.Type);
+        TypeResult targetTypeResult = (TypeResult) await Evaluate(typeCheck.Type);
         ZenType targetType = targetTypeResult.Type;
 
         // Now perform the assignability check in the correct direction:
         return (ValueResult) targetType.IsAssignableFrom(sourceType);
     }
         
-    public IEvaluationResult Visit(TypeCast typeCast)
+    public async Task<IEvaluationResult> VisitAsync(TypeCast typeCast)
     {
         CurrentNode = typeCast;
 
-        IEvaluationResult exprResult = Evaluate(typeCast.Expression);
-        TypeResult targetTypeResult = (TypeResult) Evaluate(typeCast.Type);
+        IEvaluationResult exprResult = await Evaluate(typeCast.Expression);
+        TypeResult targetTypeResult = (TypeResult) await Evaluate(typeCast.Type);
         ZenType targetType = targetTypeResult.Type;
 
         try
@@ -702,7 +702,7 @@ public IEvaluationResult Visit(Grouping grouping)
         }
     }
 
-    public IEvaluationResult Visit(ImplementsExpr implementsExpr)
+    public async Task<IEvaluationResult> VisitAsync(ImplementsExpr implementsExpr)
     {
         // do nothing
         return VoidResult.Instance;

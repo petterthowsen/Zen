@@ -8,9 +8,9 @@ public class ClassTests : TestRunner
     public ClassTests(ITestOutputHelper output) : base(output) {}
 
     [Fact]
-    public void TestClassDeclaration() {
-        RestartInterpreter();
-        Execute("class Test {}");
+    public async void TestClassDeclaration() {
+        await RestartInterpreter();
+        await Execute("class Test {}");
 
         Assert.True(Interpreter.environment.Exists("Test"));
         
@@ -24,12 +24,12 @@ public class ClassTests : TestRunner
 
     
     [Fact]
-    public void TestClassInstantiation() {
-        RestartInterpreter();
+    public async void TestClassInstantiation() {
+        await RestartInterpreter();
 
-        Execute("class Test {}");
+        await Execute("class Test {}");
 
-        Execute("var t = new Test()");
+        await Execute("var t = new Test()");
 
         Assert.True(Interpreter.environment.Exists("t"));
 
@@ -49,16 +49,16 @@ public class ClassTests : TestRunner
         //Assert.Equal(Type, test.Type);
         Assert.IsType<ZenObject>(test.Underlying);
 
-        string? result = Execute("print t.ToString()");
+        string? result = await Execute("print t.ToString()", true);
         Assert.Equal("Object(Test)", result);
     }
 
     
     [Fact]
-    public void TestClassInstantiationWithLocal() {
-        RestartInterpreter();
+    public async void TestClassInstantiationWithLocal() {
+        await RestartInterpreter();
 
-        string? result = Execute(@"
+        string? result = await Execute(@"
             class Test {
                 Test() {
                     var text = ""hello""
@@ -67,18 +67,18 @@ public class ClassTests : TestRunner
             }
 
             var t = new Test()
-        ");
+        ", true);
         Assert.Equal("hello", result);
     }
 
     
     [Fact]
-    public void TestClassProperty() {
-        RestartInterpreter();
+    public async void TestClassProperty() {
+        await RestartInterpreter();
 
-        Execute("class Test { name: string = \"john\"}");
+        await Execute("class Test { name: string = \"john\"}");
 
-        Execute("var t = new Test()");
+        await Execute("var t = new Test()");
 
         Assert.True(Interpreter.environment.Exists("t"));
 
@@ -98,12 +98,12 @@ public class ClassTests : TestRunner
         Assert.Equal(ZenType.String, nameValue.Type);
         Assert.Equal<string>("john", nameValue.Underlying);
 
-        string? result = Execute("print t.name");
+        string? result = await Execute("print t.name", true);
 
         Assert.Equal("john", result);
 
         // set the property
-        Execute("t.name = \"bob\"");
+        await Execute("t.name = \"bob\"");
 
         // get the value
         nameValue = testObject.Properties["name"];
@@ -114,9 +114,9 @@ public class ClassTests : TestRunner
     }
 
     [Fact]
-    public void TestConstructor()
+    public async void TestConstructor()
     {
-        RestartInterpreter();
+        await RestartInterpreter();
 
         string code = @"
             class Point {
@@ -130,7 +130,7 @@ public class ClassTests : TestRunner
             }
             ";
 
-        Execute(code);
+        await Execute(code);
 
         ZenClass Point = (ZenClass) Interpreter.environment.GetValue("Point")!.Underlying!;
 
@@ -151,7 +151,7 @@ public class ClassTests : TestRunner
         Assert.Equal(ZenType.Void, constructor.ReturnType);
 
         // define a new point
-        Execute("var p = new Point(5, 10)");
+        await Execute("var p = new Point(5, 10)");
 
         // make sure it has the expected properties
         Assert.True(Interpreter.environment.Exists("p"));
@@ -169,7 +169,7 @@ public class ClassTests : TestRunner
         Assert.Equal(10, yValue.Underlying);
 
         // update the x property
-        Execute("p.x = 7");
+        await Execute("p.x = 7");
 
         // get the value
         xValue = pObject.Properties["x"];
@@ -180,11 +180,11 @@ public class ClassTests : TestRunner
     }
 
     [Fact]
-    public void TestInterface()
+    public async void TestInterface()
     {
-        RestartInterpreter();
+        await RestartInterpreter();
 
-        Execute(@"
+        await Execute(@"
             interface Printable {
                 Print(): string
             }
@@ -202,11 +202,11 @@ public class ClassTests : TestRunner
     }
 
     [Fact]
-    public void TestClassImplementsInterface()
+    public async void TestClassImplementsInterface()
     {
-        RestartInterpreter();
+        await RestartInterpreter();
 
-        Execute(@"
+        await Execute(@"
             interface Printable {
                 Print(): string
             }
@@ -225,19 +225,19 @@ public class ClassTests : TestRunner
         Assert.Equal("Print", printableInterface.Methods.First().Name);
         Assert.Equal("Print", testClass.Methods.First().Name);
 
-        string? result = Execute((@"
+        string? result = await Execute((@"
             var t = new Test()
             print t.Print()
-        "));
+        "), true);
 
         Assert.Equal("hello world", result);
     }
 
     [Fact]
-    public void TestParametricInterface()
+    public async void TestParametricInterface()
     {
-        RestartInterpreter();
-        Execute(@"
+        await RestartInterpreter();
+        await Execute(@"
         interface Printable<T> {
             Print(thing: T): string
         }");
@@ -254,10 +254,10 @@ public class ClassTests : TestRunner
     }
 
     [Fact]
-    public void TestClassImplementsParametricInterface()
+    public async void TestClassImplementsParametricInterface()
     {
-        RestartInterpreter();
-        string? result = Execute(@"
+        await RestartInterpreter();
+        string? result = await Execute(@"
         interface Printable<T> {
             Print(thing: T): string
         }
@@ -271,7 +271,7 @@ public class ClassTests : TestRunner
         var obj = new Test<string>()
         
         obj.Print(""Hello World"")
-        ");
+        ", true);
 
         ZenInterface printableInterface = (ZenInterface)Interpreter.environment.GetValue("Printable")!.Underlying!;
         ZenClass testClass = (ZenClass)Interpreter.environment.GetValue("Test")!.Underlying!;
@@ -284,10 +284,10 @@ public class ClassTests : TestRunner
     }
 
     [Fact]
-    public void TestClassImplementsPolyParametricInterface()
+    public async void TestClassImplementsPolyParametricInterface()
     {
-        RestartInterpreter();
-        string? result = Execute(@"
+        await RestartInterpreter();
+        string? result = await Execute(@"
         interface Container<K, V> {
             Add(key:K, value:V): void
             Get(key:K): V
@@ -312,7 +312,7 @@ public class ClassTests : TestRunner
         
         obj.Add(""my_key"", 42)
         print obj.Get(""my_key"")
-        ");
+        ", true);
 
         Assert.Equal("42", result);
     }

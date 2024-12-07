@@ -7,7 +7,7 @@ public class Array : IBuiltinsProvider
 {
     private static ZenClass? ArrayClass;
 
-    public static void RegisterBuiltins(Interpreter interp)
+    public static async Task RegisterBuiltins(Interpreter interp)
     {
         var env = interp.globalEnvironment;
 
@@ -18,9 +18,9 @@ public class Array : IBuiltinsProvider
         env.Define(true, "Array", ZenType.Class, false);
         env.Assign("Array", new ZenValue(ZenType.Class, ArrayClass));
 
-        Module bracketAccessModule = interp.GetModule("System/Collections/BracketAccess");
-        Module iterableModule = interp.GetModule("System/Collections/Iterable");
-        Module arrayEnumeratorModule = interp.GetModule("System/Collections/ArrayEnumerator");
+        Module bracketAccessModule = await interp.GetModule("System/Collections/BracketAccess");
+        Module iterableModule = await interp.GetModule("System/Collections/Iterable");
+        Module arrayEnumeratorModule = await interp.GetModule("System/Collections/ArrayEnumerator");
 
         ZenInterface bracketGet = bracketAccessModule.environment.GetValue("BracketGet")!.Underlying;
         ZenInterface bracketSet = bracketAccessModule.environment.GetValue("BracketSet")!.Underlying;
@@ -312,5 +312,6 @@ public class Array : IBuiltinsProvider
             }
         ));
 
+        await Task.CompletedTask;
     }
 }

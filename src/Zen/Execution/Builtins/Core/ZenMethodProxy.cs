@@ -17,7 +17,7 @@ public class ZenMethodProxy : ZenMethod
         }
     }
 
-    public override ZenValue Call(Interpreter interpreter, ZenValue[] arguments)
+    public override Task<ZenValue> Call(Interpreter interpreter, ZenValue[] arguments)
     {
         throw new Exception("Methods must be called with a ZenObject instance");
     }

@@ -8,42 +8,42 @@ public class BinaryTests : TestRunner
     public BinaryTests(ITestOutputHelper output) : base(output) {}
 
     [Fact]
-    public void TestAddition() {
+    public async void TestAddition() {
         RestartInterpreter();
 
-        string? result = Execute("print 1 + 1");
+        string? result = await Execute("print 1 + 1", true);
         Assert.Equal("2", result);
     }
     
     [Fact]
-    public void TestSubtraction() {
+    public async void TestSubtraction() {
         RestartInterpreter();
 
-        string? result = Execute("print 10 - 1");
+        string? result = await Execute("print 10 - 1", true);
         Assert.Equal("9", result);
     }
 
     [Fact]
-    public void TestMultiplication() {
+    public async void TestMultiplication() {
         RestartInterpreter();
 
-        string? result = Execute("print 10 * 2");
+        string? result = await Execute("print 10 * 2", true);
         Assert.Equal("20", result);
     }
 
     [Fact]
-    public void TestDivision() {
+    public async void TestDivision() {
         RestartInterpreter();
 
-        string? result = Execute("print 20 / 2");
+        string? result = await Execute("print 20 / 2", true);
         Assert.Equal("10", result);
     }
 
     [Fact]
-    public void TestGroupings() {
+    public async void TestGroupings() {
         RestartInterpreter();
 
-        string? result = Execute("print (1 + 1) * 2");
+        string? result = await Execute("print (1 + 1) * 2", true);
         Assert.Equal("4", result);
     }
 }

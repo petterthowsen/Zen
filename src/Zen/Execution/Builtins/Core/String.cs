@@ -52,7 +52,7 @@ public class String : IBuiltinsProvider
         ]
     );
 
-    public static void RegisterBuiltins(Interpreter interp)
+    public static async Task RegisterBuiltins(Interpreter interp)
     {
         Environment env = interp.globalEnvironment;
         env.Define(true, "String", ZenType.Class, false);

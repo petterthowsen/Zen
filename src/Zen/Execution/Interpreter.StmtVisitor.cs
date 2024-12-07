@@ -10,25 +10,25 @@ using Zen.Typing;
 namespace Zen.Execution;
 public partial class Interpreter
 {
-    public IEvaluationResult Visit(ProgramNode programNode)
+    public async Task<IEvaluationResult> VisitAsync(ProgramNode programNode)
     {
         CurrentNode = programNode;
         foreach (var statement in programNode.Statements)
         {
-            statement.Accept(this);
+            await statement.AcceptAsync(this);
         }
 
         return VoidResult.Instance;
     }
 
-    public IEvaluationResult Visit(Block block)
+    public async Task<IEvaluationResult> VisitAsync(Block block)
     {
         CurrentNode = block;
 
-        return ExecuteBlock(block, new Environment(environment));
+        return await ExecuteBlock(block, new Environment(environment));
     }
 
-    public IEvaluationResult ExecuteBlock(Block block, Environment environment)
+    public async Task<IEvaluationResult> ExecuteBlock(Block block, Environment environment)
     {
         CurrentNode = block;
 
@@ -39,7 +39,7 @@ public partial class Interpreter
         {
             foreach (var statement in block.Statements)
             {
-                statement.Accept(this);
+                await statement.AcceptAsync(this);
             }
         }
         finally
@@ -50,38 +50,38 @@ public partial class Interpreter
         return VoidResult.Instance;
     }
 
-    public IEvaluationResult Visit(IfStmt ifStmt)
+    public async Task<IEvaluationResult> VisitAsync(IfStmt ifStmt)
     {
         CurrentNode = ifStmt;
 
-        if (Evaluate(ifStmt.Condition).IsTruthy())
+        if ((await Evaluate(ifStmt.Condition)).IsTruthy())
         {
-            ifStmt.Then.Accept(this);
+            await ifStmt.Then.AcceptAsync(this);
         }
         else if (ifStmt.ElseIfs != null)
         {
             foreach (var elseIf in ifStmt.ElseIfs)
             {
-                if (Evaluate(elseIf.Condition).IsTruthy())
+                if ((await Evaluate(elseIf.Condition)).IsTruthy())
                 {
-                    elseIf.Then.Accept(this);
+                    await elseIf.Then.AcceptAsync(this);
                     break;
                 }
             }
         }
         else if (ifStmt.Else != null)
         {
-            ifStmt.Else.Accept(this);
+            await ifStmt.Else.AcceptAsync(this);
         }
 
         return VoidResult.Instance;
     }
 
-    public IEvaluationResult Visit(PrintStmt printStmt)
+    public async Task<IEvaluationResult> VisitAsync(PrintStmt printStmt)
     {
         CurrentNode = printStmt;
 
-        IEvaluationResult expResult = Evaluate(printStmt.Expression);
+        IEvaluationResult expResult = await Evaluate(printStmt.Expression);
 
         ZenValue value = expResult.Value;
 
@@ -110,13 +110,18 @@ public partial class Interpreter
         return (ValueResult)ZenValue.Void;
     }
 
-    public IEvaluationResult Visit(ExpressionStmt expressionStmt)
+    public async Task<IEvaluationResult> VisitAsync(ThrowStmt throwStmt)
     {
-        CurrentNode = expressionStmt;
-        return Evaluate(expressionStmt.Expression);
+        throw new NotImplementedException();
     }
 
-    public IEvaluationResult Visit(VarStmt varStmt)
+    public async Task<IEvaluationResult> VisitAsync(ExpressionStmt expressionStmt)
+    {
+        CurrentNode = expressionStmt;
+        return await Evaluate(expressionStmt.Expression);
+    }
+
+    public async Task<IEvaluationResult> VisitAsync(VarStmt varStmt)
     {
         CurrentNode = varStmt;
 
@@ -139,14 +144,14 @@ public partial class Interpreter
 
         if (varStmt.TypeHint != null)
         {
-            type = Evaluate(varStmt.TypeHint).Type;
+            type = (await Evaluate(varStmt.TypeHint)).Type;
             nullable = varStmt.TypeHint.Nullable;
         }
 
         // assign?
         if (varStmt.Initializer != null)
         {
-            IEvaluationResult value = Evaluate(varStmt.Initializer);
+            IEvaluationResult value = await Evaluate(varStmt.Initializer);
 
             // infer type?
             if (varStmt.TypeHint == null)
@@ -166,12 +171,12 @@ public partial class Interpreter
         return (ValueResult)ZenValue.Void;
     }
 
-    public IEvaluationResult Visit(Assignment assignment)
+    public async Task<IEvaluationResult> VisitAsync(Assignment assignment)
     {
         CurrentNode = assignment;
 
         // evaluate the expression on the right hand side
-        IEvaluationResult right = Evaluate(assignment.Expression);
+        IEvaluationResult right = await Evaluate(assignment.Expression);
         Variable leftVariable;
 
         try 
@@ -206,7 +211,7 @@ public partial class Interpreter
         }
 
         // perform the assignment operation
-        ZenValue newValue = PerformAssignment(assignment.Operator, leftVariable.Type, right.Value);
+        ZenValue newValue = PerformAssignment(assignment.Operator, (ZenValue) leftVariable.Value!, right.Value);
 
         // update the variable
         leftVariable.Assign(newValue);
@@ -215,22 +220,22 @@ public partial class Interpreter
         return (VariableResult) leftVariable;
     }
 
-    public IEvaluationResult Visit(WhileStmt whileStmt)
+    public async Task<IEvaluationResult> VisitAsync(WhileStmt whileStmt)
     {
         CurrentNode = whileStmt;
 
-        IEvaluationResult conditionResult = Evaluate(whileStmt.Condition);
+        IEvaluationResult conditionResult = await Evaluate(whileStmt.Condition);
 
         while (conditionResult.IsTruthy())
         {
-            Visit(whileStmt.Body);
-            conditionResult = Evaluate(whileStmt.Condition);
+            await VisitAsync(whileStmt.Body);
+            conditionResult = await Evaluate(whileStmt.Condition);
         }
 
         return (ValueResult)ZenValue.Void;
     }
 
-    public IEvaluationResult Visit(ForStmt forStmt)
+    public async Task<IEvaluationResult> VisitAsync(ForStmt forStmt)
     {
         CurrentNode = forStmt;
 
@@ -240,7 +245,7 @@ public partial class Interpreter
         try
         {
             Token loopIdentifier = forStmt.LoopIdentifier;
-            ValueResult loopValue = (ValueResult)Evaluate(forStmt.Initializer);
+            ValueResult loopValue = (ValueResult) await Evaluate(forStmt.Initializer);
 
             environment.Define(false, loopIdentifier.Value, loopValue.Type, false);
             environment.Assign(loopIdentifier.Value, loopValue.Value);
@@ -248,15 +253,15 @@ public partial class Interpreter
             Expr condition = forStmt.Condition;
             Expr incrementor = forStmt.Incrementor;
 
-            while (Evaluate(condition).Value.IsTruthy())
+            while ((await Evaluate(condition)).Value.IsTruthy())
             {
                 // execute body
                 foreach (Stmt statement in forStmt.Body.Statements) {
-                    statement.Accept(this);
+                    await statement.AcceptAsync(this);
                 }
         
                 // increment loop variable
-                Evaluate(incrementor);
+                await Evaluate(incrementor);
             }
         }
         finally
@@ -267,11 +272,11 @@ public partial class Interpreter
         return (ValueResult)ZenValue.Void;
     }
 
-    public IEvaluationResult Visit(ForInStmt forInStmt)
+    public async Task<IEvaluationResult> VisitAsync(ForInStmt forInStmt)
     {
         CurrentNode = forInStmt;
 
-        ZenValue targetVal = Evaluate(forInStmt.Expression).Value;
+        ZenValue targetVal = (await Evaluate(forInStmt.Expression)).Value;
 
         if (targetVal.IsObject() == false)
         {
@@ -280,8 +285,8 @@ public partial class Interpreter
 
         ZenObject target = (ZenObject) targetVal.Underlying!;
 
-        ZenInterface iterableInterface = FetchSymbol("System/Collections/Iterable", "Iterable").Underlying!;
-        ZenInterface enmeratorInterface = FetchSymbol("System/Collections/Enumerator", "Enumerator").Underlying!;
+        ZenInterface iterableInterface = (await FetchSymbol("System/Collections/Iterable", "Iterable")).Underlying!;
+        ZenInterface enmeratorInterface = (await FetchSymbol("System/Collections/Enumerator", "Enumerator")).Underlying!;
 
         if (target.Class.Implements(iterableInterface) == false) {
             throw Error($"Class '{target.Class.Name}' does not implement '{iterableInterface.Name}'.", forInStmt.Expression.Location, Common.ErrorType.TypeError);
@@ -297,7 +302,7 @@ public partial class Interpreter
             TypeHint? keyTypeHint = forInStmt.KeyTypeHint;
             TypeHint? valueTypeHint = forInStmt.ValueTypeHint;
             
-            ZenObject enumerator = CallObject(target, "GetEnumerator").Underlying!;
+            ZenObject enumerator = (await CallObject(target, "GetEnumerator")).Underlying!;
 
             // the type of the value is the type of the enumerator
             ZenType elementType = target.GetParameter("T").Underlying!;
@@ -308,15 +313,15 @@ public partial class Interpreter
                 environment.Define(false, keyIdentifier.Value.Value, elementType, false);
             }
 
-            while (CallObject(enumerator, "MoveNext").IsTruthy()) {
-                environment.Assign(valueIdentifier.Value, CallObject(enumerator, "Current"));
+            while ((await CallObject(enumerator, "MoveNext")).IsTruthy()) {
+                environment.Assign(valueIdentifier.Value, await CallObject(enumerator, "Current"));
 
                 if (keyIdentifier != null) {
                     environment.Assign(keyIdentifier.Value.Value, enumerator.GetProperty("index"));
                 }
 
                 foreach (Stmt statement in forInStmt.Block.Statements) {
-                    statement.Accept(this);
+                    await statement.AcceptAsync(this);
                 }
             }            
         }
@@ -328,7 +333,7 @@ public partial class Interpreter
         return (ValueResult)ZenValue.Void;
     }
 
-    public IEvaluationResult Visit(ReturnStmt returnStmt)
+    public async Task<IEvaluationResult> VisitAsync(ReturnStmt returnStmt)
     {
         CurrentNode = returnStmt;
 
@@ -336,7 +341,7 @@ public partial class Interpreter
 
         if (returnStmt.Expression != null)
         {
-            result = Evaluate(returnStmt.Expression);
+            result = await Evaluate(returnStmt.Expression);
         }
         else
         {
@@ -346,7 +351,7 @@ public partial class Interpreter
         throw new ReturnException(result, returnStmt.Location);
     }
 
-    protected ZenUserFunction EvaluateFunctionStatement(FuncStmt funcStmt, Environment? closure = null)
+    protected async Task<ZenUserFunction> EvaluateFunctionStatement(FuncStmt funcStmt, Environment? closure = null)
     {
         CurrentNode = funcStmt;
 
@@ -357,34 +362,35 @@ public partial class Interpreter
 
         for (int i = 0; i < funcStmt.Parameters.Length; i++)
         {
-            FunctionParameterResult funcParamResult = (FunctionParameterResult) funcStmt.Parameters[i].Accept(this);
+            IEvaluationResult funcParam = await Evaluate(funcStmt.Parameters[i]);
+            FunctionParameterResult funcParamResult = (FunctionParameterResult) funcParam;
             parameters.Add(funcParamResult.Parameter);
         }
 
         ZenType returnType = ZenType.Void;
-        returnType = Evaluate(funcStmt.ReturnType).Type;
+        returnType = (await Evaluate(funcStmt.ReturnType)).Type;
 
         return new ZenUserFunction(funcStmt.Async, returnType, parameters, funcStmt.Block, closure);
     }
 
-    public IEvaluationResult Visit(FuncStmt funcStmt)
+    public async Task<IEvaluationResult> VisitAsync(FuncStmt funcStmt)
     {
         CurrentNode = funcStmt;
 
-        ZenUserFunction zenFunction = EvaluateFunctionStatement(funcStmt);
+        ZenUserFunction zenFunction = await EvaluateFunctionStatement(funcStmt);
 
         RegisterFunction(funcStmt.Identifier.Value, zenFunction);
 
         return (ValueResult)ZenValue.Void;
     }
 
-    public IEvaluationResult Visit(ClassStmt classStmt)
+    public async Task<IEvaluationResult> VisitAsync(ClassStmt classStmt)
     {
         CurrentNode = classStmt;
 
         environment.Define(true, classStmt.Identifier.Value, ZenType.Class, false);
 
-        ZenClass clazz = EvaluateClassStatement(classStmt);
+        ZenClass clazz = await EvaluateClassStatement(classStmt);
 
         // validate the class
         clazz.Validate();
@@ -394,20 +400,20 @@ public partial class Interpreter
         return (ValueResult)ZenValue.Void;
     }
 
-    public IEvaluationResult Visit(InterfaceStmt interfaceStmt)
+    public async Task<IEvaluationResult> VisitAsync(InterfaceStmt interfaceStmt)
     {
         CurrentNode = interfaceStmt;
 
         environment.Define(true, interfaceStmt.Identifier.Value, ZenType.Class, false);
 
-        ZenInterface @interface = EvaluateInterfaceStatement(interfaceStmt);
+        ZenInterface @interface = await EvaluateInterfaceStatement(interfaceStmt);
 
         environment.Assign(interfaceStmt.Identifier.Value, new ZenValue(ZenType.Interface, @interface));
 
         return (ValueResult)ZenValue.Void;
     }
 
-    protected ZenInterface EvaluateInterfaceStatement(InterfaceStmt interfaceStmt)
+    protected async Task<ZenInterface> EvaluateInterfaceStatement(InterfaceStmt interfaceStmt)
     {
         CurrentNode = interfaceStmt;
 
@@ -428,7 +434,7 @@ public partial class Interpreter
                 if (methodStmt.ReturnType.IsGeneric) {
                     returnType = ZenType.GenericParameter(methodStmt.ReturnType.Name);
                 }else {
-                    returnType = Evaluate(methodStmt.ReturnType).Type;
+                    returnType = (await Evaluate(methodStmt.ReturnType)).Type;
                 }
 
                 // method parameters
@@ -436,8 +442,9 @@ public partial class Interpreter
 
                 for (int i = 0; i < methodStmt.Parameters.Length; i++)
                 {
-                    FunctionParameterResult funcParamResult = (FunctionParameterResult) methodStmt.Parameters[i].Accept(this);
-                    parameters.Add(funcParamResult.Parameter);
+                    IEvaluationResult funcParamResult = await Evaluate(methodStmt.Parameters[i]);
+                    FunctionParameterResult funcParam = (FunctionParameterResult) funcParamResult;
+                    parameters.Add(funcParam.Parameter);
                 }
 
                 ZenAbstractMethod method = new(methodStmt.Async, name, visibility, returnType, parameters);
@@ -450,10 +457,10 @@ public partial class Interpreter
             foreach (ParameterDeclaration parameter in interfaceStmt.Parameters) {
                 ZenValue? defaultValue = null;
                 if (parameter.DefaultValue != null) {
-                    defaultValue = Evaluate(parameter.DefaultValue!).Value;
+                    defaultValue = (await Evaluate(parameter.DefaultValue!)).Value;
                 }
 
-                IZenClass.Parameter param = new(parameter.Name, Evaluate(parameter).Type, defaultValue);
+                IZenClass.Parameter param = new(parameter.Name, (await Evaluate(parameter)).Type, defaultValue);
                 genericParameters.Add(param);
             }
 
@@ -463,7 +470,7 @@ public partial class Interpreter
         }
     }
 
-    protected ZenClass EvaluateClassStatement(ClassStmt classStmt)
+    protected async Task<ZenClass> EvaluateClassStatement(ClassStmt classStmt)
     {
         CurrentNode = classStmt;
         var previousEnvironment = environment;
@@ -483,7 +490,7 @@ public partial class Interpreter
 
                 if (property.Initializer != null)
                 {
-                    IEvaluationResult defaultValueResult = Evaluate(property.Initializer);
+                    IEvaluationResult defaultValueResult = await Evaluate(property.Initializer);
                     defaultValue = defaultValueResult.Value;
                     type = defaultValue.Type;
 
@@ -492,7 +499,7 @@ public partial class Interpreter
                         if (property.TypeHint.IsGeneric) {
                             type = ZenType.GenericParameter(property.TypeHint.Name);
                         }else {
-                            type = Evaluate(property.TypeHint).Type;
+                            type = (await Evaluate(property.TypeHint)).Type;
                         }
 
                         if ( ! TypeChecker.IsCompatible(defaultValue.Type, type))
@@ -509,7 +516,7 @@ public partial class Interpreter
                         type = ZenType.GenericParameter(property.TypeHint.Name);
                     }else {
                         // type = property.TypeHint.GetZenType();
-                        type = Evaluate(property.TypeHint).Type;
+                        type = (await Evaluate(property.TypeHint)).Type;
                         defaultValue = new ZenValue(type, null);
                     }
                 }
@@ -551,7 +558,7 @@ public partial class Interpreter
                     //TODO: handle nullables
                     returnType = ZenType.GenericParameter(methodStmt.ReturnType.Name);
                 }else {
-                    returnType = Evaluate(methodStmt.ReturnType).Type;
+                    returnType = (await Evaluate(methodStmt.ReturnType)).Type;
                 }
 
                 // method parameters
@@ -560,8 +567,9 @@ public partial class Interpreter
 
                 for (int i = 0; i < methodStmt.Parameters.Length; i++)
                 {
-                    FunctionParameterResult funcParamResult = (FunctionParameterResult) methodStmt.Parameters[i].Accept(this);
-                    parameters.Add(funcParamResult.Parameter);
+                    IEvaluationResult funcParamResult = await Evaluate(methodStmt.Parameters[i]);
+                    FunctionParameterResult funcParam = (FunctionParameterResult) funcParamResult;
+                    parameters.Add(funcParam.Parameter);
                 }
 
                 ZenUserMethod method = new(methodStmt.Async, name, visibility, returnType, parameters, methodStmt.Block, environment);
@@ -576,10 +584,10 @@ public partial class Interpreter
 
                 ZenValue? defaultValue = null;
                 if (parameter.DefaultValue != null) {
-                    defaultValue = Evaluate(parameter.DefaultValue!).Value;
+                    defaultValue = (await Evaluate(parameter.DefaultValue!)).Value;
                 }
 
-                IZenClass.Parameter param = new(parameter.Name, Evaluate(parameter).Type, defaultValue);
+                IZenClass.Parameter param = new(parameter.Name, (await Evaluate(parameter)).Type, defaultValue);
                 genericParameters.Add(param);
             }
 
@@ -587,7 +595,7 @@ public partial class Interpreter
 
             // extends?
             if (classStmt.Extends != null) {
-                ZenValue val = Evaluate(classStmt.Extends).Value;
+                ZenValue val = (await Evaluate(classStmt.Extends)).Value;
                 if (val.Type == ZenType.Class) {
                     clazz.SuperClass = val.Underlying!;
                 }else {
@@ -598,7 +606,7 @@ public partial class Interpreter
             // implements?
             foreach (ImplementsExpr implements in classStmt.Implements) {
                 CurrentNode = implements;
-                ZenValue val = Evaluate(implements.Identifier).Value;
+                ZenValue val = (await Evaluate(implements.Identifier)).Value;
                 if (val.Type == ZenType.Interface) {
                     clazz.Interfaces.Add(val.Underlying!);
                 }else {
@@ -612,19 +620,19 @@ public partial class Interpreter
         }
     }
 
-    public IEvaluationResult Visit(PropertyStmt propertyStmt)
+    public async Task<IEvaluationResult> VisitAsync(PropertyStmt propertyStmt)
     {
         // this isn't used.
         return (ValueResult)ZenValue.Void;
     }
 
-    public IEvaluationResult Visit(MethodStmt methodStmt)
+    public async Task<IEvaluationResult> VisitAsync(MethodStmt methodStmt)
     {
         // this isn't used.
         return (ValueResult)ZenValue.Void;
     }
     
-    public IEvaluationResult Visit(AbstractMethodStmt abstractMethodStmt)
+    public async Task<IEvaluationResult> VisitAsync(AbstractMethodStmt abstractMethodStmt)
     {
         // this isn't used
         return (ValueResult) ZenValue.Void;

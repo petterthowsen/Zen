@@ -80,23 +80,26 @@ public class Program
     }
 
 
-    protected static void Execute(ISourceCode script)
+    protected static async void Execute(ISourceCode script)
     {
         Console.WriteLine("Executing script " + script);
         Runtime runtime = new();
+        await runtime.RegisterCoreBuiltins();
         
-        runtime.Execute(script);
+        await runtime.Execute(script);
     }
 
-    protected static void REPL() {
+    protected static async void REPL() {
         Console.WriteLine("Zen REPL v0.1");
         
         Logger.Instance.SetDebug(true);
 
         Runtime runtime = new();
+        await runtime.RegisterCoreBuiltins();
+        
 
         while (true) {
-            Console.Write(">> ");
+            Console.Write("\n>> ");
             string? input = Console.ReadLine();
             if (input == null) {
                 break;
@@ -107,7 +110,7 @@ public class Program
             //     input = "print " + input;
             // }
 
-            runtime.Execute(input);
+            await runtime.Execute(input);
         }
     }
 

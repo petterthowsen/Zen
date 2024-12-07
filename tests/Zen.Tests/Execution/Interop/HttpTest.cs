@@ -9,12 +9,12 @@ public class InteropTests : TestRunner
     }
 
     [Fact]
-    public void TestHttp()
+    public async void TestHttp()
     {
         // TODO: use httpbin.org to test
         // RestartInterpreter();
 
-        Execute(@"
+        await Execute(@"
             import System/Http/HttpServer
             var server = new HttpServer(""127.0.0.1"", 3000)
             func handler(method:string, url:string):string {

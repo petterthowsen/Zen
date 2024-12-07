@@ -10,7 +10,7 @@ namespace Zen.Tests;
 public class TestRunner
 {
     protected readonly ITestOutputHelper Output;
-    protected Runtime Runtime;
+    protected Runtime? Runtime;
     
     // Keep these for backward compatibility with existing tests
     protected Lexer Lexer => Runtime.Lexer;
@@ -26,27 +26,40 @@ public class TestRunner
         // Configure logger to use test output
         Logger.Instance.SetOutput(message => output.WriteLine(message));
         Logger.Instance.SetDebug(true);
-        
-        Runtime = new Runtime();
     }
 
-    protected virtual void RestartInterpreter()
+    protected virtual async Task RestartInterpreter()
     {
-        Runtime.SyncContext.Stop();
+        if (Runtime != null) {
+            Runtime.SyncContext.Stop();
+        }
+
         Runtime = new Runtime();
+        await Runtime.RegisterCoreBuiltins();
+        await Task.CompletedTask;
     }
 
-    protected string? Execute(ISourceCode source, bool outputBuffering = false)
+    private async Task<Runtime> GetRuntime()
     {
+        if (Runtime == null) {
+            await RestartInterpreter();
+        }
+        return Runtime!;
+    }
+
+    protected async Task<string?> Execute(ISourceCode source, bool outputBuffering = false)
+    {
+        await GetRuntime();
+
         // Enable output buffering before executing?
-        Runtime.Interpreter.GlobalOutputBufferingEnabled = outputBuffering;
+        Runtime!.Interpreter.GlobalOutputBufferingEnabled = outputBuffering;
         Runtime.Interpreter.GlobalOutputBuffer.Clear();
 
         Runtime.Interpreter.OutputHandler = Output.WriteLine;
 
         try
         {
-            Runtime.Execute(source);
+            await Runtime!.Execute(source);
 
             return Runtime.Interpreter.GlobalOutputBuffer.ToString();
         }
@@ -57,5 +70,5 @@ public class TestRunner
         }
     }
 
-    protected string? Execute(string source, bool outputBuffering = false) => Execute(new InlineSourceCode(source), outputBuffering);
+    protected async Task<string?> Execute(string source, bool outputBuffering = false) => await Execute(new InlineSourceCode(source), outputBuffering);
 }

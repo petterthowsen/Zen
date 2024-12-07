@@ -10,16 +10,16 @@ public class TypeTests : TestRunner
     }
 
     [Fact]
-    public void TestValueIsType()
+    public async void TestValueIsType()
     {
         RestartInterpreter();
 
         string? result;
 
-        Execute("var a = 5");
-        Execute("var b = null");
+        await Execute("var a = 5");
+        await Execute("var b = null");
 
-        result = Execute("print a is int");
+        result = await Execute("print a is int", true);
         Assert.Equal("true", result);
 
         // result = Execute("print a is int?");
@@ -28,27 +28,27 @@ public class TypeTests : TestRunner
         // result = Execute("print b is int?");
         // Assert.Equal("true", result);
 
-        result = Execute("print b is int");
+        result = await Execute("print b is int", true);
         Assert.Equal("false", result);
     }
 
     [Fact]
-    public void TestTypeCheckClass() {
+    public async void TestTypeCheckClass() {
         RestartInterpreter();
 
-        Execute("class Point { x: int y: int }");
-        Execute("var p = new Point()");
-        string? result = Execute("print p is Point");
+        await Execute("class Point { x: int y: int }");
+        await Execute("var p = new Point()");
+        string? result = await Execute("print p is Point", true);
         Assert.Equal("true", result);
     }
 
     [Fact]
-    public void TestTypeCast() {
+    public async void TestTypeCast() {
         RestartInterpreter();
 
-        Execute("var pi = 3.14");
-        Execute("var intPi = (int) pi");
-        string? result = Execute("print intPi");
+        await Execute("var pi = 3.14");
+        await Execute("var intPi = (int) pi");
+        string? result = await Execute("print intPi", true);
         Assert.Equal("3", result);
     }
 

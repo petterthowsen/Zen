@@ -44,7 +44,11 @@ public class AbstractMethodStmt : Stmt
     {
         return visitor.Visit(this);
     }
-
+    public override ReturnType AcceptAsync<ReturnType>(IGenericVisitorAsync<ReturnType> visitor)
+    {
+        return visitor.VisitAsync(this);
+    }
+    
     public bool HasModifier(string modifier) => Modifiers.Any(m => m.Value == modifier);
 
     public override string ToString()

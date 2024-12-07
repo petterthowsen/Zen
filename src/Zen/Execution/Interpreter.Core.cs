@@ -8,7 +8,7 @@ using Zen.Execution.Import;
 
 namespace Zen.Execution;
 
-public partial class Interpreter : IGenericVisitor<Task<IEvaluationResult>>
+public partial class Interpreter : IGenericVisitorAsync<Task<IEvaluationResult>>
 {
     public static RuntimeError Error(string message, SourceLocation? location = null, ErrorType errorType = ErrorType.RuntimeError, Exception? innerException = null)
     {
@@ -51,9 +51,9 @@ public partial class Interpreter : IGenericVisitor<Task<IEvaluationResult>>
         Instance = this;
     }
 
-    public void Interpret(Node node)
+    public async Task<IEvaluationResult> Interpret(Node node)
     {
-        node.Accept(this);
+        return await node.AcceptAsync(this);
     }
 
     /// <summary>
@@ -61,10 +61,10 @@ public partial class Interpreter : IGenericVisitor<Task<IEvaluationResult>>
     /// </summary>
     /// <param name="programNode"></param>
     /// <returns></returns>
-    public IEvaluationResult Execute(ProgramNode programNode)
+    public async Task<IEvaluationResult> Execute(ProgramNode programNode)
     {
         try {
-            Visit(programNode);
+            await VisitAsync(programNode);
             SyncContext.RunOnCurrentThread();
         } catch (Exception ex) {
             // Wrap unknown exceptions in a RuntimeError with source code info
@@ -91,7 +91,7 @@ public partial class Interpreter : IGenericVisitor<Task<IEvaluationResult>>
 
     public ZenHostFunction RegisterHostFunction(string name, ZenType returnType, List<ZenFunction.Argument> parameters, Func<ZenValue[], ZenValue> func, bool variadic = false)
     {
-        var hostFunc = new ZenHostFunction(false, returnType, parameters, func, globalEnvironment);
+        var hostFunc = new ZenHostFunction(returnType, parameters, func, globalEnvironment);
         hostFunc.Variadic = variadic;
         globalEnvironment.Define(true, name, ZenType.Function, false);
         globalEnvironment.Assign(name, new ZenValue(ZenType.Function, hostFunc));
@@ -100,7 +100,7 @@ public partial class Interpreter : IGenericVisitor<Task<IEvaluationResult>>
 
     public ZenHostFunction RegisterAsyncHostFunction(string name, ZenType returnType, List<ZenFunction.Argument> parameters, Func<ZenValue[], Task<ZenValue>> func, bool variadic = false)
     {
-        var hostFunc = new ZenHostFunction(true, returnType, parameters, args =>
+        var hostFunc = new ZenHostFunction(returnType, parameters, args =>
         {
             // Create a TaskCompletionSource to bridge the async gap
             var tcs = new TaskCompletionSource<ZenValue>();
@@ -274,10 +274,10 @@ public partial class Interpreter : IGenericVisitor<Task<IEvaluationResult>>
         }
     }
 
-    private static ZenValue PerformAssignment(Token op, ZenType leftType, ZenValue right)
-    {
-        return PerformAssignment(op, new ZenValue(leftType, null), right);
-    }
+    // private static ZenValue PerformAssignment(Token op, ZenType leftType, ZenValue right)
+    // {
+    //     return PerformAssignment(op, new ZenValue(leftType, null), right);
+    // }
 
     private static ZenValue PerformAssignment(Token op, ZenValue left, ZenValue right)
     {

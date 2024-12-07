@@ -25,6 +25,11 @@ public class IfStmt(Token token, Expr condition, Block then) : Stmt
         return visitor.Visit(this);
     }
 
+    public override ReturnType AcceptAsync<ReturnType>(IGenericVisitorAsync<ReturnType> visitor)
+    {
+        return visitor.VisitAsync(this);
+    }
+
     public override string ToString()
     {
         return "IfStmt";

@@ -10,9 +10,9 @@ public class FunctionTests : TestRunner
     }
 
     [Fact]
-    public void TestFuncDeclaration() {
-        RestartInterpreter();
-        Execute("func hello() {}");
+    public async void TestFuncDeclaration() {
+        await RestartInterpreter();
+        await Execute("func hello() {}");
 
         Assert.True(Interpreter.environment.Exists("hello"));
         
@@ -37,9 +37,9 @@ public class FunctionTests : TestRunner
 
     
     [Fact]
-    public void TestFuncDeclarationWithIntReturnType() {
-        RestartInterpreter();
-        Execute("func hello(): int {}");
+    public async void TestFuncDeclarationWithIntReturnType() {
+        await RestartInterpreter();
+        await Execute("func hello(): int {}");
 
         Assert.True(Interpreter.environment.Exists("hello"));
         
@@ -63,35 +63,36 @@ public class FunctionTests : TestRunner
     }
 
     [Fact]
-    public void TestFuncExecution() {
-        RestartInterpreter();
-        Execute("func hello() { print \"hello!\" }");
+    public async void TestFuncExecution() {
+        await RestartInterpreter();
+        await Execute("func hello() { print \"hello!\" }");
 
-        string? result = Execute("hello()");
+        string? result = await Execute("hello()", true);
 
         Assert.Equal("hello!", result);
     }
 
     [Fact]
-    public void TestFuncWithLocalVars() {
-        RestartInterpreter();
-        string? result = Execute(@"func hello() {
-    var a = 1
-    var b = 2
-    print a + b
-}
-hello()
-");
+    public async void TestFuncWithLocalVars() {
+        await RestartInterpreter();
+        string? result = await Execute(@"
+        func hello() {
+            var a = 1
+            var b = 2
+            print a + b
+            }
+            hello()
+        ", true);
 
         Assert.Equal("3", result);
     }
 
     [Fact]
-    public void TestScope() {
-        RestartInterpreter();
+    public async void TestScope() {
+        await RestartInterpreter();
 
-        Execute(@"
-        func makeCounter() : func {
+        await Execute(@"
+        func makeCounter() : Func {
             var i = 0
             func increment():int {
                 i += 1
@@ -100,10 +101,10 @@ hello()
             return increment
         }");
 
-        string? result = Execute(@"
+        string? result = await Execute(@"
         var counter = makeCounter()
         print counter()
-        ");
+        ", true);
 
         Assert.Equal("1", result);
     }

@@ -42,7 +42,7 @@ public class ZenHostMethod : ZenMethod
         }
     }
 
-    public override ZenValue Call(Interpreter interpreter, ZenValue[] argValues)
+    public override async Task<ZenValue> Call(Interpreter interpreter, ZenValue[] argValues)
     {
         if (Static) {
             return StaticFunc!(argValues);

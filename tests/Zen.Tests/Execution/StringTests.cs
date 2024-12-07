@@ -9,26 +9,26 @@ public class StringTests : TestRunner
     }
 
     [Fact]
-    public void StringMethodTest() {
+    public async void StringMethodTest() {
         RestartInterpreter();
 
         string? result;
         
-        Execute("var name = \"john\"");
+        await Execute("var name = \"john\"");
 
-        result = Execute("print name.toUpper()");
+        result = await Execute("print name.toUpper()", true);
 
         Assert.Equal("JOHN", result);
     }
 
     [Fact]
-    public void StringConcatTest()
+    public async void StringConcatTest()
     {
         RestartInterpreter();
 
         string? result;
 
-        result = Execute("print \"hello\" + \" world\"");
+        result = await Execute("print \"hello\" + \" world\"", true);
         Assert.Equal("hello world", result);
     }
 

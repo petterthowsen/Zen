@@ -3,6 +3,7 @@ using Zen.Execution.Import.Providing;
 using Zen.Parsing.AST.Statements;
 using Zen.Common;
 using Zen.Typing;
+using Zen.Execution.EvaluationResult;
 
 namespace Zen.Execution.Import;
 
@@ -82,7 +83,7 @@ public class Importer
     /// <summary>
     /// Phase 2: Executes modules, supporting circular dependencies
     /// </summary>
-    public ImportResolution Import(string path, bool global = false)
+    public async Task<ImportResolution> Import(string path, bool global = false)
     {
         Logger.Instance.Debug($"Importing path: {path} (global: {global})");
         var resolution = ResolveSymbols(path, global);
@@ -90,7 +91,7 @@ public class Importer
         if (resolution.IsModule())
         {
             var module = resolution.AsModule().Module;
-            ExecuteModule(module);
+            await ExecuteModule(module);
         }
 
         return resolution;
@@ -247,7 +248,7 @@ public class Importer
     /// <summary>
     /// Execute a module, supporting circular dependencies through lazy initialization
     /// </summary>
-    private void ExecuteModule(Module module)
+    private async Task ExecuteModule(Module module)
     {
         // If already executed, nothing to do
         if (module.State == State.Executed)
@@ -279,7 +280,7 @@ public class Importer
         foreach (var dependency in module.Dependencies)
         {
             Logger.Instance.Debug($"Executing dependency {dependency.FullPath} for module {module.FullPath}");
-            ExecuteModule(dependency);
+            await ExecuteModule(dependency);
         }
 
         // Execute the module
@@ -298,7 +299,7 @@ public class Importer
         var oldEnv = _interpreter.environment;
         try {
             _interpreter.environment = module.environment;
-            _interpreter.Interpret(module.AST);
+            await _interpreter.Interpret(module.AST);
         } finally {
             _interpreter.environment = oldEnv;
         }

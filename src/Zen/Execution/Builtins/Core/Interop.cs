@@ -6,7 +6,7 @@ namespace Zen.Execution.Builtins.Core;
 
 public class Interop : IBuiltinsProvider
 {
-    public static void RegisterBuiltins(Interpreter interpreter)
+    public static async Task RegisterBuiltins(Interpreter interpreter)
     {
         // Async CallDotNet
         interpreter.RegisterAsyncHostFunction(
@@ -33,6 +33,8 @@ public class Interop : IBuiltinsProvider
             CallDotNet,
             variadic: true
         );
+
+        await Task.CompletedTask;
     }
 
     public static readonly Dictionary<Type, ZenClassProxy> ProxyClasses = [];

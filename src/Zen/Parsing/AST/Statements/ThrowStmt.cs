@@ -3,7 +3,7 @@ using Zen.Lexing;
 
 namespace Zen.Parsing.AST.Statements;
 
-public class Throw(Token token, Expr expression) : Stmt
+public class ThrowStmt(Token token, Expr expression) : Stmt
 {
     public Token Token = token;
     public Expr Expression = expression;
@@ -18,6 +18,11 @@ public class Throw(Token token, Expr expression) : Stmt
     public override ReturnType Accept<ReturnType>(IGenericVisitor<ReturnType> visitor)
     {
         throw new NotImplementedException();
+    }
+
+    public override ReturnType AcceptAsync<ReturnType>(IGenericVisitorAsync<ReturnType> visitor)
+    {
+        return visitor.VisitAsync(this);
     }
 
     public override string ToString()

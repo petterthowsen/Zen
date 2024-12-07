@@ -50,16 +50,6 @@ public readonly struct ZenValue(ZenType type, dynamic? underlying = null)
         return Underlying is ZenUserFunction;
     }
 
-    public ZenValue Call(Interpreter interpreter, params ZenValue[] arguments) {
-        if (Type == ZenType.Function) {
-            return ((ZenHostFunction)Underlying!).Call(interpreter, arguments);
-        }else if (Type == ZenType.BoundMethod) {
-            return ((BoundMethod)Underlying!).Call(interpreter, arguments);
-        }
-
-        throw new Exception($"Cannot call {Underlying} as a function - it is not a callable!");
-    }
-
     public bool IsTruthy() {
         if (Type == ZenType.Boolean) {
             return (bool)Underlying!;

@@ -132,9 +132,9 @@ public class ZenObject {
         return Class.HasOwnMethod(name);
     }
 
-    public ZenValue Call(Interpreter interpreter, ZenMethod method, ZenValue[] args) {
+    public async Task<ZenValue> Call(Interpreter interpreter, ZenMethod method, ZenValue[] args) {
         if (method is ZenUserMethod) {
-            return interpreter.CallFunction(method, args).Value;
+            return (await interpreter.CallFunction(method, args)).Value;
         }else if (method is ZenMethodProxy) {
             return ((ZenMethodProxy) method).Call(interpreter, this, args);
         }else if (method is ZenHostMethod) {

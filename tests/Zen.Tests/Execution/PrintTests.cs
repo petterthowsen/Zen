@@ -9,18 +9,18 @@ public class PrintTests : TestRunner
     }
 
     [Fact]
-    public void TestPrint() {
+    public async void TestPrint() {
         RestartInterpreter();
 
-        string? result = Execute("print \"hello world\"");
+        string? result = await Execute("print \"hello world\"", true);
         Assert.Equal("hello world", result);
     }
     
     [Fact]
-    public void TestPrintNewline() {
+    public async void TestPrintNewline() {
         RestartInterpreter();
         
-        string? result = Execute("print \"hello\\nworld\"");
+        string? result = await Execute("print \"hello\\nworld\"", true);
         Assert.Equal("hello\nworld", result);
     }
     

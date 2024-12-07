@@ -47,12 +47,17 @@ public class Runtime
         ModuleHelper = new ModuleHelper(Interpreter);
 
         Interpreter.Importer = Importer;
+    }
 
+    public async Task RegisterCoreBuiltins()
+    {
         // Register core builtins
-        Builtins.Core.Typing.RegisterBuiltins(Interpreter);
-        Builtins.Core.Interop.RegisterBuiltins(Interpreter);
-        Builtins.Core.Array.RegisterBuiltins(Interpreter);
-        Builtins.Core.Time.RegisterBuiltins(Interpreter);
+        await Builtins.Core.Typing.RegisterBuiltins(Interpreter);
+        await Builtins.Core.Interop.RegisterBuiltins(Interpreter);
+        await Builtins.Core.Array.RegisterBuiltins(Interpreter);
+        await Builtins.Core.Time.RegisterBuiltins(Interpreter);
+
+        await Task.CompletedTask;
     }
 
     private string GetPackageName(string? scriptDirectory)
@@ -76,7 +81,7 @@ public class Runtime
     /// <summary>
     /// Execute source code as a module, setting up the import system
     /// </summary>
-    public string? Execute(ISourceCode source)
+    public async Task<string?> Execute(ISourceCode source)
     {
         // Create a module for the main script
         string moduleName = source is FileSourceCode fs ? 
@@ -117,7 +122,7 @@ public class Runtime
 
             // Execute the module and run the event loop on the current thread
             // this will block until the event loop is finished.
-            Interpreter.Execute(mainModule.AST);
+            await Interpreter.Execute(mainModule.AST);
             
             string output = Interpreter.GlobalOutputBuffer.ToString();
             return output;
@@ -131,7 +136,7 @@ public class Runtime
         }
     }
 
-    public string? Execute(string sourceCodeText) => Execute(new InlineSourceCode(sourceCodeText));
+    public async Task<string?> Execute(string sourceCodeText) => await Execute(new InlineSourceCode(sourceCodeText));
 
     public void Shutdown()
     {

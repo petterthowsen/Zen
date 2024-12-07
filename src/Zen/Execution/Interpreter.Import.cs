@@ -9,15 +9,15 @@ namespace Zen.Execution;
 
 public partial class Interpreter {
  
-    public IEvaluationResult Visit(PackageStmt package)
+    public async Task<IEvaluationResult> VisitAsync(PackageStmt package)
     {
         // Package statements are handled during module loading
         return VoidResult.Instance;
     }
     
-    public Module GetModule(string modulePath)
+    public async Task<Module> GetModule(string modulePath)
     {
-        var resolution = Importer.Import(modulePath);
+        var resolution = await Importer.Import(modulePath);
         if (resolution.IsModule())
         {
             var module = resolution.AsModule().Module;
@@ -29,13 +29,13 @@ public partial class Interpreter {
         }
     }
 
-    public ZenValue FetchSymbol(string modulePath, string symbol)
+    public async Task<ZenValue> FetchSymbol(string modulePath, string symbol)
     {
-        var module = GetModule(modulePath);
+        var module = await GetModule(modulePath);
         return module.environment.GetValue(symbol);
     }
 
-    public IEvaluationResult Visit(ImportStmt import)
+    public async Task<IEvaluationResult> VisitAsync(ImportStmt import)
     {
         var modulePath = string.Join("/", import.Path);
 
@@ -48,7 +48,7 @@ public partial class Interpreter {
         // We always import the symbols
 
         // Import through the Importer
-        ImportResolution resolution = Importer.Import(modulePath);
+        ImportResolution resolution = await Importer.Import(modulePath);
 
         if (resolution.IsModule())
         {
@@ -67,7 +67,7 @@ public partial class Interpreter {
         }
     }
 
-    private void ApplyModuleImport(Module module, string[] symbols)
+    private async void ApplyModuleImport(Module module, string[] symbols)
     {
         Logger.Instance.Debug($"Applying module import {module.FullPath}, symbols: {string.Join(", ", symbols)}");
         
@@ -83,7 +83,7 @@ public partial class Interpreter {
         // Execute the module if it hasn't been executed yet
         if (module.State != State.Executed)
         {
-            Importer.Import(module.FullPath);
+            await Importer.Import(module.FullPath);
         }
         
         // Now import the symbols
@@ -118,7 +118,7 @@ public partial class Interpreter {
         ApplyModuleImport(module, symbolNames.ToArray());
     }
 
-    public IEvaluationResult Visit(FromImportStmt fromImport)
+    public async Task<IEvaluationResult> VisitAsync(FromImportStmt fromImport)
     {
         var modulePath = string.Join("/", fromImport.Path);
         var symbols = fromImport.GetSymbolNames();

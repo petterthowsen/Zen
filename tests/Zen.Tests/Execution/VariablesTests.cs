@@ -11,22 +11,22 @@ public class VariablesTest : TestRunner
     }
 
     [Fact]
-    public void TestUndefinedVariable() {
-        RestartInterpreter();
+    public async void TestUndefinedVariable() {
+        await RestartInterpreter();
 
-        RuntimeError error = Assert.Throws<RuntimeError>(() => Execute("number = 1"));
+        RuntimeError error = await Assert.ThrowsAsync<RuntimeError>(async () => await Execute("number = 1"));
         Assert.Equal(Common.ErrorType.UndefinedVariable, error.Type);
     }
 
     [Fact]
-    public void TestVariableDeclaration() {
-        RestartInterpreter();
+    public async void TestVariableDeclaration() {
+        await RestartInterpreter();
 
         Assert.False(Interpreter.environment.Exists("name"));
-        Execute("var name = \"john\"");
+        await Execute("var name = \"john\"");
         Assert.True(Interpreter.environment.Exists("name"));
         
-        string? result = Execute("print name");
+        string? result = await Execute("print name", true);
         Assert.Equal("john", result);
 
         Variable variable = Interpreter.environment.GetVariable("name");
@@ -39,73 +39,73 @@ public class VariablesTest : TestRunner
 
     
     [Fact]
-    public void TestVariableDeclarationAndAssignment() {
-        RestartInterpreter();
+    public async void TestVariableDeclarationAndAssignment() {
+        await RestartInterpreter();
 
         Assert.False(Interpreter.environment.Exists("name"));
-        Execute("var name = \"john\"");
+        await Execute("var name = \"john\"");
         Assert.True(Interpreter.environment.Exists("name"));
         Variable variable = Interpreter.environment.GetVariable("name");
         ZenValue value = (ZenValue) variable.Value!;
         Assert.Equal("john", value.Underlying);
 
-        Execute("name = \"doe\"");
+        await Execute("name = \"doe\"");
         value = (ZenValue) variable.Value!;
         Assert.Equal("doe", value.Underlying);
     }
 
     [Fact]
-    public void TestVariablePlusAsignment() {
-        RestartInterpreter();
+    public async void TestVariablePlusAsignment() {
+        await RestartInterpreter();
 
-        Execute("var i = 1");
+        await Execute("var i = 1");
         Variable variable = Interpreter.environment.GetVariable("i");
         ZenValue value = (ZenValue) variable.Value!;
         Assert.Equal(1, value.Underlying);
 
-        Execute("i += 1");
+        await Execute("i += 1");
         value = (ZenValue) variable.Value!;
         Assert.Equal(2, value.Underlying);
     }
 
     [Fact]
-    public void TestVariableMinusAsignment() {
-        RestartInterpreter();
+    public async void TestVariableMinusAsignment() {
+        await RestartInterpreter();
 
-        Execute("var i = 1");
+        await Execute("var i = 1");
         Variable variable = Interpreter.environment.GetVariable("i");
         ZenValue value = (ZenValue) variable.Value!;
         Assert.Equal(1, value.Underlying);
 
-        Execute("i -= 1");
+        await Execute("i -= 1");
         value = (ZenValue) variable.Value!;
         Assert.Equal(0, value.Underlying);
     }
 
     [Fact]
-    public void TestVariableMultiplyAsignment() {
-        RestartInterpreter();
+    public async void TestVariableMultiplyAsignment() {
+        await RestartInterpreter();
 
-        Execute("var i = 5");
+        await Execute("var i = 5");
         Variable variable = Interpreter.environment.GetVariable("i");
         ZenValue value = (ZenValue) variable.Value!;
         Assert.Equal(5, value.Underlying);
 
-        Execute("i *= 2");
+        await Execute("i *= 2");
         value = (ZenValue) variable.Value!;
         Assert.Equal(10, value.Underlying);
     }
 
     [Fact]
-    public void TestVariableDivideAsignment() {
-        RestartInterpreter();
+    public async void TestVariableDivideAsignment() {
+        await RestartInterpreter();
 
-        Execute("var i = 10");
+        await Execute("var i = 10");
         Variable variable = Interpreter.environment.GetVariable("i");
         ZenValue value = (ZenValue) variable.Value!;
         Assert.Equal(10, value.Underlying);
 
-        Execute("i /= 2");
+        await Execute("i /= 2");
         value = (ZenValue) variable.Value!;
         Assert.Equal(5, value.Underlying);
     }

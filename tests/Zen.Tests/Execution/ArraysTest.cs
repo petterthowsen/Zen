@@ -11,76 +11,77 @@ public class ArrayTests : TestRunner
     }
 
     [Fact]
-    public void TestArrayCreation()
+    public async void TestArrayCreation()
     {
-        Execute("var arr = new Array<int>()");
+        await RestartInterpreter();
+        await Execute("var arr = new Array<int>()");
 
-        string? result = Execute("print arr.Length", true);
+        string? result = await Execute("print arr.Length", true);
         Assert.Equal("0", result);
     }
 
     [Fact]
-    public void TestArrayAppend()
+    public async void TestArrayAppend()
     {
-        RestartInterpreter();
-        Execute(@"
+        await RestartInterpreter();
+        await Execute(@"
             var arr = new Array<any>()
             arr.Append(1)
             arr.Append(2)
         ");
-        var result = Execute("print arr.Length", true);
+        var result = await Execute("print arr.Length", true);
         Assert.Equal("2", result);
     }
 
     [Fact]
-    public void TestArrayBracketGet()
+    public async void TestArrayBracketGet()
     {
-        RestartInterpreter();
-        Execute(@"
+        await RestartInterpreter();
+        await Execute(@"
             var arr = new Array<int>()
             arr.Append(1)
             arr.Append(2)
             arr.Append(3)
         ");
-        var result = Execute("print arr[1]");
+        var result = await Execute("print arr[1]", true);
         Assert.Equal("2", result);
     }
 
     [Fact]
-    public void TestArrayBracketSet()
+    public async void TestArrayBracketSet()
     {
-        RestartInterpreter();
-        Execute(@"
+        await RestartInterpreter();
+        await Execute(@"
             var arr = new Array<int>()
             arr.Append(1)
             arr.Append(2)
             arr[1] = 42
         ");
-        var result = Execute("print arr[1]");
+        var result = await Execute("print arr[1]", true);
         Assert.Equal("42", result);
     }
 
     [Fact]
-    public void TestArraySlice()
+    public async void TestArraySlice()
     {
-        RestartInterpreter();
-        string? result = Execute(@"
+        await RestartInterpreter();
+        string? result = await Execute(@"
             var arr = new Array<string>()
             arr.Append(""one"")
             arr.Append(""two"")
             arr.Append(""three"")
             var slice = arr.Slice(1, 2)
             print slice[0]
-        ");
+        ", true);
 
         Assert.Equal("two", result);
     }
 
     [Fact]
-    public void TestForInLoop()
+    public async void TestForInLoop()
     {
-        RestartInterpreter();
-        var result = Execute(@"
+        await RestartInterpreter();
+        var result = await Execute(@"
             var arr = new Array<string>()
             arr.Append(""one"")
             arr.Append(""two"")
@@ -89,37 +90,37 @@ public class ArrayTests : TestRunner
                 print ""key: "" +  key + ""\n""
                 print ""value: "" + value + ""\n""
             }
-        ");
+        ", true);
 
         Assert.Equal("key: 0\nvalue: one\nkey: 1\nvalue: two\nkey: 2\nvalue: three\n", result);
     }
 
     [Fact]
-    public void TestArrayRemoveAt()
+    public async void TestArrayRemoveAt()
     {
-        RestartInterpreter();
-        Execute(@"
+        await RestartInterpreter();
+        await Execute(@"
             var arr = new Array<int>()
             arr.Append(1)
             arr.Append(2)
         ");
-        var result = Execute("print arr.RemoveLast()");
+        var result = await Execute("print arr.RemoveLast()", true);
         Assert.Equal("2", result);
-        result = Execute("print arr.Length");
+        result = await Execute("print arr.Length", true);
         Assert.Equal("1", result);
     }
 
     [Fact]
-    public void TestArrayToString()
+    public async void TestArrayToString()
     {
-        RestartInterpreter();
-        Execute(@"
+        await RestartInterpreter();
+        await Execute(@"
             var arr = new Array<int>()
             arr.push(1)
             arr.push(2)
             arr.push(3)
         ");
-        var result = Execute("print arr.ToString()");
+        var result = await Execute("print arr.ToString()", true);
         Assert.Equal("[1, 2, 3]", result);
     }
 
@@ -129,21 +130,21 @@ public class ArrayTests : TestRunner
         throw new NotImplementedException("This method freezes the runtime...");
 
         // RestartInterpreter();
-        // Execute("var arr = new Array<any>()");
-        // var result = Assert.Throws<RuntimeError>(() => Execute("arr[0]"));
+        // await Execute("var arr = new Array<any>()");
+        // var result = Assert.Throws<RuntimeError>(() => await Execute("arr[0]"));
         // Assert.Contains("Array index out of bounds", result.Message);
     }
 
     [Fact]
-    public void TestArrayWithTypeParameter()
+    public async void TestArrayWithTypeParameter()
     {
-        RestartInterpreter();
-        Execute(@"
+        await RestartInterpreter();
+        await Execute(@"
             var arr = new Array<int>()
             arr.push(1)
             arr.push(2)
         ");
-        var result = Execute("print arr[0]");
+        var result = await Execute("print arr[0]", true);
         Assert.Equal("1", result);
     }
 
@@ -153,16 +154,16 @@ public class ArrayTests : TestRunner
         throw new NotImplementedException("This method freezes the runtime...");
 
         // RestartInterpreter();
-        // Execute("var arr = new Array<int>()");
-        // var result = Assert.Throws<RuntimeError>(() => Execute("arr.push('hello')"));
+        // await Execute("var arr = new Array<int>()");
+        // var result = Assert.Throws<RuntimeError>(() => await Execute("arr.push('hello')"));
         // Assert.Contains("Cannot pass argument of type 'string' to parameter of type 'int'", result.Message);
     }
 
     [Fact]
-    public void TestArrayTypeInference()
+    public async void TestArrayTypeInference()
     {
-        RestartInterpreter();
-        Execute(@"
+        await RestartInterpreter();
+        await Execute(@"
             var arr = new Array<int>()
             arr.push(1)
             arr.push(2)
@@ -171,22 +172,22 @@ public class ArrayTests : TestRunner
     }
 
     [Fact]
-    public void TestArrayMethodTypeChecking()
+    public async void TestArrayMethodTypeChecking()
     {
-        RestartInterpreter();
-        Execute(@"
+        await RestartInterpreter();
+        await Execute(@"
             var arr = new Array<string>()
             arr.push('hello')
         ");
-        var result = Assert.Throws<RuntimeError>(() => Execute("arr[0] = 42"));
+        var result = await Assert.ThrowsAsync<RuntimeError>(async () => await Execute("arr[0] = 42"));
         Assert.Contains("Cannot assign value of type 'int' to array element of type 'string'", result.Message);
     }
 
     [Fact]
-    public void TestArrayWithValueConstraint()
+    public async void TestArrayWithValueConstraint()
     {
-        RestartInterpreter();
-        var result = Execute(@"
+        await RestartInterpreter();
+        var result = await Execute(@"
             class FixedArray<S: int = 10> {
                 FixedArray() {
                     print S
@@ -198,10 +199,10 @@ public class ArrayTests : TestRunner
     }
 
     [Fact]
-    public void TestArrayWithCustomValueConstraint()
+    public async void TestArrayWithCustomValueConstraint()
     {
-        RestartInterpreter();
-        var result = Execute(@"
+        await RestartInterpreter();
+        var result = await Execute(@"
             class FixedArray<S: int = 10> {
                 FixedArray() {
                     print S

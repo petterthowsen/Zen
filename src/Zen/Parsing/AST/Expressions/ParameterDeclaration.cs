@@ -40,4 +40,9 @@ public class ParameterDeclaration : Expr
     {
         return visitor.Visit(this);
     }
+
+    public override ReturnType AcceptAsync<ReturnType>(IGenericVisitorAsync<ReturnType> visitor)
+    {
+        return visitor.VisitAsync(this);
+    }
 }

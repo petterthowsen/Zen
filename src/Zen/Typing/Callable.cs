@@ -6,6 +6,6 @@ public interface ICallable {
 
     public int Arity { get; }
     public ZenType ReturnType { get; }
-    public ZenValue Call(Interpreter interpreter, params ZenValue[] arguments);
+    public Task<ZenValue> Call(Interpreter interpreter, params ZenValue[] arguments);
 
 }
