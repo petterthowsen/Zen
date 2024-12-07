@@ -239,7 +239,7 @@ public async Task<IEvaluationResult> VisitAsync(Grouping grouping)
 
         BoundMethod boundMethod = method.Bind(instance);
 
-        return await CallUserFunction(boundMethod, [element.Value]);
+        return CallUserFunction(boundMethod, [element.Value]);
     }
 
     public async Task<IEvaluationResult> VisitAsync(BracketSet bracketSet)
@@ -263,7 +263,7 @@ public async Task<IEvaluationResult> VisitAsync(Grouping grouping)
             throw Error($"Object does not support bracket assignment (missing 'set' method)", bracketSet.Location);
         }
 
-        return (ValueResult) await instance.Call(this, method, [element.Value, value.Value]);
+        return (ValueResult) instance.Call(this, method, [element.Value, value.Value]);
     }
 
     public async Task<IEvaluationResult> VisitAsync(ParameterDeclaration parameter)
@@ -338,48 +338,6 @@ public async Task<IEvaluationResult> VisitAsync(Grouping grouping)
         return (ValueResult)awaitedResult; // Return the final result, not another Task
     }
 
-    // public async Task<IEvaluationResult> VisitAsync(Await await)
-    // {
-    //     CurrentNode = @await;
-
-    //     // Evaluate the expression being awaited
-    //     IEvaluationResult result = await Evaluate(@await.Expression);
-        
-    //     // Get the value
-    //     ZenValue value = result.Value;
-        
-    //     // If it's not a task, throw an error
-    //     if (!value.Type.IsTask)
-    //     {
-    //         throw Error($"Cannot await non-task value of type '{value.Type}'", 
-    //             @await.Location, Common.ErrorType.TypeError);
-    //     }
-
-    //     // Get the task from the value
-    //     var task = (Task<ZenValue>)value.Underlying!;
-
-    //     // Create a TaskCompletionSource to bridge the async gap
-    //     var tcs = new TaskCompletionSource<ZenValue>();
-
-    //     // Post continuation to our sync context
-    //     SyncContext.Post(async _ =>
-    //     {
-    //         try 
-    //         {
-    //             var taskResult = await task;
-    //             tcs.SetResult(taskResult);
-    //         }
-    //         catch (Exception ex)
-    //         {
-    //             tcs.SetException(ex);
-    //             throw; // Re-throw to stop execution
-    //         }
-    //     }, null);
-
-    //     // Return a new task that will complete when the awaited task completes
-    //     return (ValueResult)new ZenValue(ZenType.Task, tcs.Task);
-    // }
-
     public async Task<IEvaluationResult> EvaluateGetMethod(Get get, ZenValue[] argValues)
     {
         CurrentNode = get;
@@ -442,7 +400,7 @@ public async Task<IEvaluationResult> VisitAsync(Grouping grouping)
                 throw Error($"Too many arguments for function {method}", call.Location, Common.ErrorType.RuntimeError);
             }
 
-            return await CallFunction(method, args);
+            return CallFunction(method, args);
         }
         else if (callee.Value.Underlying is ZenFunction function) {
             // check number of arguments is at least equal to the number of non-nullable parameters
@@ -457,7 +415,7 @@ public async Task<IEvaluationResult> VisitAsync(Grouping grouping)
                 throw Error($"Too many arguments for function {function}", call.Location, Common.ErrorType.RuntimeError);
             }
 
-            return await CallFunction(function, argValues);
+            return CallFunction(function, argValues);
         }
         else
         {

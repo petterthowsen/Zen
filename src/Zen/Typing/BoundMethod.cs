@@ -1,4 +1,3 @@
-using Zen.Common;
 using Zen.Execution;
 using Environment = Zen.Execution.Environment;
 
@@ -19,8 +18,8 @@ public class BoundMethod : ZenFunction {
         Method = method;
     }
 
-    public override async Task<ZenValue> Call(Interpreter interpreter, ZenValue[] argValues)
+    public override ZenValue Call(Interpreter interpreter, ZenValue[] argValues)
     {
-        return await Instance.Call(interpreter, Method, argValues);
+        return  Instance.Call(interpreter, Method, argValues);
     }
 }

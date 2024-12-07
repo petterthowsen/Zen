@@ -16,7 +16,7 @@ public abstract class ZenMethod : ZenFunction
         Static = @static;
     }
 
-    public override Task<ZenValue> Call(Interpreter interpreter, ZenValue[] arguments)
+    public override ZenValue Call(Interpreter interpreter, ZenValue[] arguments)
     {
         throw new Exception("Methods must be called with a ZenObject instance");
     }

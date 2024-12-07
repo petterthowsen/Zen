@@ -76,7 +76,7 @@ public abstract class ZenFunction : ICallable {
         Closure = closure;
     }
     
-    public abstract Task<ZenValue> Call(Interpreter interpreter, ZenValue[] argumentValues);
+    public abstract ZenValue Call(Interpreter interpreter, ZenValue[] argumentValues);
 
     public override string ToString() {
         return $"Function";
