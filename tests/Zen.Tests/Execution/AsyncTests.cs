@@ -68,14 +68,17 @@ public class AsyncTests : TestRunner
     [Fact]
     public async void TestAwait()
     {
-        RestartInterpreter();
+        await RestartInterpreter();
 
         string? result = await Execute(@"
             async func test() {
                 print ""before""
             }
-            await test()
-            print ""after""
+            async func main() {
+                await test()
+                print ""after""
+            }
+            main()
         ", true);
 
         Assert.Equal("beforeafter", result);
@@ -83,7 +86,7 @@ public class AsyncTests : TestRunner
 
     [Fact]
     public async void TestAsyncDelay() {
-        RestartInterpreter();
+        await RestartInterpreter();
         
         string? result = await Execute(@"
             async func test() {
@@ -101,7 +104,7 @@ public class AsyncTests : TestRunner
 
     [Fact]
     public async void TestAsyncFuncWithLocalVars() {
-        RestartInterpreter();
+        await RestartInterpreter();
 
         string? result = await Execute(@"
             async func test() {

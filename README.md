@@ -124,28 +124,30 @@ Zen implements a concurrency model similar to Node.js, using a single-threaded e
 - Non-blocking I/O operations are scheduled on the event loop
 - Maintains a queue of pending tasks and tracks their completion
 
+The runtime calls SynchronizationContext.SetSynchronizationContext(SyncContext);
+The SyncContext is the ZenSynchronizationContext that handles the event loop.
+This ensures all tasks run on the same thread.
+
 #### Async Functions
 - Declared using the `async` keyword
-- Always return a Promise
+- Always return a Task
 - When called, immediately schedule their execution on the event loop
 - Continue executing the caller's code without blocking
 
-#### Promises
+#### Tasks
 - Represent the eventual completion of an async operation
-- Can be in one of three states: pending, resolved, or rejected
-- Support Then/Catch callbacks for handling completion
 - Automatically created for async function returns
 
 #### Await Expression
-- Used inside async functions to wait for Promise completion
+- Used inside async functions to wait for Task completion
 - Suspends execution of the current function
-- Resumes when the Promise resolves or rejects
-- Unwraps the Promise result or throws on rejection
+- Resumes when the Task resolves or rejects
+- Unwraps the Task result or throws on rejection
 
 Example:
 ```zen
 async func delay(ms: int): int {
-    // Built-in function that returns a Promise
+    // Built-in function that returns a Task
     // which resolves after ms milliseconds
     return await delay(ms)
 }

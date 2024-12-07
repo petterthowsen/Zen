@@ -322,47 +322,63 @@ public async Task<IEvaluationResult> VisitAsync(Grouping grouping)
         return LookUpVariable("this", dis);
     }
 
-    public async Task<IEvaluationResult> VisitAsync(Await await)
+    public async Task<IEvaluationResult> VisitAsync(Await awaitNode)
     {
-        CurrentNode = @await;
+        CurrentNode = awaitNode;
 
-        // Evaluate the expression being awaited
-        IEvaluationResult result = await Evaluate(@await.Expression);
-        
-        // Get the value
-        ZenValue value = result.Value;
-        
-        // If it's not a task, throw an error
+        var result = await Evaluate(awaitNode.Expression);
+        var value = result.Value;
+
         if (!value.Type.IsTask)
-        {
-            throw Error($"Cannot await non-task value of type '{value.Type}'", 
-                @await.Location, Common.ErrorType.TypeError);
-        }
+            throw Error("Cannot await non-task...");
 
-        // Get the task from the value
         var task = (Task<ZenValue>)value.Underlying!;
+        var awaitedResult = await task; // This actually suspends until the task is done.
 
-        // Create a TaskCompletionSource to bridge the async gap
-        var tcs = new TaskCompletionSource<ZenValue>();
-
-        // Post continuation to our sync context
-        SyncContext.Post(async _ =>
-        {
-            try 
-            {
-                var taskResult = await task;
-                tcs.SetResult(taskResult);
-            }
-            catch (Exception ex)
-            {
-                tcs.SetException(ex);
-                throw; // Re-throw to stop execution
-            }
-        }, null);
-
-        // Return a new task that will complete when the awaited task completes
-        return (ValueResult)new ZenValue(ZenType.Task, tcs.Task);
+        return (ValueResult)awaitedResult; // Return the final result, not another Task
     }
+
+    // public async Task<IEvaluationResult> VisitAsync(Await await)
+    // {
+    //     CurrentNode = @await;
+
+    //     // Evaluate the expression being awaited
+    //     IEvaluationResult result = await Evaluate(@await.Expression);
+        
+    //     // Get the value
+    //     ZenValue value = result.Value;
+        
+    //     // If it's not a task, throw an error
+    //     if (!value.Type.IsTask)
+    //     {
+    //         throw Error($"Cannot await non-task value of type '{value.Type}'", 
+    //             @await.Location, Common.ErrorType.TypeError);
+    //     }
+
+    //     // Get the task from the value
+    //     var task = (Task<ZenValue>)value.Underlying!;
+
+    //     // Create a TaskCompletionSource to bridge the async gap
+    //     var tcs = new TaskCompletionSource<ZenValue>();
+
+    //     // Post continuation to our sync context
+    //     SyncContext.Post(async _ =>
+    //     {
+    //         try 
+    //         {
+    //             var taskResult = await task;
+    //             tcs.SetResult(taskResult);
+    //         }
+    //         catch (Exception ex)
+    //         {
+    //             tcs.SetException(ex);
+    //             throw; // Re-throw to stop execution
+    //         }
+    //     }, null);
+
+    //     // Return a new task that will complete when the awaited task completes
+    //     return (ValueResult)new ZenValue(ZenType.Task, tcs.Task);
+    // }
 
     public async Task<IEvaluationResult> EvaluateGetMethod(Get get, ZenValue[] argValues)
     {
