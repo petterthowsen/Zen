@@ -251,6 +251,8 @@ public partial class Interpreter
             // if we're calling an async function in the global scope, we need to listen for when it fails
             if (isGlobalScope)
             {
+                SyncContext.TrackContinuation();
+
                 // Attach a continuation to handle exceptions from global async functions
                 tcs.Task.ContinueWith(t =>
                 {
@@ -264,7 +266,10 @@ public partial class Interpreter
                             Logger.Instance.Error($"Top-level async function failed. Calling SyncContext.Fail with the exception {ex.Message}");
                             SyncContext.Fail(ex);
                         }
+
                     }
+
+                    SyncContext.CompleteContinuation();
                 }, TaskContinuationOptions.OnlyOnFaulted);
             }
 

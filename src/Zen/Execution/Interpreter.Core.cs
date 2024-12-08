@@ -93,39 +93,6 @@ public partial class Interpreter : IGenericVisitorAsync<Task<IEvaluationResult>>
         return zenFunc;
     }
 
-    // // the old function
-    // public ZenFunction RegisterAsyncHostFunction(string name, ZenType returnType, List<ZenFunction.Argument> parameters, Func<ZenValue[], Task<ZenValue>> func, bool variadic = false)
-    // {   
-    //     // should we wrap the function in a Task or handle that when calling instead?
-    //     // wrap the async function
-    //     Func<ZenValue[], Task<ZenValue>> wrapper = async (args) =>
-    //     {
-    //         // Create a TaskCompletionSource
-    //         var tcs = new TaskCompletionSource<ZenValue>();
-            
-    //         // Post the async work to our sync context
-    //         SyncContext.Post(async _ =>
-    //         {
-    //             try
-    //             {
-    //                 var result = await func(args);
-    //                 tcs.SetResult(result);
-    //             }
-    //             catch (Exception ex)
-    //             {
-    //                 tcs.SetException(ex);
-    //             }
-    //         }, null);
-
-    //         // Return a ZenValue that wraps the Task
-    //         return new ZenValue(ZenType.Task, tcs.Task);
-    //     };
-
-    //     ZenFunction zenFunc = ZenFunction.NewAsyncHostFunction(returnType, parameters, wrapper, variadic);
-    //     RegisterFunction(name, zenFunc);
-    //     return zenFunc;
-    // }
-
     /// <summary>
     /// Create and register a user function as a global constant.
     /// </summary>
