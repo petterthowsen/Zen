@@ -66,30 +66,11 @@ public partial class Interpreter : IGenericVisitorAsync<Task<IEvaluationResult>>
     {
         await VisitAsync(programNode);
 
-        try {
-            SyncContext.RunOnCurrentThread();
-        } catch (Exception ex) {
-            // Wrap unknown exceptions in a RuntimeError with source code info
-            if (ex is not Common.Error) {
-                ex = Error("Unhandled exception in program: " + ex.Message, CurrentNode?.Location, ErrorType.RuntimeError, ex);
-            }
-
-            // log it
-            Logger.Instance.Error(ex.ToString());
-
-            // Stop the event loop on error
-            SyncContext.Stop();
-
-            throw ex;
-        }
+        SyncContext.RunOnCurrentThread();
 
         return VoidResult.Instance;
     }
 
-    public void Shutdown()
-    {
-        SyncContext.Stop();
-    }
 
     /// <summary>
     /// Create and register a regular host function as a global constant.
@@ -97,7 +78,8 @@ public partial class Interpreter : IGenericVisitorAsync<Task<IEvaluationResult>>
     public ZenFunction RegisterHostFunction(string name, ZenType returnType, List<ZenFunction.Argument> arguments, Func<ZenValue[], ZenValue> func, bool variadic = false)
     {
         var zenFunc = ZenFunction.NewHostFunction(returnType, arguments, func, variadic);
-        RegisterFunction(name, zenFunc);
+        zenFunc.Name = name;
+        RegisterFunction(name, zenFunc, globalEnvironment);
         return zenFunc;
     }
 
@@ -106,42 +88,43 @@ public partial class Interpreter : IGenericVisitorAsync<Task<IEvaluationResult>>
     /// </summary>
     public ZenFunction RegisterHostFunction(string name, ZenType returnType, List<ZenFunction.Argument> arguments, Func<ZenValue[], Task<ZenValue>> func, bool variadic = false) {
         var zenFunc = ZenFunction.NewAsyncHostFunction(returnType, arguments, func, variadic);
-        RegisterFunction(name, zenFunc);
+        zenFunc.Name = name;
+        RegisterFunction(name, zenFunc, globalEnvironment);
         return zenFunc;
     }
 
-    // the old function
-    public ZenFunction RegisterAsyncHostFunction(string name, ZenType returnType, List<ZenFunction.Argument> parameters, Func<ZenValue[], Task<ZenValue>> func, bool variadic = false)
-    {   
-        // should we wrap the function in a Task or handle that when calling instead?
-        // wrap the async function
-        Func<ZenValue[], Task<ZenValue>> wrapper = async (args) =>
-        {
-            // Create a TaskCompletionSource
-            var tcs = new TaskCompletionSource<ZenValue>();
+    // // the old function
+    // public ZenFunction RegisterAsyncHostFunction(string name, ZenType returnType, List<ZenFunction.Argument> parameters, Func<ZenValue[], Task<ZenValue>> func, bool variadic = false)
+    // {   
+    //     // should we wrap the function in a Task or handle that when calling instead?
+    //     // wrap the async function
+    //     Func<ZenValue[], Task<ZenValue>> wrapper = async (args) =>
+    //     {
+    //         // Create a TaskCompletionSource
+    //         var tcs = new TaskCompletionSource<ZenValue>();
             
-            // Post the async work to our sync context
-            SyncContext.Post(async _ =>
-            {
-                try
-                {
-                    var result = await func(args);
-                    tcs.SetResult(result);
-                }
-                catch (Exception ex)
-                {
-                    tcs.SetException(ex);
-                }
-            }, null);
+    //         // Post the async work to our sync context
+    //         SyncContext.Post(async _ =>
+    //         {
+    //             try
+    //             {
+    //                 var result = await func(args);
+    //                 tcs.SetResult(result);
+    //             }
+    //             catch (Exception ex)
+    //             {
+    //                 tcs.SetException(ex);
+    //             }
+    //         }, null);
 
-            // Return a ZenValue that wraps the Task
-            return new ZenValue(ZenType.Task, tcs.Task);
-        };
+    //         // Return a ZenValue that wraps the Task
+    //         return new ZenValue(ZenType.Task, tcs.Task);
+    //     };
 
-        ZenFunction zenFunc = ZenFunction.NewAsyncHostFunction(returnType, parameters, wrapper, variadic);
-        RegisterFunction(name, zenFunc);
-        return zenFunc;
-    }
+    //     ZenFunction zenFunc = ZenFunction.NewAsyncHostFunction(returnType, parameters, wrapper, variadic);
+    //     RegisterFunction(name, zenFunc);
+    //     return zenFunc;
+    // }
 
     /// <summary>
     /// Create and register a user function as a global constant.
@@ -149,19 +132,22 @@ public partial class Interpreter : IGenericVisitorAsync<Task<IEvaluationResult>>
     public ZenFunction RegisterUserFunction(string name, ZenType returnType, List<ZenFunction.Argument> parameters, Block block, Environment? closure = null, bool async = false)
     {
         ZenFunction userFunction = ZenFunction.NewUserFunction(returnType, parameters, block, closure ?? globalEnvironment, async);
+        userFunction.Name = name;
         RegisterFunction(name, userFunction);
         return userFunction;
     }
 
     /// <summary>
-    ///     Register the given ZenFunction as a global constant.
+    ///     Register the given ZenFunction as a constant in the given environment, defaulting to the current environment.
     /// </summary>
     /// <param name="name"></param>
     /// <param name="func"></param>
-    public void RegisterFunction(string name, ZenFunction func)
+    public void RegisterFunction(string name, ZenFunction func, Environment? env = null)
     {
-        environment.Define(true, name, ZenType.Function, false);
-        environment.Assign(name, new ZenValue(ZenType.Function, func));
+        env ??= environment;
+
+        env.Define(true, name, ZenType.Function, false);
+        env.Assign(name, new ZenValue(ZenType.Function, func));
     }
 
     public void Resolve(Node expr, int depth = 0)

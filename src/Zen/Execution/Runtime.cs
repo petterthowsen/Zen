@@ -131,15 +131,9 @@ public class Runtime
         {
             // Clean up the provider on error
             Importer.Providers.Remove(mainProvider);
-            SyncContext.Stop();
             throw;
         }
     }
 
     public async Task<string?> Execute(string sourceCodeText) => await Execute(new InlineSourceCode(sourceCodeText));
-
-    public void Shutdown()
-    {
-        SyncContext.Stop();
-    }
 }

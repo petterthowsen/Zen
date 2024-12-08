@@ -9,7 +9,7 @@ public class Interop : IBuiltinsProvider
     public static async Task RegisterBuiltins(Interpreter interpreter)
     {
         // Async CallDotNet
-        interpreter.RegisterAsyncHostFunction(
+        interpreter.RegisterHostFunction(
             "CallDotNetAsync",
             ZenType.Any, // Returns a String
             new List<ZenFunction.Argument>

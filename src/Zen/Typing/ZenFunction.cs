@@ -183,7 +183,7 @@ public class ZenFunction : ICallable {
 
     public override string ToString() {
         string argStr = string.Join(", ", Arguments.Select(a => a.ToString()));
-        string asyncStr = Async ? " (Async)" : "";
+        string asyncStr = Async ? "Async " : "";
         
         string prefix = "Function";
         switch (Type) {
@@ -201,6 +201,6 @@ public class ZenFunction : ICallable {
                 break;
         }
         
-        return $"{prefix}{asyncStr} {Name}({argStr}): {ReturnType}";
+        return $"{asyncStr}{prefix} \"{Name}\"({argStr}): {ReturnType}";
     }
 }

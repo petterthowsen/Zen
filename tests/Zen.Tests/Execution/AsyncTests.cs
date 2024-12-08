@@ -134,4 +134,52 @@ public class AsyncTests : TestRunner
 
         Assert.True(elapsed > 100, "Expected a delay of at least 100ms but got " + elapsed);
     }
+
+    
+    [Fact]
+    public async void TestAsyncReturn()
+    {
+        await RestartInterpreter();
+        
+        string? result = await Execute(@"
+            async func test(): string {
+                await delay(50)
+                return ""done""
+            }
+            async func main() {
+                print await test()
+            }
+
+            main()
+        ", true);
+
+        Assert.Equal("done", result);
+    }
+
+    [Fact]
+    public async void TestAsyncCallDotNet()
+    {
+        await RestartInterpreter();
+        
+        string? result = await Execute(@"
+            async func test(): int {
+                # Wait asynchronously for 100ms
+                var start = time()
+                await delay(100)
+                var end = time()
+                var elapsed = end - start
+                return elapsed # should cause an error because it's missing a cast from int64 to int
+            }
+
+            async func main() {
+                print await test()
+            }
+
+            main()
+        ", true);
+
+        int elapsed = int.Parse(result!);
+        
+        Assert.True(elapsed >= 100, "Expected a delay of at least 100ms but got " + elapsed);
+    }
 }

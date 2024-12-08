@@ -36,6 +36,6 @@ public class Call : Expr {
 
     public override string ToString()
     {
-        return "Call";
+        return "Call(" + Callee + ", " + string.Join<Expr>(", ", Arguments) + ")";
     }
 }

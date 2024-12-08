@@ -372,7 +372,9 @@ public partial class Interpreter
 
         ZenType returnType = (await Evaluate(funcStmt.ReturnType)).Type;
 
-        return ZenFunction.NewUserFunction(returnType, parameters, funcStmt.Block, closure, funcStmt.Async);
+        var func = ZenFunction.NewUserFunction(returnType, parameters, funcStmt.Block, closure, funcStmt.Async);
+        func.Name = funcStmt.Identifier.Value;
+        return func;
     }
 
     public async Task<IEvaluationResult> VisitAsync(FuncStmt funcStmt)

@@ -55,7 +55,6 @@ public class TestRunner
         Runtime!.Interpreter.GlobalOutputBufferingEnabled = outputBuffering;
         Runtime.Interpreter.GlobalOutputBuffer.Clear();
         Runtime.Interpreter.OutputHandler = Output.WriteLine;
-
         await Runtime!.Execute(source);
         return Runtime.Interpreter.GlobalOutputBuffer.ToString();
     }

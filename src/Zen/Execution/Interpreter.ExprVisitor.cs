@@ -328,32 +328,43 @@ public async Task<IEvaluationResult> VisitAsync(Grouping grouping)
     {
         CurrentNode = awaitNode;
 
-        Logger.Instance.Debug($"Visiting AwaitNode {awaitNode} with expression: {awaitNode.Expression}");
+        Logger.Instance.Debug($"AWAIT {awaitNode} with expression: {awaitNode.Expression}...");
 
-        var result = await Evaluate(awaitNode.Expression);
+        ZenValue value = (await Evaluate(awaitNode.Expression)).Value;
+        Logger.Instance.Debug($"value: {value}");
 
-        Logger.Instance.Debug($"Result: {result}");
-
-        var value = result.Value;
-
-        Logger.Instance.Debug($"Value: {value}");
-
+        // we can only await ZenType.Task objects
         if (!value.Type.IsTask)
-            throw Error($"Cannot await non-task value of type {result.Type}", awaitNode.Location);
+            throw Error($"Cannot await non-task value of type {value.Type}", awaitNode.Location);
 
-
+        // get the task
         Task<ZenValue> task = value.Underlying!;
+        Logger.Instance.Debug($"awaiting task: {task}");
+        try {
+            ZenValue result = await task;
 
-        Logger.Instance.Debug($"Task: {task}");
+            Logger.Instance.Debug($"Awaiting task complete with result: {result}");
 
-        // wait for the task to complete
-        Logger.Instance.Debug($"Waiting for task to complete.");
-
-        ZenValue finalResult = await task;
-
-        Logger.Instance.Debug($"Result: {finalResult}");
-
-        return (ValueResult) finalResult; // Return the final result, not another Task
+            return (ValueResult) result; // Return the final result, not another Task
+        } catch (Exception ex) {
+            // this works, we do get the narrowing conversion exception
+            // and throw it
+            // If it's our RuntimeError, rethrow it directly
+            if (ex is RuntimeError runtimeError)
+            {
+                throw runtimeError;
+            }
+            // If it's an AggregateException (which wraps task exceptions), unwrap it
+            else if (ex is AggregateException aggEx && aggEx.InnerExceptions.Count == 1)
+            {
+                if (aggEx.InnerException is RuntimeError innerRuntimeError)
+                {
+                    throw innerRuntimeError;
+                }
+            }
+            // Otherwise wrap it in a RuntimeError
+            throw Error($"Task failed: {ex.Message}", awaitNode.Location, ErrorType.RuntimeError, ex);
+        }
     }
 
     public async Task<IEvaluationResult> EvaluateGetMethod(Get get, ZenValue[] argValues)

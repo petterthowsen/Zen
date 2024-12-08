@@ -35,45 +35,31 @@ public class ZenSynchronizationContext : SynchronizationContext
     public override void Send(SendOrPostCallback d, object? state) => d(state);
 
     /// <summary>
-    /// Runs the event loop on the current thread. This method blocks until Stop() is called
-    /// or an unhandled exception occurs.
+    /// Runs the event loop on the current thread.
+    /// It keeps running as long as there is work in the queue.
+    /// If Stop() is called, the loop exits.
     /// </summary>
     public void RunOnCurrentThread()
     {
-        Logger.Instance.Debug("Starting event loop...");
-        _isRunning = true;
-
         while (_isRunning)
         {
-            try
+            if (_queue.TryTake(out var workItem))
             {
-                // Try to take an item with no timeout (blocking)
-                if (_queue.TryTake(out var workItem))
+                var (callback, state) = workItem;
+                callback(state);
+    
+                if (_lastError != null)
                 {
-                    var (callback, state) = workItem;
-                    Logger.Instance.Debug($"Executing callback: {callback}");
-                    callback(state);
-
-                    if (_lastError != null)
-                    {
-                        var error = _lastError;
-                        _lastError = null;
-                        throw error;
-                    }
-                }
-                else
-                {
-                    Logger.Instance.Debug("No more work to execute");
-                    // If we fail to take any item and the queue is completed,
-                    // it means no more work will arrive. If we're not running, we can stop.
-                    Stop();
+                    var error = _lastError;
+                    _lastError = null;
+                    Logger.Instance.Error($"EVENT LOOP THREW ERROR {error}");
+                    throw error;
                 }
             }
-            catch (Exception ex)
+            else
             {
-                _lastError = ex;
+                Logger.Instance.Debug("No work to do. Exiting event loop.");
                 Stop();
-                throw;
             }
         }
     }
@@ -87,5 +73,10 @@ public class ZenSynchronizationContext : SynchronizationContext
         _isRunning = false;
     }
 
-    
+    public void Fail(Exception e)
+    {
+        Logger.Instance.Error($"Fail() called. setting _lastError = e");
+        // Set the exception as the last error
+        _lastError = e;
+    }
 }
