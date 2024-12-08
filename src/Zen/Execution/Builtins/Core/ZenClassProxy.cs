@@ -6,8 +6,8 @@ namespace Zen.Execution.Builtins.Core;
 public class ZenClassProxy : ZenClass
 {
     public Type Target;
-
-    private List<ZenMethodProxy> _methods = [];
+    private readonly Dictionary<string, ZenFunction> _methodCache = new();
+    private readonly Dictionary<(string name, string argTypes), ZenFunction> _overloadedMethodCache = new();
 
     public ZenClassProxy(Type dotnetClass) : base(dotnetClass.Name, [], [], [])
     {
@@ -20,7 +20,21 @@ public class ZenClassProxy : ZenClass
     }
 
     public override ZenFunction? GetOwnMethod(string name, ZenValue[] argValues, ZenType? returnType) {
-        // use reflection on the Target to find a matching method
+        // Create a cache key using method name and argument types
+        var argTypesKey = string.Join(",", argValues.Select(x => x.Type.ToString()));
+        var cacheKey = (name, argTypesKey);
+
+        // Check if we have a cached version
+        if (_overloadedMethodCache.TryGetValue(cacheKey, out var cachedMethod))
+        {
+            // If returnType is specified, verify compatibility
+            if (returnType == null || TypeChecker.IsCompatible(returnType, cachedMethod.ReturnType))
+            {
+                return cachedMethod;
+            }
+        }
+
+        // If not in cache, create new method proxy
         List<Type> argTypesDotnet = [];
 
         foreach (ZenValue zenValue in argValues) {
@@ -49,11 +63,22 @@ public class ZenClassProxy : ZenClass
         }
 
         var argTypes = argValues.Select(x => x.Type).ToArray();
-        return new ZenMethodProxy(methodInfo, methodReturnType, argTypes);
+        var methodProxy = new ZenMethodProxy(methodInfo, methodReturnType, argTypes);
+        
+        // Cache the method proxy
+        _overloadedMethodCache[cacheKey] = methodProxy;
+        
+        return methodProxy;
     }
 
     public override ZenFunction? GetOwnMethod(string name)
     {
+        // Check if we have a cached version
+        if (_methodCache.TryGetValue(name, out var cachedMethod))
+        {
+            return cachedMethod;
+        }
+
         var methodInfo = Target.GetMethod(name);
 
         if (methodInfo != null) {
@@ -65,10 +90,14 @@ public class ZenClassProxy : ZenClass
                 argTypes.Add(zenType);
             }
 
-            return new ZenMethodProxy(methodInfo, returnType, [..argTypes]);
+            var methodProxy = new ZenMethodProxy(methodInfo, returnType, [..argTypes]);
+            
+            // Cache the method proxy
+            _methodCache[name] = methodProxy;
+            
+            return methodProxy;
         }
 
         return null;
     }
-
 }

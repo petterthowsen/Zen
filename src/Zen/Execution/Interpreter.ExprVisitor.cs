@@ -349,7 +349,7 @@ public async Task<IEvaluationResult> VisitAsync(Grouping grouping)
         // wait for the task to complete
         Logger.Instance.Debug($"Waiting for task to complete.");
 
-        ZenValue finalResult = task.GetAwaiter().GetResult();;
+        ZenValue finalResult = await task;
 
         Logger.Instance.Debug($"Result: {finalResult}");
 

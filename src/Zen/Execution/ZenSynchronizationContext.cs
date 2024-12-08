@@ -26,10 +26,6 @@ public class ZenSynchronizationContext : SynchronizationContext
     /// </summary>
     public override void Post(SendOrPostCallback d, object? state)
     {
-        if (!_isRunning)
-        {
-            throw new InvalidOperationException("Cannot post to stopped context");
-        }
         _queue.Add((d, state));
     }
 
@@ -44,6 +40,7 @@ public class ZenSynchronizationContext : SynchronizationContext
     /// </summary>
     public void RunOnCurrentThread()
     {
+        Logger.Instance.Debug("Starting event loop...");
         _isRunning = true;
 
         while (_isRunning)
@@ -66,6 +63,7 @@ public class ZenSynchronizationContext : SynchronizationContext
                 }
                 else
                 {
+                    Logger.Instance.Debug("No more work to execute");
                     // If we fail to take any item and the queue is completed,
                     // it means no more work will arrive. If we're not running, we can stop.
                     Stop();
@@ -85,8 +83,8 @@ public class ZenSynchronizationContext : SynchronizationContext
     /// </summary>
     public void Stop()
     {
+        Logger.Instance.Debug("Stopping event loop.");
         _isRunning = false;
-        _queue.CompleteAdding();
     }
 
     

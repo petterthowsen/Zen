@@ -25,7 +25,7 @@ public class Time : IBuiltinsProvider
 
                 long start = DateTimeOffset.Now.ToUnixTimeMilliseconds();
                 Logger.Instance.Debug($"Delay started for {ms} ms.");
-                await Task.Delay(ms);
+                Task.Delay(ms).GetAwaiter().GetResult();
 
                 long time = DateTimeOffset.Now.ToUnixTimeMilliseconds();
                 long elapsed = time - start;

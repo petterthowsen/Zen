@@ -521,6 +521,20 @@ public class ParserTests {
         Assert.Equal("test", classStmt.Methods[0].Identifier.Value);
     }
 
+    
+    [Fact]
+    public void TestClassDeclarationWithAsyncMethod() {
+        ProgramNode program = Parse("class Test { async test() { } }");
+        Assert.Single(program.Statements);
+        Assert.IsType<ClassStmt>(program.Statements[0]);
+
+        ClassStmt classStmt = (ClassStmt)program.Statements[0];
+        Assert.Equal("Test", classStmt.Identifier.Value);
+        Assert.Single(classStmt.Methods);
+        Assert.Equal("test", classStmt.Methods[0].Identifier.Value);
+        Assert.True(classStmt.Methods[0].Async);
+    }
+
     [Fact]
     public void TestParametricClassDeclaration() {
         ProgramNode program = Parse("class Test<T> { }");

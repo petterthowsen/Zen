@@ -65,6 +65,37 @@ public class AsyncTests : TestRunner
         Assert.Equal(ZenType.Integer, function.ReturnType.Parameters[0]);
     }
 
+    
+    [Fact]
+    public async void TestClassWithAsyncFunction() {
+        await RestartInterpreter();
+        await Execute(@"
+            class Test {
+                async hello(): string {
+                    return ""hello world""
+                }
+            }
+        ");
+
+        ZenClass testClass = (ZenClass)Interpreter.environment.GetValue("Test")!.Underlying!;
+        
+        Assert.Equal("Test", testClass.Name);
+        Assert.Equal("hello", testClass.Methods.First().Name);
+        Assert.True(testClass.Methods.First().Async);
+
+        string? result = await Execute(@"
+            async func main() {
+                var t = new Test()
+                var helloWorld = await t.hello()
+                print helloWorld
+            }
+
+            main()
+        ", true);
+
+        Assert.Equal("hello world", result);
+    }
+
     [Fact]
     public async void TestAwait()
     {
@@ -97,6 +128,7 @@ public class AsyncTests : TestRunner
             }
             test()
         ", true);
+        Output.WriteLine("test Execute() finished, result output:" + result);
 
         int elapsed = int.Parse(result!);
 

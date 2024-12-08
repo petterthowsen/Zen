@@ -54,20 +54,10 @@ public class TestRunner
         // Enable output buffering before executing?
         Runtime!.Interpreter.GlobalOutputBufferingEnabled = outputBuffering;
         Runtime.Interpreter.GlobalOutputBuffer.Clear();
-
         Runtime.Interpreter.OutputHandler = Output.WriteLine;
 
-        try
-        {
-            await Runtime!.Execute(source);
-
-            return Runtime.Interpreter.GlobalOutputBuffer.ToString();
-        }
-        finally
-        {
-            // Clear the buffer after execution
-            Runtime.Interpreter.GlobalOutputBuffer.Clear();
-        }
+        await Runtime!.Execute(source);
+        return Runtime.Interpreter.GlobalOutputBuffer.ToString();
     }
 
     protected async Task<string?> Execute(string source, bool outputBuffering = false) => await Execute(new InlineSourceCode(source), outputBuffering);

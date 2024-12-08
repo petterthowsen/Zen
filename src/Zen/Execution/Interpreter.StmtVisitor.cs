@@ -97,14 +97,13 @@ public partial class Interpreter
         if (GlobalOutputBufferingEnabled)
         {
             GlobalOutputBuffer.Append(str);
+            OutputHandler("appending to GlobalOutputBuffer: " + str);
+        }else {
+            Console.Write(str);
         }
-        else
-        {
-            if (OutputHandler != null) {
-                OutputHandler(str);
-            }else {
-                Console.Write(str);
-            }
+
+        if (OutputHandler != null) {
+            OutputHandler(str);
         }
 
         return (ValueResult)ZenValue.Void;
@@ -574,7 +573,12 @@ public partial class Interpreter
                     parameters.Add(funcParam.Parameter);
                 }
 
-                ZenFunction method = ZenFunction.NewUserMethod(name, returnType, parameters, methodStmt.Block, environment, false);
+                // async?
+                if (methodStmt.Async) {
+                    // handle return type?
+                }
+
+                ZenFunction method = ZenFunction.NewUserMethod(name, returnType, parameters, methodStmt.Block, environment, methodStmt.Async);
                 methods.Add(method);
             }
 
