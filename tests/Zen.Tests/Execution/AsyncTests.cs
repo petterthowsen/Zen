@@ -11,7 +11,7 @@ public class AsyncTests : TestRunner
 
     [Fact]
     public async void TestAsyncFuncDeclaration() {
-        RestartInterpreter();
+        await RestartInterpreter();
         await Execute("async func hello() {}");
 
         Assert.True(Interpreter.environment.Exists("hello"));
@@ -22,11 +22,11 @@ public class AsyncTests : TestRunner
         // make sure its callable
         Assert.True(hello.IsCallable());
 
-        // is of type ZenUserFunction
-        Assert.IsType<ZenUserFunction>(hello.Underlying);
+        // is of type ZenFunction
+        Assert.IsType<ZenFunction>(hello.Underlying);
 
         // get the ZenFunction
-        ZenUserFunction function = (ZenUserFunction) hello.Underlying!;
+        ZenFunction function = (ZenFunction) hello.Underlying!;
 
         // takes 0 arguments
         Assert.Equal(0, function.Arity);
@@ -40,7 +40,7 @@ public class AsyncTests : TestRunner
 
     [Fact]
     public async void TestAsyncFuncWithTaskReturn() {
-        RestartInterpreter();
+        await RestartInterpreter();
         await Execute("async func hello(): Task<int> { return 42 }");
 
         Assert.True(Interpreter.environment.Exists("hello"));
@@ -51,11 +51,11 @@ public class AsyncTests : TestRunner
         // make sure its callable
         Assert.True(hello.IsCallable());
 
-        // is of type ZenUserFunction
-        Assert.IsType<ZenUserFunction>(hello.Underlying);
+        // is of type ZenFunction
+        Assert.IsType<ZenFunction>(hello.Underlying);
 
         // get the ZenFunction
-        ZenUserFunction function = (ZenUserFunction) hello.Underlying!;
+        ZenFunction function = (ZenFunction) hello.Underlying!;
 
         // takes 0 arguments
         Assert.Equal(0, function.Arity);
@@ -93,12 +93,13 @@ public class AsyncTests : TestRunner
                 var start = time()
                 await delay(100)
                 var elapsed = time() - start
-                print elapsed >= 100
-                print true
+                print elapsed
             }
             test()
         ", true);
 
-        Assert.Equal("true", result);
+        int elapsed = int.Parse(result!);
+
+        Assert.True(elapsed > 100, "Expected a delay of at least 100ms but got " + elapsed);
     }
 }

@@ -3,41 +3,33 @@ using Zen.Typing;
 
 namespace Zen.Execution.Builtins.Core;
 
-public class ZenMethodProxy : ZenMethod
+public class ZenMethodProxy : ZenFunction
 {
-
     public MethodInfo Method;
 
-    public ZenMethodProxy(MethodInfo method, ZenType returnType, ZenType[] argTypes) : base(false, method.Name, ZenClass.Visibility.Public, returnType, [])
+    public ZenMethodProxy(MethodInfo method, ZenType returnType, ZenType[] argTypes) : base(TYPE.HostMethod, false, false, returnType, [])
     {
         Method = method;
+
         // add arguments
         foreach (ParameterInfo argInfo in method.GetParameters()) {
             Arguments.Add(new Argument(argInfo.Name ?? "", Interop.ToZenType(argInfo.ParameterType)));
         }
     }
 
-    public override Task<ZenValue> Call(Interpreter interpreter, ZenValue[] arguments)
+    public ZenValue Call(ZenObject instance, ZenValue[] argValues)
     {
-        throw new Exception("Methods must be called with a ZenObject instance");
-    }
-
-    public ZenValue Call(Interpreter interpreter, ZenObject instance, ZenValue[] argValues)
-    {
-        if (argValues.Length < Arity) {
-            throw new Exception($"Function called with {argValues.Length} arguments, but expected {Arity}");
-        }
-
-        if (instance is not ZenObjectProxy) {
-            throw new Exception("ZenMethodProxy must be called with a ZenObjectProxy instance!");
-        }
-
+        // cast instance to ZenObjectProxy
         ZenObjectProxy zenObjectProxy = (ZenObjectProxy) instance;
 
+        // convert arguments
         dynamic?[] args = argValues.Select(a => Interop.ToDotNet(a)).ToArray();
+
+        // invoke
         dynamic? result = Method.Invoke(zenObjectProxy.Target, args);
-        var resultZen = Interop.ToZenValue(result);
-        return resultZen;
+
+        // convert result to ZenValue
+        return Interop.ToZenValue(result);
     }
 
     public override BoundMethod Bind(ZenObject instance) {

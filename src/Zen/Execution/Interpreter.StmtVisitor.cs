@@ -302,7 +302,7 @@ public partial class Interpreter
             TypeHint? keyTypeHint = forInStmt.KeyTypeHint;
             TypeHint? valueTypeHint = forInStmt.ValueTypeHint;
             
-            ZenObject enumerator = (await CallObject(target, "GetEnumerator")).Underlying!;
+            ZenObject enumerator = CallObject(target, "GetEnumerator", null).Underlying!;
 
             // the type of the value is the type of the enumerator
             ZenType elementType = target.GetParameter("T").Underlying!;
@@ -313,8 +313,8 @@ public partial class Interpreter
                 environment.Define(false, keyIdentifier.Value.Value, elementType, false);
             }
 
-            while ((await CallObject(enumerator, "MoveNext")).IsTruthy()) {
-                environment.Assign(valueIdentifier.Value, await CallObject(enumerator, "Current"));
+            while (CallObject(enumerator, "MoveNext", null).IsTruthy()) {
+                environment.Assign(valueIdentifier.Value, CallObject(enumerator, "Current", null));
 
                 if (keyIdentifier != null) {
                     environment.Assign(keyIdentifier.Value.Value, enumerator.GetProperty("index"));
@@ -351,7 +351,11 @@ public partial class Interpreter
         throw new ReturnException(result, returnStmt.Location);
     }
 
-    protected async Task<ZenUserFunction> EvaluateFunctionStatement(FuncStmt funcStmt, Environment? closure = null)
+    /// <summary>
+    /// Creates a ZenFunction from a FuncStmt, capturing the current environment if none is provided.
+    /// </summary>
+    /// <returns></returns>
+    protected async Task<ZenFunction> EvaluateFunctionStatement(FuncStmt funcStmt, Environment? closure = null)
     {
         CurrentNode = funcStmt;
 
@@ -367,18 +371,16 @@ public partial class Interpreter
             parameters.Add(funcParamResult.Parameter);
         }
 
-        ZenType returnType = ZenType.Void;
-        returnType = (await Evaluate(funcStmt.ReturnType)).Type;
+        ZenType returnType = (await Evaluate(funcStmt.ReturnType)).Type;
 
-        return new ZenUserFunction(funcStmt.Async, returnType, parameters, funcStmt.Block, closure);
+        return ZenFunction.NewUserFunction(returnType, parameters, funcStmt.Block, closure, funcStmt.Async);
     }
 
     public async Task<IEvaluationResult> VisitAsync(FuncStmt funcStmt)
     {
         CurrentNode = funcStmt;
 
-        ZenUserFunction zenFunction = await EvaluateFunctionStatement(funcStmt);
-
+        ZenFunction zenFunction = await EvaluateFunctionStatement(funcStmt);
         RegisterFunction(funcStmt.Identifier.Value, zenFunction);
 
         return (ValueResult)ZenValue.Void;
@@ -544,7 +546,7 @@ public partial class Interpreter
             }
 
             // create the methods
-            List<ZenMethod> methods = [];
+            List<ZenFunction> methods = [];
 
             foreach (MethodStmt methodStmt in classStmt.Methods)
             {
@@ -572,7 +574,7 @@ public partial class Interpreter
                     parameters.Add(funcParam.Parameter);
                 }
 
-                ZenUserMethod method = new(methodStmt.Async, name, visibility, returnType, parameters, methodStmt.Block, environment);
+                ZenFunction method = ZenFunction.NewUserMethod(name, returnType, parameters, methodStmt.Block, environment, false);
                 methods.Add(method);
             }
 

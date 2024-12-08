@@ -14,12 +14,12 @@ public class ZenClassProxy : ZenClass
         Target = dotnetClass;
     }
 
-    public override ZenMethod? GetOwnConstructor(ZenValue[] argValues)
+    public override ZenFunction? GetOwnConstructor(ZenValue[] argValues)
     {
         return null;
     }
 
-    public override ZenMethod? GetOwnMethod(string name, ZenValue[] argValues, ZenType? returnType) {
+    public override ZenFunction? GetOwnMethod(string name, ZenValue[] argValues, ZenType? returnType) {
         // use reflection on the Target to find a matching method
         List<Type> argTypesDotnet = [];
 
@@ -52,7 +52,7 @@ public class ZenClassProxy : ZenClass
         return new ZenMethodProxy(methodInfo, methodReturnType, argTypes);
     }
 
-    public override ZenMethod? GetOwnMethod(string name)
+    public override ZenFunction? GetOwnMethod(string name)
     {
         var methodInfo = Target.GetMethod(name);
 

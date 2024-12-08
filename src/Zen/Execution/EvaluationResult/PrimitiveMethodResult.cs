@@ -5,7 +5,7 @@ namespace Zen.Execution.EvaluationResult;
 public struct PrimitiveMethodResult : IEvaluationResult
 {
     public ZenValue Target;
-    public ZenMethod Method;
+    public ZenFunction Method;
     public ZenValue[] Arguments;
 
     public ZenType Type => ZenType.BoundMethod;
@@ -16,7 +16,7 @@ public struct PrimitiveMethodResult : IEvaluationResult
 
     public bool IsTruthy() => true;
 
-    public PrimitiveMethodResult(ZenValue target, ZenMethod method, ZenValue[] argValues)
+    public PrimitiveMethodResult(ZenValue target, ZenFunction method, ZenValue[] argValues)
     {
         Target = target;
         Method = method;

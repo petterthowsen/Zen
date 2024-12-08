@@ -12,26 +12,26 @@ public class String : IBuiltinsProvider
         [
             // --- Methods ---
             // Reverse
-            new ZenHostMethod(false, "reverse", ZenClass.Visibility.Public, ZenType.String, [new("str", ZenType.String)], (ZenValue[] args) => {
+            ZenFunction.NewStaticHostMethod("reverse", ZenType.String, [new("str", ZenType.String)], (ZenValue[] args) => {
                 string str = args[0].Underlying ?? "";
                 char[] charArray = str.ToCharArray();
                 charArray = charArray.Reverse<char>().ToArray();
                 return new ZenValue(ZenType.String, charArray.ToString());
-            }),
+            }, false),
 
             // ToUpper
-            new ZenHostMethod(false, "toUpper", ZenClass.Visibility.Public, ZenType.String, [new("str", ZenType.String)], (ZenValue[] args) => {
+            ZenFunction.NewStaticHostMethod("toUpper", ZenType.String, [new("str", ZenType.String)], (ZenValue[] args) => {
                 string str = args[0].Underlying ?? "";
                 return new ZenValue(ZenType.String, str.ToUpper());
             }),
 
             // ToLower
-            new ZenHostMethod(false, "toLower", ZenClass.Visibility.Public, ZenType.String, [new("str", ZenType.String)], (ZenValue[] args) => {
+            ZenFunction.NewStaticHostMethod("toLower", ZenType.String, [new("str", ZenType.String)], (ZenValue[] args) => {
                 string str = args[0].Underlying ?? "";
                 return new ZenValue(ZenType.String, str.ToLower());
             }),
             
-            new ZenHostMethod(false, "_getProperty", ZenClass.Visibility.Public, ZenType.Any, [new("str", ZenType.String), new("property", ZenType.String)], (ZenValue[] args) => {
+            ZenFunction.NewStaticHostMethod("_getProperty", ZenType.Any, [new("str", ZenType.String), new("property", ZenType.String)], (ZenValue[] args) => {
                 string str = args[0].Underlying ?? "";
                 string prop = args[1].Underlying ?? "";
                 

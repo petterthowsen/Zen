@@ -155,7 +155,7 @@ public async Task<IEvaluationResult> VisitAsync(Grouping grouping)
         if (result.Value.Underlying is ZenObject instance)
         {
             // is it a method?
-            ZenMethod? method = instance.GetMethodHierarchically(get.Identifier.Value);
+            ZenFunction? method = instance.GetMethodHierarchically(get.Identifier.Value);
 
             if (method != null)
             {
@@ -230,16 +230,16 @@ public async Task<IEvaluationResult> VisitAsync(Grouping grouping)
         }
 
         // Call the get method
-        ZenMethod? method = instance.GetMethodHierarchically("_BracketGet");
+        ZenFunction? method = instance.GetMethodHierarchically("_BracketGet");
 
         if (method == null)
         {
-            throw Error($"Object does not support bracket access (missing 'get' method)", bracketGet.Location);
+            throw Error($"Object of type '{instance.Type}' does not support BracketGet (missing '_BracketGet' method)", bracketGet.Location);
         }
 
-        BoundMethod boundMethod = method.Bind(instance);
+        BoundMethod bound = method.Bind(instance);
 
-        return CallUserFunction(boundMethod, [element.Value]);
+        return (ValueResult) CallFunction(bound, [element.Value]);
     }
 
     public async Task<IEvaluationResult> VisitAsync(BracketSet bracketSet)
@@ -256,14 +256,16 @@ public async Task<IEvaluationResult> VisitAsync(Grouping grouping)
         }
 
         // Call the set method
-        ZenMethod? method = instance.GetMethodHierarchically("_BracketSet");
+        ZenFunction? method = instance.GetMethodHierarchically("_BracketSet");
 
         if (method == null)
         {
-            throw Error($"Object does not support bracket assignment (missing 'set' method)", bracketSet.Location);
+            throw Error($"Object of type '{instance.Type}' does not support BracketSet (missing '_BracketSet' method)", bracketSet.Location);
         }
 
-        return (ValueResult) instance.Call(this, method, [element.Value, value.Value]);
+        BoundMethod bound = method.Bind(instance);
+
+        return (ValueResult) CallFunction(bound, [element.Value, value.Value]);
     }
 
     public async Task<IEvaluationResult> VisitAsync(ParameterDeclaration parameter)
@@ -326,16 +328,32 @@ public async Task<IEvaluationResult> VisitAsync(Grouping grouping)
     {
         CurrentNode = awaitNode;
 
+        Logger.Instance.Debug($"Visiting AwaitNode {awaitNode} with expression: {awaitNode.Expression}");
+
         var result = await Evaluate(awaitNode.Expression);
+
+        Logger.Instance.Debug($"Result: {result}");
+
         var value = result.Value;
 
+        Logger.Instance.Debug($"Value: {value}");
+
         if (!value.Type.IsTask)
-            throw Error("Cannot await non-task...");
+            throw Error($"Cannot await non-task value of type {result.Type}", awaitNode.Location);
 
-        var task = (Task<ZenValue>)value.Underlying!;
-        var awaitedResult = await task; // This actually suspends until the task is done.
 
-        return (ValueResult)awaitedResult; // Return the final result, not another Task
+        Task<ZenValue> task = value.Underlying!;
+
+        Logger.Instance.Debug($"Task: {task}");
+
+        // wait for the task to complete
+        Logger.Instance.Debug($"Waiting for task to complete.");
+
+        ZenValue finalResult = task.GetAwaiter().GetResult();;
+
+        Logger.Instance.Debug($"Result: {finalResult}");
+
+        return (ValueResult) finalResult; // Return the final result, not another Task
     }
 
     public async Task<IEvaluationResult> EvaluateGetMethod(Get get, ZenValue[] argValues)
@@ -343,22 +361,26 @@ public async Task<IEvaluationResult> VisitAsync(Grouping grouping)
         CurrentNode = get;
 
         IEvaluationResult result = await Evaluate(get.Expression);
-        ZenMethod? method;
+        ZenFunction? method;
 
-        if (result.Value.Underlying is ZenObject instance)
+        // object?
+        if (result.Value.Underlying is ZenObject instance) // this may be a regular ZenObject or a ZenObjectProxy which proxies for a .NET object
         {
             // is it a method?
             method = instance.GetMethodHierarchically(get.Identifier.Value, argValues);
             if (method != null) {
-                return (ValueResult) method.Bind(instance);
+                return (ValueResult) method.Bind(instance); // implicitly creates a ZenValue of type ZenType.BoundMethod
             }
         }
+        // string?
         else if (result.Type == ZenType.String) {
             var argsWithObj = argValues.ToList();
             argsWithObj.Insert(0, result.Value);
             var args = argsWithObj.ToArray();
+
             method = Builtins.Core.String.ZenString.GetOwnMethod(get.Identifier.Value, args);
-            if (method != null && method.Static) {
+            
+            if (method != null && method.IsStatic) {
                 return new PrimitiveMethodResult(result.Value, method, args);
             }
         }
@@ -391,7 +413,7 @@ public async Task<IEvaluationResult> VisitAsync(Grouping grouping)
 
         if (callee is PrimitiveMethodResult pmr)
         {
-            ZenMethod method = pmr.Method;
+            ZenFunction method = pmr.Method;
             ZenValue[] args = pmr.Arguments;
 
             // check number of arguments is at most equal to the number of parameters
@@ -416,6 +438,10 @@ public async Task<IEvaluationResult> VisitAsync(Grouping grouping)
             }
 
             return CallFunction(function, argValues);
+        }
+        else if (callee.Value.Underlying is BoundMethod) {
+            BoundMethod boundMethod = (BoundMethod)callee.Value.Underlying;
+            return CallFunction(boundMethod, argValues);
         }
         else
         {

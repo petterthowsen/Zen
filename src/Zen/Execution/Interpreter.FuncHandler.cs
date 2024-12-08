@@ -9,120 +9,140 @@ namespace Zen.Execution;
 
 public partial class Interpreter
 {
-    // todo: should clean up/organize/comment these methods
-    public ZenValue CallObject(ZenObject obj, string methodName, ZenType returnType, ZenValue[] args)
+    /// <summary>
+    /// Call a method on an object
+    /// </summary>
+    /// <param name="obj"></param>
+    /// <param name="methodName"></param>
+    /// <param name="returnType"></param>
+    /// <param name="args"></param>
+    /// <returns></returns>
+    public ZenValue CallObject(ZenObject obj, string methodName, ZenType? returnType, ZenValue[] args)
     {
-        ZenMethod? method = obj.GetMethodHierarchically(methodName, args, returnType);
+        ZenFunction? method = obj.GetMethodHierarchically(methodName, args, returnType);
 
         if (method == null) {
             throw Error($"{obj.Class} has no method {methodName}!");
         }
 
         BoundMethod boundMethod = method.Bind(obj);
-        var result = CallFunction(boundMethod, args);
-        return result.Value;
+        
+        return CallFunction(boundMethod, args)
+            .Value;
     }
-
-    public ZenValue CallObject(ZenObject obj, string methodName, ZenType returnType)
-    {
-        return CallObject(obj, methodName, returnType, []);
-    }
-
-    public async Task<ZenValue> CallObject(ZenObject obj, string methodName)
-    {
-        ZenMethod? method = obj.GetMethodHierarchically(methodName);
-
-        if (method == null) {
-            throw Error($"{obj.Class} has no method {methodName}!");
+    
+    // CallObject with no arguments
+    public ZenValue CallObject(ZenObject obj, string methodName, ZenType? returnType) => CallObject(obj, methodName, returnType, []);   
+    
+    /// <summary>
+    /// Call a bound method. Routes to CallUserFunction or CallHostFunction.
+    /// Can also handle ZenMethodProxy functions.
+    /// </summary>
+    public IEvaluationResult CallFunction(BoundMethod bound, ZenValue[] arguments) {
+        if (bound.Method.IsUser) {
+            // if the bound method is a user method, call the user function
+            // bound methods have 'this' assigned in their environment.
+            return CallUserFunction(bound.Method.Async, bound.Environment, bound.Method.UserCode!, bound.Arguments, bound.Method.ReturnType, arguments);
+        }else {
+            // It may be a regular host method or a proxy method for a .NET method
+            if (bound.Method is ZenMethodProxy zenMethodProxy) {
+                // proxy method handles itself
+                return (ValueResult) zenMethodProxy.Call(bound.Instance, arguments);
+            }else {
+                // host methods
+                return CallHostMethod(bound.Instance, bound.Method, arguments);
+            }
         }
-
-        BoundMethod boundMethod = method.Bind(obj);
-        return CallFunction(boundMethod, []).Value;
     }
 
+    /// <summary>
+    /// Utility method to call a user function or host function
+    /// </summary>
     public IEvaluationResult CallFunction(ZenFunction function, ZenValue[] arguments)
     {
-        if (function is ZenHostFunction hostFunc)
-        {
-            var task = hostFunc.Call(this, arguments);
-            if (hostFunc.Async)
-            {
-                // For async functions, return the task wrapped in a ZenValue
-                return new ValueResult { Value = new ZenValue(ZenType.Task, task) };
-            }
-            else
-            {
-                // For non-async functions, return the result directly
-                return new ValueResult { Value = task.Result };
-            }
+        switch (function.Type) {
+            case ZenFunction.TYPE.UserFunction:
+                return CallUserFunction(function.Async, function.Closure, function.UserCode!, function.Arguments, function.ReturnType, arguments);
+            
+            case ZenFunction.TYPE.HostFunction:
+                return CallHostFunction(function, arguments);
         }
-        else if (function is ZenUserFunction userFunc)
-        {
-            return CallUserFunction(userFunc, arguments);
-        }
-        else if (function is BoundMethod boundMethod)
-        {
-            return CallUserFunction(boundMethod, arguments);
-        }
-        else if (function is ZenHostMethod hostMethod) 
-        {
-            var task = hostMethod.Call(this, arguments);
-            if (hostMethod.Async)
-            {
-                // For async methods, return the task wrapped in a ZenValue
-                return new ValueResult { Value = new ZenValue(ZenType.Task, task) };
-            }
-            else
-            {
-                // For non-async methods, return the result directly
-                return new ValueResult { Value = task.Result };
-            }
-        }
-        
-        throw Error($"Cannot call unknown function type '{function.GetType()}'", null, Common.ErrorType.RuntimeError);
+
+        throw Error($"CallFunction() Cannot handle ZenFunction.TYPE '{function.Type}'.", null, Common.ErrorType.RuntimeError);
     }
 
-    public IEvaluationResult CallUserFunction(BoundMethod bound, ZenValue[] arguments) {
-        if (bound.Method is ZenUserMethod userMethod) {
-            return CallUserFunction(userMethod.Async, bound.Closure, userMethod.Block, bound.Arguments, bound.ReturnType, arguments);
-        }
-        else if (bound.Method is ZenHostMethod hostMethod) {
-            var task = hostMethod.Call(this, bound.Instance, arguments);
-            if (hostMethod.Async)
-            {
-                return new ValueResult { Value = new ZenValue(ZenType.Task, task) };
-            }
-            else
-            {
-                return new ValueResult { Value = task };
-            }
-        }
-        else if (bound.Method is ZenMethodProxy methodProxy) {
-            var task = methodProxy.Call(this, bound.Instance, arguments);
-            if (methodProxy.Async)
-            {
-                return new ValueResult { Value = new ZenValue(ZenType.Task, task) };
-            }
-            else
-            {
-                return new ValueResult { Value = task };
-            }
-        }
-        
-        throw Error($"Cannot call unknown function type '{bound.Method.GetType()}'", null, Common.ErrorType.RuntimeError);
-    }
-
-    public IEvaluationResult CallUserFunction(ZenUserFunction function, ZenValue[] arguments)
+    /// <summary>
+    /// Call the given host function. Handles both sync/async, validates argument and return types.
+    /// </summary>
+    /// <param name="function"></param>
+    /// <param name="arguments"></param>
+    /// <returns></returns>
+    public IEvaluationResult CallHostFunction(ZenFunction function, ZenValue[] arguments)
     {
-        return CallUserFunction(function.Async, function.Closure, function.Block!, function.Arguments, function.ReturnType, arguments);
+        if (function.IsHost == false) throw Error($"CallHostFunction() Cannot handle non-host functions.", null, Common.ErrorType.RuntimeError);
+
+        // TODO: Validate arguments as needed
+
+        if (function.Async)
+        {
+            if (function.AsyncHostFunc == null)
+                throw Error("Missing async host function.", null, ErrorType.RuntimeError);
+
+            // Execute the async host function. It returns Task<ZenValue>
+            var task = function.AsyncHostFunc(arguments);
+
+            // Return a ZenValue of type Task
+            return new ValueResult { Value = new ZenValue(ZenType.Task, task) };
+        }
+        else
+        {
+            // static?
+            if (function.IsStatic) {
+                if (function.StaticHostMethod == null)
+                    throw Error("Missing static host function implementation.", null, ErrorType.RuntimeError);
+                return (ValueResult) function.StaticHostMethod(arguments);
+            }
+
+            if (function.Func == null)
+                throw Error("Missing host function implementation.", null, ErrorType.RuntimeError);
+
+            // Synchronous call
+            var result = function.Func(arguments); // returns ZenValue
+            return (ValueResult) result;
+        }
+    }
+    
+    public IEvaluationResult CallHostMethod(ZenObject instance, ZenFunction function, ZenValue[] arguments) {
+        if (function.IsHost == false) throw Error($"CallHostMethod() Cannot handle non-host methods.", null, Common.ErrorType.RuntimeError);
+
+        if (function.Async) {
+            if (function.AsyncHostMethod == null) throw Error($"Missing AsyncHostMethod on ZenFunction!", null, Common.ErrorType.RuntimeError);
+            
+            // how do we handle this?
+            // we need to pass it the ZenObject instance, and we need to return an awaitable.
+
+            // Execute the async host function. It returns Task<ZenValue>
+            var task = function.AsyncHostMethod(instance, arguments);
+
+            // Return a ZenValue of type Task
+            return new ValueResult { Value = new ZenValue(ZenType.Task, task) };
+        }else {
+            if (function.HostMethod == null) throw Error($"Missing HostMethod on ZenFunction!", null, Common.ErrorType.RuntimeError);
+            
+            return (ValueResult) function.HostMethod(instance, arguments);
+        }
     }
 
-    // this works and makse sense
-    public IEvaluationResult CallUserFunction(bool async, Environment? closure, Block block, List<ZenFunction.Argument> arguments, ZenType returnType, ZenValue[] argValues)
+    /// <summary>
+    /// Main low-level method for calling a user function.
+    /// Calls the given ZenFunction (function or method). Handles both sync/async, validates argument and return types.
+    /// </summary>
+    private IEvaluationResult CallUserFunction(bool async, Environment? closure, Block block, List<ZenFunction.Argument> arguments, ZenType returnType, ZenValue[] argValues)
     {
         // If this is an async function
         if (async)
         {
+            Logger.Instance.Debug("Calling Async Function...");
             // Create a TaskCompletionSource that will be completed when the function finishes
             var tcs = new TaskCompletionSource<ZenValue>();
             
@@ -152,6 +172,7 @@ public partial class Interpreter
                     environment.Assign(arguments[i].Name, argValue);
                 }
 
+                // Execute the function
                 try
                 {
                     foreach (var statement in block.Statements)
@@ -198,7 +219,7 @@ public partial class Interpreter
             }, null);
 
             // Return the task immediately without waiting
-            return new ValueResult { Value = new ZenValue(ZenType.Task, tcs.Task) };
+            return (ValueResult) new ZenValue(ZenType.Task, tcs.Task);
         }
         else
         {
@@ -231,7 +252,7 @@ public partial class Interpreter
             {
                 foreach (var statement in block.Statements)
                 {
-                    statement.AcceptAsync(this).Wait();
+                    statement.AcceptAsync(this).GetAwaiter().GetResult();
                 }
             }
             catch (ReturnException returnException)
@@ -244,12 +265,30 @@ public partial class Interpreter
                 }
                 return returnException.Result;
             }
+            catch (Exception ex)
+            {
+                // Handle other exceptions
+                if (ex is RuntimeError runtimeError)
+                {
+                    throw runtimeError; // Re-throw to stop execution
+                }
+                else
+                {
+                    // Wrap other exceptions in a RuntimeError
+                    throw Error(
+                        ex.Message, 
+                        CurrentNode?.Location, 
+                        Common.ErrorType.RuntimeError, 
+                        ex
+                    );
+                }
+            }
             finally
             {
                 environment = previousEnvironment;
             }
 
-            return new ValueResult { Value = ZenValue.Void };
+            return VoidResult.Instance;
         }
     }
 }

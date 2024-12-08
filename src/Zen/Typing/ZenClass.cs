@@ -9,7 +9,7 @@ public class ZenClass : IZenClass {
 
     public static readonly ZenClass Master = new ZenClass("Master", [
         // methods
-        new ZenHostMethod(false, "ToString", Visibility.Public, ZenType.String, [], (ZenObject instance, ZenValue[] args) => {
+        ZenFunction.NewHostMethod("ToString", ZenType.String, [], (ZenObject instance, ZenValue[] args) => {
             return new ZenValue(ZenType.String, "Object(" + instance.Class.Name + ")");
         }),
     ], [
@@ -28,8 +28,6 @@ public class ZenClass : IZenClass {
         public ZenValue Default;
         public Visibility Visibility;
 
-        // public bool IsGeneric => Type.IsGeneric;
-
         public Property(string name, ZenType type, ZenValue defaultValue, Visibility visibility = Visibility.Public) {
             Name = name;
             Type = type;
@@ -44,12 +42,12 @@ public class ZenClass : IZenClass {
 
     public List<ZenInterface> Interfaces = [];
 
-    public List<ZenMethod> Methods = [];
+    public List<ZenFunction> Methods = [];
     public Dictionary<string, Property> Properties = [];
     public ZenType Type { get; set; }
     public List<IZenClass.Parameter> Parameters { get; set; }
 
-    public ZenClass(string name, List<ZenMethod> methods, List<Property> properties, List<IZenClass.Parameter> parameters) {
+    public ZenClass(string name, List<ZenFunction> methods, List<Property> properties, List<IZenClass.Parameter> parameters) {
         Name = name;
         Methods = methods;
         Properties = properties.ToDictionary(x => x.Name, x => x);
@@ -59,7 +57,7 @@ public class ZenClass : IZenClass {
         Type = ZenType.FromClass(this);
     }
 
-    public ZenClass(string name, List<ZenMethod> methods) : this(name, methods, [], []) {}
+    public ZenClass(string name, List<ZenFunction> methods) : this(name, methods, [], []) {}
 
     public Dictionary<string, ZenType> ResolveTypeParameters(Dictionary<string, ZenValue> paramValues) {
         var substitutions = new Dictionary<string, ZenType>();
@@ -178,27 +176,9 @@ public class ZenClass : IZenClass {
                     return arg;
                 }).ToList();
 
-                if (method is ZenHostMethod hostMethod) {
-                    instance.Methods.Add(new ZenHostMethod(
-                        method.Async,
-                        method.Name,
-                        method.Visibility,
-                        concreteReturnType,
-                        concreteArguments,
-                        hostMethod.Func
-                    ));
-                }
-                else if (method is ZenUserMethod userMethod) {
-                    instance.Methods.Add(new ZenUserMethod(
-                        method.Async,
-                        method.Name,
-                        method.Visibility,
-                        concreteReturnType,
-                        concreteArguments,
-                        userMethod.Block,
-                        userMethod.Closure
-                    ));
-                }
+                // Clone allows us to make a shallow copy and override the return type and arguments conveniently.
+                ZenFunction concreteMethod = method.Clone(concreteReturnType, concreteArguments);
+                instance.Methods.Add(concreteMethod);
             }
         }
         
@@ -213,7 +193,7 @@ public class ZenClass : IZenClass {
         if (constructor != null) {
             var boundMethod = constructor!.Bind(instance);
             Logger.Instance.Debug($"Calling constructor with arguments: {string.Join(", ", boundMethod.Arguments.Select(p => $"{p.Name}: {p.Type}"))}");
-            interpreter.CallUserFunction(boundMethod, args);
+            interpreter.CallFunction(boundMethod, args);
         }
 
         // verify non-nullable properties are set
@@ -231,12 +211,12 @@ public class ZenClass : IZenClass {
         return GetOwnMethod(Name, argValues) != null;
     }
 
-    public virtual ZenMethod? GetOwnConstructor(ZenValue[] argValues)
+    public virtual ZenFunction? GetOwnConstructor(ZenValue[] argValues)
     {
         return GetOwnMethod(Name, argValues, ZenType.Void);
     }
 
-    public virtual ZenMethod? GetOwnMethod(string name, ZenValue[] argValues, ZenType? returnType = null) {
+    public virtual ZenFunction? GetOwnMethod(string name, ZenValue[] argValues, ZenType? returnType = null) {
         var argTypes = argValues.Select(x => x.Type).ToArray();
         foreach (var m in Methods) {
             if (m.Name != name) continue;
@@ -266,7 +246,7 @@ public class ZenClass : IZenClass {
         return null;
     }
 
-    public virtual ZenMethod? GetOwnMethod(string name)
+    public virtual ZenFunction? GetOwnMethod(string name)
     {
         foreach (var m in Methods) {
             if (m.Name == name) {
@@ -311,7 +291,7 @@ public class ZenClass : IZenClass {
         }
     }
     
-    public ZenMethod? GetMethodHierarchically(string name, ZenValue[] argValues, ZenType? returnType)
+    public ZenFunction? GetMethodHierarchically(string name, ZenValue[] argValues, ZenType? returnType)
     {
         var method = GetOwnMethod(name, argValues, returnType);
         if (method != null) {
@@ -333,7 +313,7 @@ public class ZenClass : IZenClass {
     /// This is because we're not checking whether the argTypes are compatible with the method signature
     /// but rather whether the method signature is compatible with the argTypes.
     /// </remarks>
-    protected virtual ZenMethod? GetOwnMethodSatisfying(string name, ZenType[] argTypes, ZenType? returnType)
+    protected virtual ZenFunction? GetOwnMethodSatisfying(string name, ZenType[] argTypes, ZenType? returnType)
     {
         foreach (var m in Methods) {
             if (m.Name != name) continue;
@@ -363,7 +343,7 @@ public class ZenClass : IZenClass {
         return null;
     }
 
-    protected ZenMethod? GetMethodSatisfying(string name, ZenType[] argTypes, ZenType? returnType)
+    protected ZenFunction? GetMethodSatisfying(string name, ZenType[] argTypes, ZenType? returnType)
     {
         var method = GetOwnMethodSatisfying(name, argTypes, returnType);
         if (method != null) {
@@ -377,7 +357,7 @@ public class ZenClass : IZenClass {
         }
     }
 
-    public ZenMethod? GetMethodHierarchically(string name)
+    public ZenFunction? GetMethodHierarchically(string name)
     {
         var method = GetOwnMethod(name);
         if (method != null) {
@@ -417,7 +397,7 @@ public class ZenClass : IZenClass {
         // make sure all interfaces are satisfied
         foreach (ZenInterface @interface in Interfaces) {
             foreach(ZenAbstractMethod abstractMethod in @interface.Methods) {
-                ZenMethod? concreteMethod = GetMethodSatisfying(abstractMethod.Name, abstractMethod.Arguments.Select(x => x.Type).ToArray(), abstractMethod.ReturnType);
+                ZenFunction? concreteMethod = GetMethodSatisfying(abstractMethod.Name, abstractMethod.Arguments.Select(x => x.Type).ToArray(), abstractMethod.ReturnType);
                 if (concreteMethod == null) {
                     throw Interpreter.Error("Class " + Name + " does not implement interface method " + abstractMethod);
                 }

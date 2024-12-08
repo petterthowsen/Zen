@@ -44,7 +44,7 @@ public class Array : IBuiltinsProvider
         // ArrayEnumerator.Properties.Add("index", new ZenClass.Property("index", ZenType.Integer, new ZenValue(ZenType.Integer, 0)));
 
         // //constructor
-        // ArrayEnumerator.Methods.Add(new ZenHostMethod(false, "ArrayEnumerator", ZenClass.Visibility.Public, ZenType.Void,
+        // ArrayEnumerator.Methods.Add(ZenFunction.NewHostMethod(false, "ArrayEnumerator", ZenClass.Visibility.Public, ZenType.Void,
         //     // arguments
         //     [
         //         // the array
@@ -57,7 +57,7 @@ public class Array : IBuiltinsProvider
         // ));
 
         // // MoveNext
-        // ArrayEnumerator.Methods.Add(new ZenHostMethod(false, "MoveNext", ZenClass.Visibility.Public, ZenType.Boolean,
+        // ArrayEnumerator.Methods.Add(ZenFunction.NewHostMethod(false, "MoveNext", ZenClass.Visibility.Public, ZenType.Boolean,
             
         //     // arguments
         //     [
@@ -76,13 +76,13 @@ public class Array : IBuiltinsProvider
 
         //--- Methods ---
         // constructor
-        ArrayClass.Methods.Add(new ZenHostMethod(false, "Array", ZenClass.Visibility.Public, ZenType.Void, [], (ZenObject obj, ZenValue[] args) => {
+        ArrayClass.Methods.Add(ZenFunction.NewHostMethod("Array", ZenType.Void, [], (ZenObject obj, ZenValue[] args) => {
             obj.Data["list"] = new List<ZenValue>();
             return ZenValue.Void;
         }));
 
         // GetEnumerator
-        ArrayClass.Methods.Add(new ZenHostMethod(false, "GetEnumerator", ZenClass.Visibility.Public, iterable.Type,
+        ArrayClass.Methods.Add(ZenFunction.NewHostMethod("GetEnumerator", iterable.Type,
             [],
             (ZenObject self, ZenValue[] args) => {
                 Dictionary<string, ZenValue> paramValues = [];
@@ -94,22 +94,22 @@ public class Array : IBuiltinsProvider
         ));
 
         // _BracketGet
-        ArrayClass.Methods.Add(new ZenHostMethod(false, "_BracketGet", ZenClass.Visibility.Public, ZenType.GenericParameter("T"),
+        ArrayClass.Methods.Add(ZenFunction.NewHostMethod("_BracketGet", ZenType.GenericParameter("T"),
             // arguments
             [
                 new("index", ZenType.Integer, false)
             ],
-            (ZenObject obj, ZenValue[] args) => {
+            (ZenObject self, ZenValue[] args) => {
                 var idx = args[0].Underlying;
 
-                List<ZenValue> list = obj.Data["list"]!;
+                List<ZenValue> list = self.Data["list"]!;
 
                 return list[idx];
             }
         ));
 
         // _BracketSet
-        ArrayClass.Methods.Add(new ZenHostMethod(false, "_BracketSet", ZenClass.Visibility.Public, ZenType.Void,
+        ArrayClass.Methods.Add(ZenFunction.NewHostMethod("_BracketSet", ZenType.Void,
             // arguments
             [
                 new("index", ZenType.Integer, false),
@@ -126,7 +126,7 @@ public class Array : IBuiltinsProvider
         ));
 
         // Append
-        ArrayClass.Methods.Add(new ZenHostMethod(false, "Append", ZenClass.Visibility.Public, ZenType.Void,
+        ArrayClass.Methods.Add(ZenFunction.NewHostMethod("Append", ZenType.Void,
             // arguments
             [
                 new("val", ZenType.GenericParameter("T"), false)
@@ -140,7 +140,7 @@ public class Array : IBuiltinsProvider
         ));
 
         // Prepend
-        ArrayClass.Methods.Add(new ZenHostMethod(false, "Prepend", ZenClass.Visibility.Public, ZenType.Void,
+        ArrayClass.Methods.Add(ZenFunction.NewHostMethod("Prepend", ZenType.Void,
             // arguments
             [
                 new("val", ZenType.GenericParameter("T"), false)
@@ -156,7 +156,7 @@ public class Array : IBuiltinsProvider
         // Remove First
         
         // Remove First
-        ArrayClass.Methods.Add(new ZenHostMethod(false, "RemoveFirst", ZenClass.Visibility.Public, ZenType.GenericParameter("T"),
+        ArrayClass.Methods.Add(ZenFunction.NewHostMethod("RemoveFirst", ZenType.GenericParameter("T"),
             // arguments
             [],
             (ZenObject obj, ZenValue[] args) => {
@@ -172,7 +172,7 @@ public class Array : IBuiltinsProvider
         ));
 
         // RemoveLast
-        ArrayClass.Methods.Add(new ZenHostMethod(false, "RemoveLast", ZenClass.Visibility.Public, ZenType.GenericParameter("T"),
+        ArrayClass.Methods.Add(ZenFunction.NewHostMethod("RemoveLast", ZenType.GenericParameter("T"),
             // arguments
             [],
             (ZenObject obj, ZenValue[] args) => {
@@ -188,7 +188,7 @@ public class Array : IBuiltinsProvider
         ));
 
         // Clear
-       ArrayClass.Methods.Add(new ZenHostMethod(false, "Clear", ZenClass.Visibility.Public, ZenType.Void,
+       ArrayClass.Methods.Add(ZenFunction.NewHostMethod("Clear", ZenType.Void,
             // arguments
             [],
             (ZenObject obj, ZenValue[] args) => {
@@ -200,7 +200,7 @@ public class Array : IBuiltinsProvider
         ));
 
         // RemoveAt
-        ArrayClass.Methods.Add(new ZenHostMethod(false, "RemoveAt", ZenClass.Visibility.Public, ZenType.Void,
+        ArrayClass.Methods.Add(ZenFunction.NewHostMethod("RemoveAt", ZenType.Void,
             // arguments
             [
                 new("index", ZenType.Integer, false)
@@ -222,7 +222,7 @@ public class Array : IBuiltinsProvider
         ));
 
         // First
-        ArrayClass.Methods.Add(new ZenHostMethod(false, "First", ZenClass.Visibility.Public, ZenType.GenericParameter("T"),
+        ArrayClass.Methods.Add(ZenFunction.NewHostMethod("First", ZenType.GenericParameter("T"),
             // arguments
             [],
             (ZenObject obj, ZenValue[] args) => {
@@ -237,7 +237,7 @@ public class Array : IBuiltinsProvider
         ));
 
         // Last
-        ArrayClass.Methods.Add(new ZenHostMethod(false, "Last", ZenClass.Visibility.Public, ZenType.GenericParameter("T"),
+        ArrayClass.Methods.Add(ZenFunction.NewHostMethod("Last", ZenType.GenericParameter("T"),
             // arguments
             [],
             (ZenObject obj, ZenValue[] args) => {
@@ -252,7 +252,7 @@ public class Array : IBuiltinsProvider
         ));
 
         // IndexOf
-        ArrayClass.Methods.Add(new ZenHostMethod(false, "IndexOf", ZenClass.Visibility.Public, ZenType.Integer,
+        ArrayClass.Methods.Add(ZenFunction.NewHostMethod("IndexOf", ZenType.Integer,
             // arguments
             [
                 new("val", ZenType.GenericParameter("T"), false)
@@ -270,7 +270,7 @@ public class Array : IBuiltinsProvider
         ));
         
         // Contains
-        ArrayClass.Methods.Add(new ZenHostMethod(false, "Contains", ZenClass.Visibility.Public, ZenType.Boolean,
+        ArrayClass.Methods.Add(ZenFunction.NewHostMethod("Contains", ZenType.Boolean,
             // arguments
             [
                 new("val", ZenType.GenericParameter("T"), false)
@@ -282,7 +282,7 @@ public class Array : IBuiltinsProvider
         ));
 
         // Slice
-        ArrayClass.Methods.Add(new ZenHostMethod(false, "Slice", ZenClass.Visibility.Public,
+        ArrayClass.Methods.Add(ZenFunction.NewHostMethod("Slice",
             // Return Type
             // for an Array<string> Slice will also return an Array<string>
             // but since we don't know this yet, return type should be Array<T>

@@ -1,3 +1,4 @@
+using Zen.Common;
 using Zen.Typing;
 
 namespace Zen.Execution.Builtins.Core;
@@ -13,16 +14,25 @@ public class Time : IBuiltinsProvider
             return new ZenValue(ZenType.Integer64, milliseconds);
         });
 
-        // Register a test async function that returns a promise
-        interp.RegisterAsyncHostFunction(
+        // Register a test async function that waits for a given number of milliseconds
+        interp.RegisterHostFunction(
             "delay",
             ZenType.Integer,
             [new ZenFunction.Argument("ms", ZenType.Integer, false)],
-            async (args) =>
+            async (ZenValue[] args) =>
             {
                 int ms = (int)args[0].Underlying;
+
+                long start = DateTimeOffset.Now.ToUnixTimeMilliseconds();
+                Logger.Instance.Debug($"Delay started for {ms} ms.");
                 await Task.Delay(ms);
-                return new ZenValue(ZenType.Integer, ms);
+
+                long time = DateTimeOffset.Now.ToUnixTimeMilliseconds();
+                long elapsed = time - start;
+                Logger.Instance.Debug($"Delay finished for {ms} ms. Elapsed: {elapsed} ms.");
+
+                // Return the actual elapsed time, which may not be exactly the same as requested time.
+                return new ZenValue(ZenType.Integer, (int) elapsed);
             }
         );
 

@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Zen.Common;
 
 namespace Zen.Execution;
 
@@ -53,6 +54,7 @@ public class ZenSynchronizationContext : SynchronizationContext
                 if (_queue.TryTake(out var workItem))
                 {
                     var (callback, state) = workItem;
+                    Logger.Instance.Debug($"Executing callback: {callback}");
                     callback(state);
 
                     if (_lastError != null)

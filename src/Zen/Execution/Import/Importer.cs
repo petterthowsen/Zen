@@ -172,7 +172,7 @@ public class Importer
                     Logger.Instance.Debug($"Declaring func: {funcName}");
 
                     module.environment.Define(true, funcName, ZenType.Function, false);
-                    var emptyFunc = new ZenUserFunction(funcStmt.Async, ZenType.Void, [], null, null);
+                    var emptyFunc = ZenFunction.NewUserFunction(ZenType.Void, [], null, null, funcStmt.Async, false);
                     module.environment.Assign(funcName, new ZenValue(ZenType.Function, emptyFunc));
                 }
             }

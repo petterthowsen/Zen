@@ -19,18 +19,18 @@ public class ZenObject {
     public Dictionary<string, ZenValue> Parameters = [];
 
     // Store concrete methods with substituted type parameters
-    public List<ZenMethod> Methods = [];
+    public List<ZenFunction> Methods = [];
 
     public ZenObject(ZenClass clazz) {
         Class = clazz;
         Type = clazz.Type;  // Initially use the class's type, can be updated later with specific type parameters
     }
 
-    public ZenMethod? GetOwnMethod(string name, ZenValue[] argValues, ZenType? returnType = null) {
+    public ZenFunction? GetOwnMethod(string name, ZenValue[] argValues, ZenType? returnType = null) {
         var argTypes = argValues.Select(v => v.Type).ToArray();
 
         // First check concrete methods
-        foreach (ZenMethod m in Methods) {
+        foreach (ZenFunction m in Methods) {
             if (m.Name != name) {
                 continue;
             }
@@ -61,7 +61,7 @@ public class ZenObject {
     }
 
 
-    public ZenMethod? GetOwnConstructor(ZenValue[] argValues) {
+    public ZenFunction? GetOwnConstructor(ZenValue[] argValues) {
         // First check concrete methods
         var method = GetOwnMethod(Class.Name, argValues, ZenType.Void);
         if (method != null) return method;
@@ -71,9 +71,9 @@ public class ZenObject {
     }
   
 
-    public virtual ZenMethod? GetOwnMethod(string name)
+    public virtual ZenFunction? GetOwnMethod(string name)
     {
-        foreach (ZenMethod m in Methods) {
+        foreach (ZenFunction m in Methods) {
             if (m.Name == name) {
                 return m;
             }
@@ -83,7 +83,7 @@ public class ZenObject {
         return Class.GetOwnMethod(name);
     }
 
-    public ZenMethod? GetMethodHierarchically(string name, ZenValue[] argValues, ZenType? returnType = null) {
+    public ZenFunction? GetMethodHierarchically(string name, ZenValue[] argValues, ZenType? returnType = null) {
         // First check concrete methods
         var method = GetOwnMethod(name, argValues, returnType);
         if (method != null) return method;
@@ -96,7 +96,7 @@ public class ZenObject {
         return Class.SuperClass.GetMethodHierarchically(name, argValues, returnType);
     }
 
-    public ZenMethod? GetMethodHierarchically(string name)
+    public ZenFunction? GetMethodHierarchically(string name)
     {
         var method = GetOwnMethod(name);
         if (method != null) return method;
@@ -132,17 +132,9 @@ public class ZenObject {
         return Class.HasOwnMethod(name);
     }
 
-    public ZenValue Call(Interpreter interpreter, ZenMethod method, ZenValue[] args) {
-        if (method is ZenUserMethod) {
-            return (interpreter.CallFunction(method, args)).Value;
-        }else if (method is ZenMethodProxy) {
-            return ((ZenMethodProxy) method).Call(interpreter, this, args);
-        }else if (method is ZenHostMethod) {
-            return ((ZenHostMethod) method).Call(interpreter, this, args);
-        }else {
-            throw new Exception($"Cannot call {method.GetType()} directly.");
-        }
-    }
+    // public ZenValue Call(Interpreter interpreter, ZenFunction method, ZenValue[] args) {
+        
+    // }
 
     public virtual bool HasProperty(string name) {
         return Properties.ContainsKey(name);

@@ -43,11 +43,11 @@ public readonly struct ZenValue(ZenType type, dynamic? underlying = null)
     }
     
     public readonly bool IsHostFunction() {
-        return Underlying is ZenHostFunction;
+        return Underlying is ZenFunction && ((ZenFunction)Underlying).Type == ZenFunction.TYPE.HostFunction;
     }
 
     public readonly bool IsUserFunction() {
-        return Underlying is ZenUserFunction;
+        return Underlying is ZenFunction && ((ZenFunction)Underlying).Type == ZenFunction.TYPE.UserFunction;
     }
 
     public bool IsTruthy() {
