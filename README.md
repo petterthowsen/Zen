@@ -1,11 +1,11 @@
 ```js
-    _____                
-   / _  /  ___  _ __   
-   \// /  / _ \| '_ \    
-    / //\|  __/| | | |   
-   /____/ \___||_| |_|   
+                     _____                
+                     / _  /  ___  _ __   
+                     \// /  / _ \| '_ \    
+                     / //\|  __/| | | |   
+                     /____/ \___||_| |_|   
 
-          v0.1
+          Programming should promote feelings of Zen.
 ```
 
 Programming should promote feelings of Zen.
