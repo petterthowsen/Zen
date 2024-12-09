@@ -1,18 +1,42 @@
-# Zen
+    _____                
+   / _  /  ___  _ __   
+   \// /  / _ \| '_ \    
+    / //\|  __/| | | |   
+   /____/ \___||_| |_|   
 
-Zen is a high level programming language implemented in C#. The interpreter is currently a tree walk interpreter and follows the Crafting Interpreters book.
+          v0.1
+
+Programming should promote feelings of Zen.
 
 # About Zen
 
-Zen is a high-level programming language inspired by modern languages such as C#, Java, Go, Python, Ruby, PHP, Node JS and others.
+Zen is a high-level, interpreted programming language with modern features like OOP, concurrency, generics and strict typing.
 
-At a glance, Zen
-- Has simple syntax.
-- Strict typing with type inference.
-- Functions and closures as first-class citizens.
-- Runs in a single-threaded event loop similar to Node JS and supports async/await as syntactic sugar over promises.
-- Fully cross platform across Windows, Mac and Linux.
-- C# Interop
+See `spec.zen` to explore the syntax. Do note however that Zen is in a very early stage and mmuch is yet subject to change.
+
+The goal of zen is to be a simple language that
+- Doesn't reinvent the wheel
+- Has familiar syntax
+- Async/Await just like in Node JS
+- Cross Platform
+- Neither overly opinionated nor full of magic
+- Rich standard library suitable for Web Servers & Web Apps, as well as desktop apps.
+
+This implementation is a tree-walk interpreter. As such, it is relatively slow compared to other approaches (in some cases hundreds of times slower than, for example, the javascript V8 Engine, especially recursive functions.)
+
+For compute-heavy or real-time-dependent projects, Zen is not suitable. For other use cases, it's totally fine - computers are fast enough these days.
+
+```zen
+import System/Http/HttpServer
+
+var server = new HttpServer("127.0.0.1", 3000)
+
+func handler(method:string, url:string):string {
+   return "you sent a " + method + " request at url " + url
+}
+
+server.Listen(handler)
+```
 
 ## Installing
 
@@ -31,6 +55,9 @@ dotnet run --project src/Zen
 
 # to build and run, a helper script 'zen.sh' exists which will drop you in a Zen REPL.
 ./zen.sh
+
+# alternatively, you can pass a file
+./zen.sh myZenFile.zen
 ```
 
 ## Testing
@@ -40,9 +67,6 @@ To run the tests:
 ```bash
 # Run all tests
 dotnet test
-
-# Run tests with coverage (optional)
-dotnet test --collect:"XPlat Code Coverage"
 ```
 
 ## Development
@@ -95,24 +119,16 @@ The Zen language implementation follows a classic compiler/interpreter architect
    - `Interpreter.ExprVisitor.cs`: Expression evaluation visitor implementation
    - `Interpreter.StmtVisitor.cs`: Statement execution visitor implementation
    - `Interpreter.FuncHandler.cs`: Function and method call handling
-   - `Interpreter.Import.cs`: Module import and symbol resolution
+   - `Interpreter.Import.cs`: Executes import statements by delegating to the Importer class.
 
-   Key features:
-   - Executes the AST using a tree-walk interpreter
-   - Implements a scope-based environment system
-   - Provides runtime type checking and type conversion
-   - Supports function calls with parameter validation
-   - Handles object instantiation and method calls
-   - Manages global and local variable resolution
-   - Includes built-in functions through the IBuiltinsProvider interface
+ ### Additional Systems
 
-The system uses a visitor pattern for traversing and executing the AST, with separate visitors for different phases of execution. The architecture supports features like:
-- Static typing with type inference
-- Object-oriented programming with classes and inheritance
-- First-class functions and closures
-- Scoped variable resolution
-- Runtime error handling with source locations
-- Module system with imports and namespaces
+ There's also the Importer (`src/Zen/Execution/Import/Importer.cs`) which handles importing.
+ 
+ The importer has Package, Namespace and Module as the main conceptual parts:
+
+ - A Package is at minimum a directory containing 
+
 
 ### Concurrency Model
 
@@ -146,22 +162,16 @@ This ensures all tasks run on the same thread.
 
 Example:
 ```zen
-async func delay(ms: int): int {
+async func iFeelSleepy(ms: int): int {
     // Built-in function that returns a Task
     // which resolves after ms milliseconds
     return await delay(ms)
 }
 
 async func example() {
-    var start = time()
-    var result = await delay(100)  // Waits for 100ms
-    var elapsed = time() - start
-    print elapsed >= 100  // true
+    var elapsed = await delay(100)  // Waits for 100ms
+    print elapsed # ~100
 }
-
-// Call async function without await
-example()  // Returns immediately
-print "This runs first"
 ```
 
 Program Execution:
@@ -170,20 +180,17 @@ Program Execution:
 3. Event loop processes tasks until all are complete
 4. Program exits when no tasks remain
 
-This model enables:
-- Non-blocking I/O operations
-- Concurrent execution of async tasks
-- Predictable single-threaded execution
-- Easy handling of asynchronous operations
 
 ### Module System
 
-Zen features a robust module system that supports packages, namespaces, and circular dependencies:
+Zen features a simple module system that supports packages, namespaces, and circular dependencies:
 
 #### Structure
-- **Packages**: Root namespaces defined in package.zen files
-- **Namespaces**: Organizational units that can contain modules and sub-namespaces
+- **Packages**: A directory containing a package.zen file with `package [packagename]`.
+- **Namespaces**: A folder in a package directory.
 - **Modules**: Individual .zen files containing code
+
+Modules can define one or more exportable symbols (I.E functions or classes).
 
 #### Import System
 The import system processes modules in phases to support circular dependencies:
@@ -210,43 +217,15 @@ The import system processes modules in phases to support circular dependencies:
 
 #### Import Syntax
 ```zen
-// Import entire module
+# Import entire module
 import MyPackage.Utils
 
-// Import specific symbols
+# Import specific symbols
 from MyPackage.Utils import Logger, FileSystem
 
-// Import with alias
+# Import with alias
 import MyPackage.Utils as U
 ```
-
-#### Circular Dependencies
-The system fully supports circular dependencies through:
-- Early type declaration
-- Lazy initialization
-- Forward references
-
-Example:
-```zen
-// A.zen
-from MyPackage.B import B
-
-class A {
-    var b: B
-}
-
-// B.zen
-from MyPackage.A import A
-
-class B {
-    var a: A
-}
-```
-
-This works because:
-1. Types A and B are declared as placeholders
-2. Type hints can reference the placeholders
-3. Actual implementations are filled in during execution
 
 #### Module States
 Modules progress through states during processing:
@@ -272,7 +251,8 @@ Zen features a static type system with type inference. The type system includes:
 - `string`: String value
 - `void`: Represents no value
 - `null`: Represents absence of value
-- `type`: Represents type values themselves
+- `Type`: Represents type values themselves
+- `Task`: Represents a task that can be awaited
 
 #### Nullable Types
 Any type can be made nullable by appending a question mark (?). Nullable types can hold either a value of their base type or null.
@@ -330,9 +310,6 @@ Zen provides an extensible builtin system through the `IBuiltinsProvider` interf
   - Core.Time: Provides time-related functions
 - New builtin modules can be easily added by implementing IBuiltinsProvider
 
-## BUGS
-- When calling async functions without 'await', exceptions thrown inside the async function are not handled.
-
 ## TODO
 - [x] Typing
 - - [] Nullable types
@@ -372,7 +349,7 @@ Zen provides an extensible builtin system through the `IBuiltinsProvider` interf
 - - [x] BracketGet and BracketSet interfaces
 - - [x] Make builtin array class implement Bracket interfaces from stdlib packages? how?
 - - [x] Array class and Bracket Access Interface using array[index]
-- - [] Iterable interface and integration with for-in loops
+- - [x] Iterable and Enumerator interfaces and integration with for-in loops
 - - [] Map class for storing key-value pairs, with support for bracket access
 - - [] Array literals
 - - [] Map literals
@@ -387,3 +364,7 @@ Zen provides an extensible builtin system through the `IBuiltinsProvider` interf
 - - [] Date & Time
 - - [] Low-level HTTP (tcp, sockets)
 - - [] Windowing, GUI, Graphics
+
+# License
+
+MIT
