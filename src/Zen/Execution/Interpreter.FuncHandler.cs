@@ -22,7 +22,7 @@ public partial class Interpreter
         ZenFunction? method = obj.GetMethodHierarchically(methodName, args, returnType);
 
         if (method == null) {
-            throw Error($"{obj.Class} has no method {methodName}!");
+            throw Error($"{obj.Class} has no method {methodName} with return type {returnType} and argument types {string.Join<ZenValue>(", ", args)}!");
         }
 
         BoundMethod boundMethod = method.Bind(obj);
@@ -138,7 +138,11 @@ public partial class Interpreter
             // Return a ZenValue of type Task
             return new ValueResult { Value = new ZenValue(ZenType.Task, task) };
         }else {
-            if (function.HostMethod == null) throw Error($"Missing HostMethod on ZenFunction!", null, Common.ErrorType.RuntimeError);
+
+            if (function.IsStatic) {
+                if (function.StaticHostMethod == null) throw Error($"Missing StaticHostMethod on ZenFunction!", null, Common.ErrorType.RuntimeError);
+                return (ValueResult) function.StaticHostMethod(arguments);
+            }
             
             return (ValueResult) function.HostMethod(instance, arguments);
         }

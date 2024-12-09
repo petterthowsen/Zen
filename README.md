@@ -5,7 +5,7 @@
                      / //\|  __/| | | |   
                      /____/ \___||_| |_|   
 
-          Programming should promote feelings of Zen.
+          "Programming should promote feelings of Zen."
 ```
 
 Programming should promote feelings of Zen.
@@ -24,7 +24,7 @@ The goal of zen is to be a simple language that
 - Neither overly opinionated nor full of magic
 - Rich standard library suitable for Web Servers & Web Apps, as well as desktop apps.
 
-This implementation is a tree-walk interpreter. As such, it is relatively slow compared to other approaches (in some cases hundreds of times slower than, for example, the javascript V8 Engine, especially recursive functions.)
+This implementation is a tree-walk interpreter and it is therefore relatively slow compared to other approaches (in some cases hundreds of times slower than, for example, the javascript V8 Engine, especially recursive functions.)
 
 For compute-heavy or real-time-dependent projects, Zen is not suitable. For other use cases, it's totally fine - computers are fast enough these days.
 
@@ -58,7 +58,7 @@ dotnet build
 # Run the project
 dotnet run --project src/Zen
 
-# to build and run, a helper script 'zen.sh' exists which will drop you in a Zen REPL.
+# to build and run, a helper script 'zen.sh' exists which starts a REPL.
 ./zen.sh
 
 # alternatively, you can pass a file
