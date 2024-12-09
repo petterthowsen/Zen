@@ -74,7 +74,7 @@ public partial class Interpreter {
         // Check if any symbols are already defined before executing
         foreach (string symbol in symbols)
         {
-            if (environment.Exists(symbol))
+            if (Environment.Exists(symbol))
             {
                 throw new RuntimeError($"Cannot import: name '{symbol}' is already defined in this scope");
             }
@@ -102,8 +102,8 @@ public partial class Interpreter {
             }
 
             ZenValue value = module.environment.GetValue(symbol);
-            environment.Define(true, alias, value.Type, false);
-            environment.Assign(alias, value);
+            Environment.Define(true, alias, value.Type, false);
+            Environment.Assign(alias, value);
         }
     }
 

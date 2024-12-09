@@ -23,7 +23,7 @@ public class GenericsTest : TestRunner
             }
         }");
 
-        ZenValue Container = Interpreter.environment.GetValue("Container");
+        ZenValue Container = Interpreter.Environment.GetValue("Container");
         
         // Container is a class type
         Assert.Equal(ZenType.Class, Container.Type);
@@ -94,7 +94,7 @@ public class GenericsTest : TestRunner
         
         var pair = new Pair<int, string>(42, ""hello"")
         print pair.ToString()
-        ");
+        ", true);
         
         Assert.Equal("(42, hello)", result);
     }

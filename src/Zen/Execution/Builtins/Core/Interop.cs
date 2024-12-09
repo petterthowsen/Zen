@@ -11,7 +11,7 @@ public class Interop : IBuiltinsProvider
         // Async CallDotNet
         interpreter.RegisterHostFunction(
             "CallDotNetAsync",
-            ZenType.Any, // Returns a String
+            ZenType.Any, // Returns any
             new List<ZenFunction.Argument>
             {
                 new("target", ZenType.String),
@@ -24,7 +24,7 @@ public class Interop : IBuiltinsProvider
         // Synchronous CallDotNet
         interpreter.RegisterHostFunction(
             "CallDotNet",
-            ZenType.Any, // Returns a String
+            ZenType.Any, // Returns any
             new List<ZenFunction.Argument>
             {
                 new("target", ZenType.String),
@@ -55,79 +55,6 @@ public class Interop : IBuiltinsProvider
     {
         return CallDotNetInternal(args, false).Result;
     }
-
-    // private static ZenValue CallDotNetInternal(ZenValue[] args)
-    // {
-    //     if (args.Length < 2)
-    //         throw new ArgumentException("CallDotNet requires at least two arguments: target and method name.");
-
-    //     string targetName = args[0].Underlying as string ?? throw new ArgumentException("First argument must be a string (type name or object).");
-    //     string methodName = args[1].Underlying as string ?? throw new ArgumentException("Second argument must be a string (method name).");
-
-    //     Logger.Instance.Debug($"Attempting to call method {methodName} on {targetName}...");
-
-    //     Type? targetType = Type.GetType(targetName);
-    //     if (targetType == null)
-    //     {
-    //         throw new ArgumentException($"Type '{targetName}' not found.");
-    //     }
-
-    //     // Convert Zen arguments to .NET and infer parameter types
-    //     var methodArgs = args.Skip(2).Select(arg => ToDotNet(arg)).ToArray();
-    //     var parameterTypes = methodArgs
-    //         .Select(arg => arg?.GetType() ?? typeof(object))
-    //         .Cast<Type>()
-    //         .ToArray();
-
-    //     Logger.Instance.Debug($"Inferred parameter types: {string.Join(", ", parameterTypes.Select(pt => pt.Name))}");
-
-    //     var methods = targetType.GetMethods(BindingFlags.Static | BindingFlags.Public)
-    //         .Where(m => m.Name == methodName && m.GetParameters().Length == parameterTypes.Length + 1)
-    //         .ToList();
-
-    //     // Find a method that matches exactly or with an additional CancellationToken
-    //     var method = methods.FirstOrDefault(m =>
-    //     {
-    //         var parameters = m.GetParameters();
-    //         return parameters.Take(parameterTypes.Length)
-    //             .Select(p => p.ParameterType)
-    //             .SequenceEqual(parameterTypes) &&
-    //             parameters.LastOrDefault()?.ParameterType == typeof(CancellationToken);
-    //     });
-
-    //     if (method == null)
-    //     {
-    //         method = targetType.GetMethod(methodName, BindingFlags.Static | BindingFlags.Public, null, parameterTypes, null);
-    //         if (method == null)
-    //         {
-    //             Logger.Instance.Debug($"Available methods on {targetType.FullName}:");
-    //             foreach (var m in targetType.GetMethods(BindingFlags.Static | BindingFlags.Public))
-    //             {
-    //                 Logger.Instance.Debug($"- {m.Name}({string.Join(", ", m.GetParameters().Select(p => p.ParameterType.Name))})");
-    //             }
-    //             throw new ArgumentException($"No matching method found for {methodName} on with parameter types {string.Join<Type>(", ", parameterTypes)}");
-    //         }
-    //     }
-    //     else
-    //     {
-    //         // Append CancellationToken.None if the method expects it
-    //         Logger.Instance.Debug($"Appending CancellationToken.None to arguments for method: {method.Name}");
-    //         methodArgs = methodArgs.Append(CancellationToken.None).ToArray();
-    //     }
-
-    //     Logger.Instance.Debug($"Resolved method: {method.Name}");
-
-    //     try
-    //     {
-    //         var result = method.Invoke(null, methodArgs);
-    //         return ToZen(result); // Handle synchronous methods
-    //     }
-    //     catch (Exception ex)
-    //     {
-    //         Logger.Instance.Debug($"Error invoking method {methodName} on {targetName}: {ex.Message}");
-    //         throw;
-    //     }
-    // }
 
     private static async Task<ZenValue> CallDotNetInternal(ZenValue[] args, bool asyncExecution)
     {

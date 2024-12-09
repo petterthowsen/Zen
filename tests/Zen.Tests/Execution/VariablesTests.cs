@@ -22,14 +22,14 @@ public class VariablesTest : TestRunner
     public async void TestVariableDeclaration() {
         await RestartInterpreter();
 
-        Assert.False(Interpreter.environment.Exists("name"));
+        Assert.False(Interpreter.Environment.Exists("name"));
         await Execute("var name = \"john\"");
-        Assert.True(Interpreter.environment.Exists("name"));
+        Assert.True(Interpreter.Environment.Exists("name"));
         
         string? result = await Execute("print name", true);
         Assert.Equal("john", result);
 
-        Variable variable = Interpreter.environment.GetVariable("name");
+        Variable variable = Interpreter.Environment.GetVariable("name");
         Assert.False(variable.Constant);
         Assert.False(variable.Nullable);
         
@@ -42,10 +42,10 @@ public class VariablesTest : TestRunner
     public async void TestVariableDeclarationAndAssignment() {
         await RestartInterpreter();
 
-        Assert.False(Interpreter.environment.Exists("name"));
+        Assert.False(Interpreter.Environment.Exists("name"));
         await Execute("var name = \"john\"");
-        Assert.True(Interpreter.environment.Exists("name"));
-        Variable variable = Interpreter.environment.GetVariable("name");
+        Assert.True(Interpreter.Environment.Exists("name"));
+        Variable variable = Interpreter.Environment.GetVariable("name");
         ZenValue value = (ZenValue) variable.Value!;
         Assert.Equal("john", value.Underlying);
 
@@ -59,7 +59,7 @@ public class VariablesTest : TestRunner
         await RestartInterpreter();
 
         await Execute("var i = 1");
-        Variable variable = Interpreter.environment.GetVariable("i");
+        Variable variable = Interpreter.Environment.GetVariable("i");
         ZenValue value = (ZenValue) variable.Value!;
         Assert.Equal(1, value.Underlying);
 
@@ -73,7 +73,7 @@ public class VariablesTest : TestRunner
         await RestartInterpreter();
 
         await Execute("var i = 1");
-        Variable variable = Interpreter.environment.GetVariable("i");
+        Variable variable = Interpreter.Environment.GetVariable("i");
         ZenValue value = (ZenValue) variable.Value!;
         Assert.Equal(1, value.Underlying);
 
@@ -87,7 +87,7 @@ public class VariablesTest : TestRunner
         await RestartInterpreter();
 
         await Execute("var i = 5");
-        Variable variable = Interpreter.environment.GetVariable("i");
+        Variable variable = Interpreter.Environment.GetVariable("i");
         ZenValue value = (ZenValue) variable.Value!;
         Assert.Equal(5, value.Underlying);
 
@@ -101,7 +101,7 @@ public class VariablesTest : TestRunner
         await RestartInterpreter();
 
         await Execute("var i = 10");
-        Variable variable = Interpreter.environment.GetVariable("i");
+        Variable variable = Interpreter.Environment.GetVariable("i");
         ZenValue value = (ZenValue) variable.Value!;
         Assert.Equal(10, value.Underlying);
 

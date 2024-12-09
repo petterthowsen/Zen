@@ -28,6 +28,7 @@ public class ZenSynchronizationContext : SynchronizationContext
     public override void Post(SendOrPostCallback d, object? state)
     {
         _queue.Add((d, state));
+        Logger.Instance.Debug($"Queued work item. Pending: {_queue.Count}");
     }
 
     /// <summary>
@@ -67,6 +68,8 @@ public class ZenSynchronizationContext : SynchronizationContext
     /// </summary>
     public void RunOnCurrentThread()
     {
+        _isRunning = true;
+
         while (_isRunning)
         {
             // Check for errors
@@ -75,6 +78,7 @@ public class ZenSynchronizationContext : SynchronizationContext
                 var error = _lastError;
                 _lastError = null;
                 Logger.Instance.Error($"EVENT LOOP THREW ERROR {error}");
+                Stop();
                 throw error;
             }
 
@@ -114,6 +118,10 @@ public class ZenSynchronizationContext : SynchronizationContext
         _isRunning = false;
     }
 
+    /// <summary>
+    /// Causes the event loop to throw an exception.
+    /// </summary>
+    /// <param name="e"></param>
     public void Fail(Exception e)
     {
         Logger.Instance.Error($"Fail() called. setting _lastError = e");

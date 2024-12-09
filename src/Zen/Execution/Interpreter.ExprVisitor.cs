@@ -239,7 +239,7 @@ public async Task<IEvaluationResult> VisitAsync(Grouping grouping)
 
         BoundMethod bound = method.Bind(instance);
 
-        return (ValueResult) CallFunction(bound, [element.Value]);
+        return (ValueResult) await CallFunction(bound, [element.Value]);
     }
 
     public async Task<IEvaluationResult> VisitAsync(BracketSet bracketSet)
@@ -265,7 +265,7 @@ public async Task<IEvaluationResult> VisitAsync(Grouping grouping)
 
         BoundMethod bound = method.Bind(instance);
 
-        return (ValueResult) CallFunction(bound, [element.Value, value.Value]);
+        return (ValueResult) await CallFunction(bound, [element.Value, value.Value]);
     }
 
     public async Task<IEvaluationResult> VisitAsync(ParameterDeclaration parameter)
@@ -433,7 +433,7 @@ public async Task<IEvaluationResult> VisitAsync(Grouping grouping)
                 throw Error($"Too many arguments for function {method}", call.Location, Common.ErrorType.RuntimeError);
             }
 
-            return CallFunction(method, args);
+            return await CallFunction(method, args);
         }
         else if (callee.Value.Underlying is ZenFunction function) {
             // check number of arguments is at least equal to the number of non-nullable parameters
@@ -448,11 +448,11 @@ public async Task<IEvaluationResult> VisitAsync(Grouping grouping)
                 throw Error($"Too many arguments for function {function}", call.Location, Common.ErrorType.RuntimeError);
             }
 
-            return CallFunction(function, argValues);
+            return await CallFunction(function, argValues);
         }
         else if (callee.Value.Underlying is BoundMethod) {
             BoundMethod boundMethod = (BoundMethod)callee.Value.Underlying;
-            return CallFunction(boundMethod, argValues);
+            return await CallFunction(boundMethod, argValues);
         }
         else
         {

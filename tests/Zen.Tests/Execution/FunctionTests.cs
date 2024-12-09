@@ -14,10 +14,10 @@ public class FunctionTests : TestRunner
         await RestartInterpreter();
         await Execute("func hello() {}");
 
-        Assert.True(Interpreter.environment.Exists("hello"));
+        Assert.True(Interpreter.Environment.Exists("hello"));
         
         // get the value
-        ZenValue hello = Interpreter.environment.GetValue("hello");
+        ZenValue hello = Interpreter.Environment.GetValue("hello");
 
         // make sure its callable
         Assert.True(hello.IsCallable());
@@ -41,10 +41,10 @@ public class FunctionTests : TestRunner
         await RestartInterpreter();
         await Execute("func hello(): int {}");
 
-        Assert.True(Interpreter.environment.Exists("hello"));
+        Assert.True(Interpreter.Environment.Exists("hello"));
         
         // get the value
-        ZenValue hello = Interpreter.environment.GetValue("hello");
+        ZenValue hello = Interpreter.Environment.GetValue("hello");
 
         // make sure its callable
         Assert.True(hello.IsCallable());

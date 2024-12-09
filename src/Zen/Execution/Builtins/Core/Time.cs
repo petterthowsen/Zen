@@ -24,12 +24,10 @@ public class Time : IBuiltinsProvider
                 int ms = (int)args[0].Underlying;
 
                 long start = DateTimeOffset.Now.ToUnixTimeMilliseconds();
-                Logger.Instance.Debug($"Delay started for {ms} ms.");
-                Task.Delay(ms).GetAwaiter().GetResult();
+                await Task.Delay(ms);
 
                 long time = DateTimeOffset.Now.ToUnixTimeMilliseconds();
                 long elapsed = time - start;
-                Logger.Instance.Debug($"Delay finished for {ms} ms. Elapsed: {elapsed} ms.");
 
                 // Return the actual elapsed time, which may not be exactly the same as requested time.
                 return new ZenValue(ZenType.Integer, (int) elapsed);

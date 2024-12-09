@@ -21,10 +21,15 @@ public partial class Interpreter : IGenericVisitorAsync<Task<IEvaluationResult>>
     /// <summary>
     /// The top level environment / global scope
     /// </summary>
-    public Environment globalEnvironment = new(null, "global");
+    public readonly Environment globalEnvironment = new(null, "global");
+    
+    private AsyncLocal<Environment> _currentEnvironment = new();
 
     // The current environment
-    public Environment environment;
+    public Environment Environment {
+        get => _currentEnvironment.Value ?? globalEnvironment;
+        set => _currentEnvironment.Value = value;
+    }
 
     /// <summary>
     /// Maps expressions to a distance
@@ -47,7 +52,7 @@ public partial class Interpreter : IGenericVisitorAsync<Task<IEvaluationResult>>
 
     public Interpreter(ZenSynchronizationContext syncContext)
     {
-        environment = globalEnvironment;
+        Environment = globalEnvironment;
         SyncContext = syncContext;
         Instance = this;
     }
@@ -111,7 +116,7 @@ public partial class Interpreter : IGenericVisitorAsync<Task<IEvaluationResult>>
     /// <param name="func"></param>
     public void RegisterFunction(string name, ZenFunction func, Environment? env = null)
     {
-        env ??= environment;
+        env ??= Environment;
 
         env.Define(true, name, ZenType.Function, false);
         env.Assign(name, new ZenValue(ZenType.Function, func));
@@ -133,7 +138,7 @@ public partial class Interpreter : IGenericVisitorAsync<Task<IEvaluationResult>>
         if (Locals.TryGetValue(expr, out int distance))
         {
             Logger.Instance.Debug($"Found variable {name} at distance {distance}");
-            Variable value = environment.GetAt(distance, name);
+            Variable value = Environment.GetAt(distance, name);
             return (VariableResult)value;
         }
         else

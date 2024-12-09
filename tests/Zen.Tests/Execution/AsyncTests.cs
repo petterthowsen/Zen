@@ -14,10 +14,10 @@ public class AsyncTests : TestRunner
         await RestartInterpreter();
         await Execute("async func hello() {}");
 
-        Assert.True(Interpreter.environment.Exists("hello"));
+        Assert.True(Interpreter.Environment.Exists("hello"));
         
         // get the value
-        ZenValue hello = Interpreter.environment.GetValue("hello");
+        ZenValue hello = Interpreter.Environment.GetValue("hello");
 
         // make sure its callable
         Assert.True(hello.IsCallable());
@@ -43,10 +43,10 @@ public class AsyncTests : TestRunner
         await RestartInterpreter();
         await Execute("async func hello(): Task<int> { return 42 }");
 
-        Assert.True(Interpreter.environment.Exists("hello"));
+        Assert.True(Interpreter.Environment.Exists("hello"));
         
         // get the value
-        ZenValue hello = Interpreter.environment.GetValue("hello");
+        ZenValue hello = Interpreter.Environment.GetValue("hello");
 
         // make sure its callable
         Assert.True(hello.IsCallable());
@@ -72,12 +72,12 @@ public class AsyncTests : TestRunner
         await Execute(@"
             class Test {
                 async hello(): string {
-                    return ""hello world""
+                    return ""hello""
                 }
             }
         ");
 
-        ZenClass testClass = (ZenClass)Interpreter.environment.GetValue("Test")!.Underlying!;
+        ZenClass testClass = (ZenClass)Interpreter.Environment.GetValue("Test")!.Underlying!;
         
         Assert.Equal("Test", testClass.Name);
         Assert.Equal("hello", testClass.Methods.First().Name);
@@ -86,8 +86,8 @@ public class AsyncTests : TestRunner
         string? result = await Execute(@"
             async func main() {
                 var t = new Test()
-                var helloWorld = await t.hello()
-                print helloWorld
+                var helloStr = await t.hello()
+                print helloStr + "" world""
             }
 
             main()
@@ -111,7 +111,6 @@ public class AsyncTests : TestRunner
             }
             main()
         ", true);
-
         Assert.Equal("beforeafter", result);
     }
 
@@ -165,10 +164,11 @@ public class AsyncTests : TestRunner
             async func test(): int {
                 # Wait asynchronously for 100ms
                 var start = time()
-                await delay(100)
+                # use dot net task.delay
+                await CallDotNetAsync(""System.Threading.Tasks.Task"", ""Delay"", 100)
                 var end = time()
                 var elapsed = end - start
-                return elapsed # should cause an error because it's missing a cast from int64 to int
+                return (int) elapsed
             }
 
             async func main() {

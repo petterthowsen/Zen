@@ -25,15 +25,15 @@ public partial class Interpreter
     {
         CurrentNode = block;
 
-        return await ExecuteBlock(block, new Environment(environment));
+        return await ExecuteBlock(block, new Environment(Environment));
     }
 
     public async Task<IEvaluationResult> ExecuteBlock(Block block, Environment environment)
     {
         CurrentNode = block;
 
-        Environment previousEnvironment = this.environment;
-        this.environment = environment;
+        Environment previousEnvironment = this.Environment;
+        this.Environment = environment;
 
         try
         {
@@ -44,7 +44,7 @@ public partial class Interpreter
         }
         finally
         {
-            this.environment = previousEnvironment;
+            this.Environment = previousEnvironment;
         }
 
         return VoidResult.Instance;
@@ -130,7 +130,7 @@ public partial class Interpreter
         bool constant = varStmt.Constant;
 
         // Check if the variable is already defined
-        if (environment.Exists(name))
+        if (Environment.Exists(name))
         {
             throw Error($"Variable '{name}' is already defined", varStmt.Identifier.Location, Common.ErrorType.RedefinitionError);
         }
@@ -158,13 +158,13 @@ public partial class Interpreter
                 type = value.Type;
             }
 
-            environment.Define(constant, name, type!, nullable);
-            environment.Assign(name, value.Value);
+            Environment.Define(constant, name, type!, nullable);
+            Environment.Assign(name, value.Value);
         }
         else
         {
             // declare only
-            environment.Define(constant, name, type!, nullable);
+            Environment.Define(constant, name, type!, nullable);
         }
 
         return (ValueResult)ZenValue.Void;
@@ -183,7 +183,7 @@ public partial class Interpreter
             // Use resolved scope information if available
             if (Locals.TryGetValue(assignment, out int distance))
             {
-                leftVariable = environment.GetAt(distance, assignment.Identifier.Name);
+                leftVariable = Environment.GetAt(distance, assignment.Identifier.Name);
             }
             else
             {
@@ -238,16 +238,16 @@ public partial class Interpreter
     {
         CurrentNode = forStmt;
 
-        Environment previousEnvironment = environment;
-        environment = new Environment(previousEnvironment, "for");
+        Environment previousEnvironment = Environment;
+        Environment = new Environment(previousEnvironment, "for");
 
         try
         {
             Token loopIdentifier = forStmt.LoopIdentifier;
             ValueResult loopValue = (ValueResult) await Evaluate(forStmt.Initializer);
 
-            environment.Define(false, loopIdentifier.Value, loopValue.Type, false);
-            environment.Assign(loopIdentifier.Value, loopValue.Value);
+            Environment.Define(false, loopIdentifier.Value, loopValue.Type, false);
+            Environment.Assign(loopIdentifier.Value, loopValue.Value);
 
             Expr condition = forStmt.Condition;
             Expr incrementor = forStmt.Incrementor;
@@ -265,7 +265,7 @@ public partial class Interpreter
         }
         finally
         {
-            environment = previousEnvironment;
+            Environment = previousEnvironment;
         }
 
         return (ValueResult)ZenValue.Void;
@@ -291,8 +291,8 @@ public partial class Interpreter
             throw Error($"Class '{target.Class.Name}' does not implement '{iterableInterface.Name}'.", forInStmt.Expression.Location, Common.ErrorType.TypeError);
         }
 
-        Environment previousEnvironment = environment;
-        environment = new Environment(previousEnvironment, "for in");
+        Environment previousEnvironment = Environment;
+        Environment = new Environment(previousEnvironment, "for in");
 
         try
         {
@@ -301,22 +301,22 @@ public partial class Interpreter
             TypeHint? keyTypeHint = forInStmt.KeyTypeHint;
             TypeHint? valueTypeHint = forInStmt.ValueTypeHint;
             
-            ZenObject enumerator = CallObject(target, "GetEnumerator", null).Underlying!;
+            ZenObject enumerator = (await CallObject(target, "GetEnumerator", null)).Underlying!;
 
             // the type of the value is the type of the enumerator
             ZenType elementType = target.GetParameter("T").Underlying!;
 
-            environment.Define(false, valueIdentifier.Value, elementType, false);
+            Environment.Define(false, valueIdentifier.Value, elementType, false);
 
             if (keyIdentifier != null) {
-                environment.Define(false, keyIdentifier.Value.Value, elementType, false);
+                Environment.Define(false, keyIdentifier.Value.Value, elementType, false);
             }
 
-            while (CallObject(enumerator, "MoveNext", null).IsTruthy()) {
-                environment.Assign(valueIdentifier.Value, CallObject(enumerator, "Current", null));
+            while ((await CallObject(enumerator, "MoveNext", null)).IsTruthy()) {
+                Environment.Assign(valueIdentifier.Value, (await CallObject(enumerator, "Current", null)));
 
                 if (keyIdentifier != null) {
-                    environment.Assign(keyIdentifier.Value.Value, enumerator.GetProperty("index"));
+                    Environment.Assign(keyIdentifier.Value.Value, enumerator.GetProperty("index"));
                 }
 
                 foreach (Stmt statement in forInStmt.Block.Statements) {
@@ -326,7 +326,7 @@ public partial class Interpreter
         }
         finally
         {
-            environment = previousEnvironment;
+            Environment = previousEnvironment;
         }
 
         return (ValueResult)ZenValue.Void;
@@ -358,7 +358,7 @@ public partial class Interpreter
     {
         CurrentNode = funcStmt;
 
-        closure ??= environment;
+        closure ??= Environment;
 
         // function parameters
         List<ZenFunction.Argument> parameters = [];
@@ -391,14 +391,14 @@ public partial class Interpreter
     {
         CurrentNode = classStmt;
 
-        environment.Define(true, classStmt.Identifier.Value, ZenType.Class, false);
+        Environment.Define(true, classStmt.Identifier.Value, ZenType.Class, false);
 
         ZenClass clazz = await EvaluateClassStatement(classStmt);
 
         // validate the class
         clazz.Validate();
 
-        environment.Assign(classStmt.Identifier.Value, new ZenValue(ZenType.Class, clazz));
+        Environment.Assign(classStmt.Identifier.Value, new ZenValue(ZenType.Class, clazz));
 
         return (ValueResult)ZenValue.Void;
     }
@@ -407,11 +407,11 @@ public partial class Interpreter
     {
         CurrentNode = interfaceStmt;
 
-        environment.Define(true, interfaceStmt.Identifier.Value, ZenType.Class, false);
+        Environment.Define(true, interfaceStmt.Identifier.Value, ZenType.Class, false);
 
         ZenInterface @interface = await EvaluateInterfaceStatement(interfaceStmt);
 
-        environment.Assign(interfaceStmt.Identifier.Value, new ZenValue(ZenType.Interface, @interface));
+        Environment.Assign(interfaceStmt.Identifier.Value, new ZenValue(ZenType.Interface, @interface));
 
         return (ValueResult)ZenValue.Void;
     }
@@ -420,10 +420,10 @@ public partial class Interpreter
     {
         CurrentNode = interfaceStmt;
 
-        var previousEnvironment = environment;
+        var previousEnvironment = Environment;
 
         try {
-            environment = new Environment(environment, "interface");
+            Environment = new Environment(Environment, "interface");
 
             // create the methods
             List<ZenAbstractMethod> methods = [];
@@ -469,17 +469,17 @@ public partial class Interpreter
 
             return new ZenInterface(interfaceStmt.Identifier.Value, methods, genericParameters);
         } finally {
-            environment = previousEnvironment;
+            Environment = previousEnvironment;
         }
     }
 
     protected async Task<ZenClass> EvaluateClassStatement(ClassStmt classStmt)
     {
         CurrentNode = classStmt;
-        var previousEnvironment = environment;
+        var previousEnvironment = Environment;
 
         try {
-            environment = new Environment(environment, "class");
+            Environment = new Environment(Environment, "class");
             
             // create the Properties
             List<ZenClass.Property> properties = [];
@@ -580,7 +580,7 @@ public partial class Interpreter
                     // handle return type?
                 }
 
-                ZenFunction method = ZenFunction.NewUserMethod(name, returnType, parameters, methodStmt.Block, environment, methodStmt.Async);
+                ZenFunction method = ZenFunction.NewUserMethod(name, returnType, parameters, methodStmt.Block, Environment, methodStmt.Async);
                 methods.Add(method);
             }
 
@@ -624,7 +624,7 @@ public partial class Interpreter
             
             return clazz;
         } finally {
-            environment = previousEnvironment;
+            Environment = previousEnvironment;
         }
     }
 

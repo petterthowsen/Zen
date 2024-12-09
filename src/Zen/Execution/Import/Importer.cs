@@ -231,12 +231,12 @@ public class Importer
             }
 
             // Resolve variables in the module's environment
-            var oldEnv = _interpreter.environment;
+            var oldEnv = _interpreter.Environment;
             try {
-                _interpreter.environment = module.environment;
+                _interpreter.Environment = module.environment;
                 _resolver.Resolve(module.AST, global);
             } finally {
-                _interpreter.environment = oldEnv;
+                _interpreter.Environment = oldEnv;
             }
 
             module.State = State.ImportsResolved;
@@ -296,12 +296,12 @@ public class Importer
         // module.environment may be == to interpreter.environment
         // in that case, it will be executed in global scope.
         // module.environment is set in ProcessModule.
-        var oldEnv = _interpreter.environment;
+        var oldEnv = _interpreter.Environment;
         try {
-            _interpreter.environment = module.environment;
+            _interpreter.Environment = module.environment;
             await _interpreter.Interpret(module.AST);
         } finally {
-            _interpreter.environment = oldEnv;
+            _interpreter.Environment = oldEnv;
         }
 
         module.State = State.Executed;
