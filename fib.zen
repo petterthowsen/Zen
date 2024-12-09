@@ -1,3 +1,5 @@
+const FIB_NUM = 10
+
 var total_n = 0
 
 func fib(n:int) : int {
@@ -9,14 +11,13 @@ func fib(n:int) : int {
     return fib(n - 1) + fib(n - 2)
 }
 
-print "Getting 30th fib number..."
+print "Getting " + FIB_NUM + "th fib number...\n"
 
 var start = time()
-print fib(30)
+fib(FIB_NUM)
 var end = time()
 var elapsed = end - start
 
-print "Milliseconds Elapsed:"
-print elapsed
+print "Time: " + elapsed + "ms\n"
 
-print total_n
+print "called fib " + total_n + " times\n"

@@ -1,3 +1,4 @@
+```js
     _____                
    / _  /  ___  _ __   
    \// /  / _ \| '_ \    
@@ -5,6 +6,7 @@
    /____/ \___||_| |_|   
 
           v0.1
+```
 
 Programming should promote feelings of Zen.
 
@@ -26,17 +28,20 @@ This implementation is a tree-walk interpreter. As such, it is relatively slow c
 
 For compute-heavy or real-time-dependent projects, Zen is not suitable. For other use cases, it's totally fine - computers are fast enough these days.
 
+For example, calling this recursive fib function to get the tenth fibonacci number:
+
 ```zen
-import System/Http/HttpServer
+func fib(n:int) : int {
+    total_n += 1
 
-var server = new HttpServer("127.0.0.1", 3000)
-
-func handler(method:string, url:string):string {
-   return "you sent a " + method + " request at url " + url
+    if n <= 2 {
+        return n
+    }
+    return fib(n - 1) + fib(n - 2)
 }
-
-server.Listen(handler)
 ```
+
+Causes fib to be called a total of 11306 times and takes about 663 milliseconds on my mid-range laptop.
 
 ## Installing
 
