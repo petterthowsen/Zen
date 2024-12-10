@@ -20,6 +20,14 @@ public static class TypeConverter {
             throw new RuntimeError($"Cannot convert from {value.Type} to {targetType}", Common.ErrorType.TypeError, null);
         }
 
+        if (targetType.IsUnion) {
+            // If the target is a union, and the source is compatible with any of the union's types, return as is
+            return value;
+        }else if (value.Type.IsUnion) {
+            // a value cannot be a union type - union types are only used for type checking
+            throw new InvalidOperationException("Cannot convert from union to non-union!");
+        }
+
         return targetType switch {
             var t when t == ZenType.Integer => ConvertToInt(value),
             var t when t == ZenType.Integer64 => ConvertToInt64(value),

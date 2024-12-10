@@ -120,28 +120,28 @@ public class TypeTests : TestRunner
         Assert.Equal("true", result);
     }
 
-[Fact]
-public async void TestMaxFunction() {
-    await RestartInterpreter();
+    [Fact]
+    public async void TestMaxFunction() {
+        await RestartInterpreter();
 
-    await Execute(@"
-        type number = int or float
-        func max(a:number, b:number): number {
-            if a > b {
-                return a
+        await Execute(@"
+            type number = int or float
+            func max(a:number, b:number): number {
+                if a > b {
+                    return a
+                }
+
+                return b
             }
+        ");
 
-            return b
-        }
-    ");
+        string? result = await Execute("print max(5, 10)", true);
+        Assert.Equal("10", result);
 
-    string? result = await Execute("print max(5, 10)", true);
-    Assert.Equal("10", result);
+        result = await Execute("print max(3.5, 2.1)", true);
+        Assert.Equal("3.5", result);
 
-    result = await Execute("print max(3.5, 2.1)", true);
-    Assert.Equal("3.5", result);
-
-    result = await Execute("print max(7, 7)", true);
-    Assert.Equal("7", result);
-}
+        result = await Execute("print max(7, 7)", true);
+        Assert.Equal("7", result);
+    }
 }
