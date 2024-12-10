@@ -6,21 +6,12 @@ namespace Zen.Execution.Builtins.Core;
 
 public class Interop : IBuiltinsProvider
 {
+    private static Interpreter? interpreter;
+    
     public static async Task RegisterBuiltins(Interpreter interpreter)
     {
-        // Async CallDotNet
-        interpreter.RegisterHostFunction(
-            "CallDotNetAsync",
-            ZenType.Any, // Returns any
-            new List<ZenFunction.Argument>
-            {
-                new("target", ZenType.String),
-                new("method", ZenType.String),
-            },
-            CallDotNetAsync,
-            variadic: true
-        );
-
+        Interop.interpreter = interpreter;
+    
         // Synchronous CallDotNet
         interpreter.RegisterHostFunction(
             "CallDotNet",
@@ -34,6 +25,20 @@ public class Interop : IBuiltinsProvider
             variadic: true
         );
 
+        // Async CallDotNet
+        interpreter.RegisterHostFunction(
+            "CallDotNetAsync",
+            ZenType.Task, // Returns any
+            new List<ZenFunction.Argument>
+            {
+                new("target", ZenType.String),
+                new("method", ZenType.String),
+            },
+            CallDotNetAsync,
+            variadic: true
+        );
+
+
         await Task.CompletedTask;
     }
 
@@ -46,24 +51,126 @@ public class Interop : IBuiltinsProvider
         return ProxyClasses[dotnetClass];
     }
 
-    private static Task<ZenValue> CallDotNetAsync(ZenValue[] args)
-    {
-        return CallDotNetInternal(args, asyncExecution: true);
-    }
-
     private static ZenValue CallDotNet(ZenValue[] args)
     {
-        return CallDotNetInternal(args, false).Result;
-    }
-
-    private static async Task<ZenValue> CallDotNetInternal(ZenValue[] args, bool asyncExecution)
-    {
-       if (args.Length < 2)
+        if (args.Length < 2)
             throw new ArgumentException("CallDotNet requires at least two arguments: target and method name.");
         
         // Convert arguments to .NET-compatible values
         dynamic?[] dotNetArgs = args.Select(ToDotNet).ToArray();
 
+        // method args
+        var target = dotNetArgs[0];
+        var methodName = dotNetArgs[1];
+        dynamic?[] methodArgs = dotNetArgs.Skip(2).ToArray();
+
+        dynamic funcInfo = ResolveMethod(dotNetArgs);
+        if (funcInfo is ConstructorInfo constructorInfo) {
+
+            var instance = constructorInfo.Invoke(methodArgs);
+            return ToZen(instance);
+
+        }else if (funcInfo is MethodInfo methodInfo) {
+
+            Logger.Instance.Debug($"Selected method: {methodInfo.Name}({string.Join(", ", methodInfo.GetParameters().Select(p => $"{p.ParameterType.Name} {p.Name}"))})");
+
+            try
+            {
+                bool isObjectInstance = IsTargetObjectInstance(target);
+                var callResult = methodInfo.Invoke(isObjectInstance ? target : null, methodArgs);
+                return ToZen(callResult);
+            }
+            catch (Exception e)
+            {
+                Logger.Instance.Error($"Failed to call method {methodInfo.Name} on {target.GetType().Name}: {e.Message}");
+                throw;
+            }
+
+        } else {
+
+            throw new Exception($"Failed to resolve method {methodName} on {target.GetType().Name}");
+        }
+    }
+
+    private static async Task<ZenValue> CallDotNetAsync(ZenValue[] args)
+    {
+        if (args.Length < 2)
+            throw new ArgumentException("CallDotNet requires at least two arguments: target and method name.");
+        
+        // Convert arguments to .NET-compatible values
+        dynamic?[] dotNetArgs = args.Select(ToDotNet).ToArray();
+
+        // method args
+        var target = dotNetArgs[0];
+        var methodName = dotNetArgs[1];
+        dynamic?[] methodArgs = dotNetArgs.Skip(2).ToArray();
+
+        dynamic funcInfo = ResolveMethod(dotNetArgs);
+        if (funcInfo is ConstructorInfo constructorInfo) {
+
+            throw new Exception("Cannot call constructor asynchronously.");
+
+        }else if (funcInfo is MethodInfo methodInfo) {
+
+            Logger.Instance.Debug($"Selected method: {methodInfo.Name}({string.Join(", ", methodInfo.GetParameters().Select(p => $"{p.ParameterType.Name} {p.Name}"))})");
+
+            try
+            {
+                bool isObjectInstance = IsTargetObjectInstance(target);
+                var callResult = methodInfo.Invoke(isObjectInstance ? target : null, methodArgs);
+
+                if (callResult is not Task) {
+                    throw new Exception($"Method {methodInfo.Name} is not async.");
+                }
+                
+                var task = (Task)callResult;
+
+                await task;
+
+                // If it's a generic Task<T>, get its result
+                if (task.GetType().IsGenericType)
+                {
+                    var taskResult = ((dynamic)task).Result;
+                    return ToZen(taskResult);
+                }
+
+                // For non-generic Task that return void, return null
+                return ZenValue.Null;
+            }
+            catch (Exception e)
+            {
+                Logger.Instance.Error($"Failed to call method {methodInfo.Name} on {target}: {e.Message}");
+                throw;
+            }
+
+        } else {
+
+            throw new Exception($"Failed to resolve method {methodName} on {target}");
+        }
+    }
+
+    private static bool IsTargetObjectInstance(object? target)
+    {
+        return target is not string && target is not Type && target is not null;
+    }
+
+    private static async Task<ZenValue> WrapDotNetTask(Task task)
+    {
+        await task;
+
+        // If it's a generic Task<T>, get its result
+        if (task.GetType().IsGenericType)
+        {
+            var taskResult = ((dynamic)task).Result;
+            return ToZen(taskResult);
+        }
+
+        // For non-generic Task, return null
+        return ZenValue.Null;
+    }
+
+    private static dynamic ResolveMethod(dynamic?[] dotNetArgs) 
+    {
         // The target: either a string (type name) or an object
         object? target = dotNetArgs[0];
         if (target is not string && target is not Type && target is not null)
@@ -89,22 +196,14 @@ public class Interop : IBuiltinsProvider
                 // Attempt to load missing assembly if still not found
                 if (target == null)
                 {
-                    try
-                    {
-                        Logger.Instance.Debug($"Attempting to load missing assembly...");
-                        var assembly = Assembly.Load("System.Net.HttpListener");
-                        target = assembly.GetType(targetName);
-                        Logger.Instance.Debug($"Loaded type: {target}");
-                    }
-                    catch (Exception ex)
-                    {
-                        throw new ArgumentException($"Type '{targetName}' not found in loaded assemblies or system libraries.", ex);
-                    }
+                    throw new ArgumentException($"Type '{targetName}' not found in loaded assemblies or system libraries.");
                 }
             }
 
             if (target == null)
                 throw new ArgumentException($"Type '{targetName}' not found in loaded assemblies.");
+            
+            Logger.Instance.Debug($"Resolved type: {(target as Type)?.FullName}");
         }
         else
         {
@@ -117,7 +216,8 @@ public class Interop : IBuiltinsProvider
         // The actual method arguments
         dynamic?[] methodArgs = dotNetArgs.Skip(2).ToArray();
 
-        Logger.Instance.Debug($"Attempting to call method {methodName} on {(target is Type t ? t.FullName : target.GetType().FullName)}...");
+        Logger.Instance.Debug($"Looking for method {methodName} on {(target is Type t ? t.FullName : target.GetType().FullName)}");
+        Logger.Instance.Debug($"Method arguments: [{string.Join(", ", methodArgs.Select(a => $"{a?.GetType().Name ?? "null"}({a})"))}]");
 
         // Determine if the target is a type or an object
         var targetType = target as Type ?? target.GetType();
@@ -145,9 +245,10 @@ public class Interop : IBuiltinsProvider
                     throw new ArgumentException($"No matching constructor found for {targetType.FullName}");
                 }
 
-                // Invoke the constructor
-                var instance = constructor.Invoke(methodArgs);
-                return ToZen(instance);
+                return constructor;
+                // // Invoke the constructor
+                // var instance = constructor.Invoke(methodArgs);
+                // return ToZen(instance);
             }
             catch (Exception ex)
             {
@@ -160,6 +261,12 @@ public class Interop : IBuiltinsProvider
             .Where(m => m.Name == methodName && m.GetParameters().Length == methodArgs.Length)
             .ToList();
 
+        Logger.Instance.Debug($"Found {methods.Count} method(s) with matching name and parameter count");
+        foreach (var m in methods)
+        {
+            Logger.Instance.Debug($"Candidate method: {m.Name}({string.Join(", ", m.GetParameters().Select(p => $"{p.ParameterType.Name} {p.Name}"))})");
+        }
+
         if (methods.Count == 0)
         {
             Logger.Instance.Debug($"Available methods on {targetType.FullName}:");
@@ -170,47 +277,121 @@ public class Interop : IBuiltinsProvider
             throw new ArgumentException($"No matching method found for {methodName} on {targetType.FullName}");
         }
 
-        var method = methods.FirstOrDefault();
-
-        Logger.Instance.Debug($"Resolved method: {method.Name}");
-
-        try
+        // First try to find an exact type match
+        MethodInfo? bestMatch = methods.FirstOrDefault(method =>
         {
-            var result = method.Invoke(target is Type || target is null || methodName == "new" ? null : target, methodArgs);
-            if (result is Task task)
+            var parameters = method.GetParameters();
+            for (int i = 0; i < parameters.Length; i++)
             {
-                if (asyncExecution)
-                {
-                    await task.ConfigureAwait(false);
+                var paramType = parameters[i].ParameterType;
+                var argType = methodArgs[i]?.GetType();
+                
+                // If argument is null, any reference type parameter is valid
+                if (methodArgs[i] == null && !paramType.IsValueType)
+                    continue;
+                
+                // Check for exact type match
+                if (argType != paramType)
+                    return false;
+            }
+            return true;
+        });
 
-                    if (task.GetType().IsGenericType)
-                    {
-                        var taskResult = ((dynamic)task).Result;
-                        return ToZen(taskResult);
-                    }
-                    return ZenValue.Null;
-                }
-                else
+        // If no exact match found, try with implicit conversions
+        if (bestMatch == null)
+        {
+            Logger.Instance.Debug("No exact type match found, trying implicit conversions");
+            foreach (var method in methods)
+            {
+                var parameters = method.GetParameters();
+                bool isMatch = true;
+                
+                Logger.Instance.Debug($"\nChecking method: {method.Name}({string.Join(", ", parameters.Select(p => $"{p.ParameterType.Name} {p.Name}"))})");
+                
+                for (int i = 0; i < parameters.Length; i++)
                 {
-                    throw new InvalidOperationException("Cannot invoke an asynchronous method synchronously.");
+                    var paramType = parameters[i].ParameterType;
+                    var argType = methodArgs[i]?.GetType();
+                    
+                    Logger.Instance.Debug($"Parameter {i}: Expected {paramType.Name}, Got {argType?.Name ?? "null"}");
+                    
+                    // If argument is null, any reference type parameter is valid
+                    if (methodArgs[i] == null && !paramType.IsValueType)
+                    {
+                        Logger.Instance.Debug($"Null argument matches reference type parameter {paramType.Name}");
+                        continue;
+                    }
+                    
+                    // If argument type doesn't match parameter type and there's no implicit conversion
+                    if (argType != null && !paramType.IsAssignableFrom(argType) && 
+                        !CanConvertImplicitly(argType, paramType))
+                    {
+                        Logger.Instance.Debug($"Type mismatch: Cannot convert {argType.Name} to {paramType.Name}");
+                        isMatch = false;
+                        break;
+                    }
+                    
+                    Logger.Instance.Debug($"Parameter {i} matches");
+                }
+                
+                if (isMatch)
+                {
+                    Logger.Instance.Debug($"Found matching method with implicit conversion: {method.Name}");
+                    bestMatch = method;
+                    break;
                 }
             }
+        }
 
-            return ToZenValue(result); // Handle synchronous methods
-        }
-        catch (Exception ex)
+        if (bestMatch == null)
         {
-            Logger.Instance.Error($"INTEROP: invoking method {methodName} on {target}: {ex.Message}");
-            throw;
+            var argTypes = string.Join(", ", methodArgs.Select(a => a?.GetType().Name ?? "null"));
+            Logger.Instance.Debug($"No matching method found for {methodName} with argument types: {argTypes}");
+            Logger.Instance.Debug("Available methods:");
+            foreach (var m in methods)
+            {
+                Logger.Instance.Debug($"- {m.Name}({string.Join(", ", m.GetParameters().Select(p => p.ParameterType.Name))})");
+            }
+            throw new ArgumentException($"No matching method found for {methodName} with the given argument types");
         }
+
+        Logger.Instance.Debug($"Found matching method: {bestMatch.Name}({string.Join(", ", bestMatch.GetParameters().Select(p => p.ParameterType.Name))})");
+        return bestMatch;
     }
 
+    private static bool CanConvertImplicitly(Type from, Type to)
+    {
+        Logger.Instance.Debug($"Checking if {from.Name} can be converted to {to.Name}");
+        
+        // Handle numeric conversions
+        if (from == typeof(int))
+        {
+            var canConvert = to == typeof(long) || to == typeof(float) || to == typeof(double) || 
+                   to == typeof(decimal);
+            Logger.Instance.Debug($"Can convert int to {to.Name}: {canConvert}");
+            return canConvert;
+        }
+        if (from == typeof(long))
+        {
+            var canConvert = to == typeof(float) || to == typeof(double) || to == typeof(decimal);
+            Logger.Instance.Debug($"Can convert long to {to.Name}: {canConvert}");
+            return canConvert;
+        }
+        if (from == typeof(float))
+        {
+            var canConvert = to == typeof(double);
+            Logger.Instance.Debug($"Can convert float to {to.Name}: {canConvert}");
+            return canConvert;
+        }
+        
+        Logger.Instance.Debug($"No implicit conversion from {from.Name} to {to.Name}");
+        return false;
+    }
 
     /// <summary>
-    /// Converts a .NET object to a ZenValue
+    /// Converts a .NET object to a ZenValue.
     /// </summary>
     /// <param name="value"></param>
-    /// <returns></returns>
     public static ZenValue ToZen(dynamic? value)
     {
         // is value a Type?
@@ -223,6 +404,11 @@ public class Interop : IBuiltinsProvider
         }
     }
 
+    /// <summary>
+    /// Converts a .NET object to a ZenValue that is not a ZenType.Type.
+    /// </summary>
+    /// <param name="value"></param>
+    /// <returns></returns>
     public static ZenValue ToZenValue(dynamic? value) {
         if (value is ZenValue) {
             return value;
@@ -291,7 +477,7 @@ public class Interop : IBuiltinsProvider
             return ZenType.Float;
         }
         else if (type == typeof(double))
-        {
+            {
             return ZenType.Float64;
         }
         else if (!type.IsPrimitive) // Treat all non-primitive types as Object

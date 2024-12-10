@@ -217,60 +217,50 @@ public partial class Interpreter
     /// <returns>a ZenValue of type ZenType.Task, the underlying value is the task itself.</returns>
     public ZenValue RunOnEventLoop(Func<Task<ZenValue>> taskFunc) {
         var tcs = new TaskCompletionSource<ZenValue>();
-        
 
-        SendOrPostCallback callback = async state => {
-            try {
-                var task = taskFunc();
-                await task;
-                tcs.SetResult(task.Result);
-            }
-            catch (Exception ex)
-            {
-                // Handle other exceptions
-                if (ex is RuntimeError runtimeError)
-                {
-                    tcs.SetException(runtimeError);
-                }
-                else
-                {
-                    var error = Error(ex.Message, CurrentNode?.Location, ErrorType.RuntimeError, ex);
-                    tcs.SetException(error);
-                }
-            }
+        SendOrPostCallback callback = state => {
+            // Start the async task without making the callback itself async
+            _ = ExecuteCallbackAsync(taskFunc, tcs);
         };
-        
-        // post to event loop
+
+        // Post the callback to the synchronization context
         SyncContext.Post(callback, null);
 
-        // if we're calling an async function in the global scope, we need to listen for when it fails
-        if (Environment == globalEnvironment)
-        {
+        // Handle global environment continuations if necessary
+        if (Environment == globalEnvironment) {
             SyncContext.TrackContinuation();
 
-            // Attach a continuation to handle exceptions from global async functions
-            tcs.Task.ContinueWith(t =>
-            {
-                if (t.IsFaulted)
-                {
-                    // Extract the actual exception
+            tcs.Task.ContinueWith(t => {
+                if (t.IsFaulted) {
                     Exception? ex = t.Exception?.InnerException;
-                    if (ex != null)
-                    {
-                        // Surface the exception: log it, store it, or handle as needed
+                    if (ex != null) {
                         Logger.Instance.Error($"Top-level async function failed. Calling SyncContext.Fail with the exception {ex.Message}");
                         SyncContext.Fail(ex);
                     }
-
                 }
-
                 SyncContext.CompleteContinuation();
             });
         }
 
         ZenValue zenTask = new ZenValue(ZenType.Task, tcs.Task);
-
         return zenTask;
+    }
+
+    private async Task ExecuteCallbackAsync(Func<Task<ZenValue>> taskFunc, TaskCompletionSource<ZenValue> tcs) {
+        try {
+            var task = taskFunc();
+            var result = await task;
+            tcs.SetResult(result);
+        }
+        catch (Exception ex) {
+            if (ex is RuntimeError runtimeError) {
+                tcs.SetException(runtimeError);
+            }
+            else {
+                var error = Error(ex.Message, CurrentNode?.Location, ErrorType.RuntimeError, ex);
+                tcs.SetException(error);
+            }
+        }
     }
 
     /// <summary>
@@ -292,7 +282,7 @@ public partial class Interpreter
         else
         {
             var task = func();
-            await func();
+            await task;
             return (ValueResult) task.Result;
         }
     }

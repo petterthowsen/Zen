@@ -347,8 +347,6 @@ public async Task<IEvaluationResult> VisitAsync(Grouping grouping)
 
             return (ValueResult) result; // Return the final result, not another Task
         } catch (Exception ex) {
-            // this works, we do get the narrowing conversion exception
-            // and throw it
             // If it's our RuntimeError, rethrow it directly
             if (ex is RuntimeError runtimeError)
             {
