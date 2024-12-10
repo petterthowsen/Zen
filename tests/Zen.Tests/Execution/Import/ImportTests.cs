@@ -121,5 +121,31 @@ public class ImportTests : TestRunner
         Assert.Equal("true", result?.Trim());
     }
 
+    [Fact]
+    public async void TestImportSpecificSymbol()
+    {
+        await RestartInterpreter();
+
+        var result = await Execute(@"
+            from System/Math import Max
+            print Max(2, 3)
+        ", true);
+
+        Assert.Equal("3", result?.Trim());
+    }
+
+    [Fact]
+    public async void TestImportAllSymbols()
+    {
+        await RestartInterpreter();
+
+        var result = await Execute(@"
+            import System/Math
+            print Math.Max(2, 3)
+        ", true);
+
+        Assert.Equal("3", result?.Trim());
+    }
+
     
 }

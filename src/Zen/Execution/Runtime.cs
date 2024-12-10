@@ -52,6 +52,7 @@ public class Runtime
     public async Task RegisterCoreBuiltins()
     {
         // Register core builtins
+        await Builtins.Core.ModuleContainer.RegisterBuiltins(Interpreter);
         await Builtins.Core.Typing.RegisterBuiltins(Interpreter);
         await Builtins.Core.Interop.RegisterBuiltins(Interpreter);
         await Builtins.Core.Array.RegisterBuiltins(Interpreter);

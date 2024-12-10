@@ -395,7 +395,14 @@ public class Resolver : IVisitor
         FunctionType enclosingFunction = currentFunction;
         currentFunction = type;
 
+        // resolve return and function type hints 
         Resolve(funcStmt.ReturnType);
+
+        foreach (var parameter in funcStmt.Parameters) {
+            if (parameter.TypeHint != null) {
+                Resolve(parameter.TypeHint);
+            }
+        }
 
         BeginScope();
         //Logger.Instance.Debug($"[RESOLVER] Beginning function scope for {funcStmt.Identifier.Value}, type: {type}");

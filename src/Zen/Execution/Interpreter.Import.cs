@@ -1,5 +1,7 @@
 using System.ComponentModel.Design;
 using Zen.Common;
+using Zen.Exection.Import;
+using Zen.Execution.Builtins.Core;
 using Zen.Execution.EvaluationResult;
 using Zen.Execution.Import;
 using Zen.Parsing.AST.Statements;
@@ -53,7 +55,18 @@ public partial class Interpreter {
         if (resolution.IsModule())
         {
             var module = resolution.AsModule().Module;
-            ApplyModuleImport(module);
+
+            // single-symbol module?
+            if (module.Symbols.Count == 1) {
+                await ApplyModuleImport(module, module.Symbols.Select(s => s.Name).ToArray());
+            }else {
+                // group import under alias?
+                if (import.Alias != null) {
+                    await ApplyModuleImport(module, import.Alias.Value.Value);
+                }else {
+                    await ApplyModuleImport(module, module.Name);
+                }
+            }
         }
 
         return VoidResult.Instance;
@@ -67,19 +80,33 @@ public partial class Interpreter {
         }
     }
 
-    private async void ApplyModuleImport(Module module, string[] symbols)
+    private async Task ApplyModuleImport(Module module, string? alias = null)
+    {
+        alias = alias ?? module.Name;
+
+        Logger.Instance.Debug($"Applying module import {module.FullPath}, alias: {alias}");
+        
+        // Execute the module if it hasn't been executed yet
+        if (module.State != State.Executed)
+        {
+            await Importer.Import(module.FullPath);
+        }
+
+        // create an instance of ModuleContainer for the module
+        var mod = ModuleContainer.Clazz.CreateInstance(this, [], []);
+        foreach (Symbol symbol in module.Symbols)
+        {
+            mod.SetProperty(symbol.Name, module.environment.GetValue(symbol.Name), create: true);
+        }
+
+        Environment.Define(true, alias, ZenType.Object, false);
+        Environment.Assign(alias, new ZenValue(mod.Type, mod));
+    }
+
+    private async Task ApplyModuleImport(Module module, string[] symbols)
     {
         Logger.Instance.Debug($"Applying module import {module.FullPath}, symbols: {string.Join(", ", symbols)}");
         
-        // Check if any symbols are already defined before executing
-        foreach (string symbol in symbols)
-        {
-            if (Environment.Exists(symbol))
-            {
-                throw new RuntimeError($"Cannot import: name '{symbol}' is already defined in this scope");
-            }
-        }
-
         // Execute the module if it hasn't been executed yet
         if (module.State != State.Executed)
         {
@@ -108,7 +135,7 @@ public partial class Interpreter {
     }
 
     private void ApplyModuleImport(Module module)
-    {     
+    {
         List<string> symbolNames = [];
         foreach (var symbol in module.Symbols)
         {

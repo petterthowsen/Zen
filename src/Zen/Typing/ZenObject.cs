@@ -140,8 +140,13 @@ public class ZenObject {
         return Properties.ContainsKey(name);
     }
 
-    public virtual void SetProperty(string name, ZenValue value) {
+    public virtual void SetProperty(string name, ZenValue value, bool create = false) {
         if (!Properties.ContainsKey(name)) {
+            if (create) {
+                Properties[name] = value;
+                return;
+            }
+            
             throw Interpreter.Error($"Property {name} not found on {Class.Name}");
         }
 

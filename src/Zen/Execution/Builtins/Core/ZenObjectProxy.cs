@@ -20,7 +20,7 @@ public class ZenObjectProxy : ZenObject
         return property != null;
     }
 
-    public override void SetProperty(string name, ZenValue value) {
+    public override void SetProperty(string name, ZenValue value, bool force = false) {
         PropertyInfo? property = Target.GetType().GetProperty(name);
 
         if (property == null) {

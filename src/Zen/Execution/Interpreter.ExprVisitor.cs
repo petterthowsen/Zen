@@ -380,6 +380,14 @@ public async Task<IEvaluationResult> VisitAsync(Grouping grouping)
             if (method != null) {
                 return (ValueResult) method.Bind(instance); // implicitly creates a ZenValue of type ZenType.BoundMethod
             }
+
+            // callable property?
+            if (instance.HasProperty(get.Identifier.Value)) {
+                ZenValue property = instance.GetProperty(get.Identifier.Value);
+                if (property.IsCallable()) {
+                    return (ValueResult) property;
+                }
+            }
         }
         // string?
         else if (result.Type == ZenType.String) {

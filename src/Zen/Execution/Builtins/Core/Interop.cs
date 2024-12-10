@@ -8,6 +8,8 @@ public class Interop : IBuiltinsProvider
 {
     private static Interpreter? interpreter;
     
+    public static readonly Dictionary<Type, ZenClassProxy> ProxyClasses = [];
+
     public static async Task RegisterBuiltins(Interpreter interpreter)
     {
         Interop.interpreter = interpreter;
@@ -41,8 +43,6 @@ public class Interop : IBuiltinsProvider
 
         await Task.CompletedTask;
     }
-
-    public static readonly Dictionary<Type, ZenClassProxy> ProxyClasses = [];
 
     public static ZenClassProxy GetOrCreateProxyClass(Type dotnetClass) {
         if ( ! ProxyClasses.ContainsKey(dotnetClass)) {
@@ -127,10 +127,20 @@ public class Interop : IBuiltinsProvider
 
                 await task;
 
-                // If it's a generic Task<T>, get its result
-                if (task.GetType().IsGenericType)
+                // Get the type of the task
+                var taskType = task.GetType();
+
+                // Check if the task is a generic Task<T>
+                if (taskType.IsGenericType && taskType.GetGenericTypeDefinition() == typeof(Task<>))
                 {
-                    var taskResult = ((dynamic)task).Result;
+                    // Access the Result property via reflection
+                    var resultProperty = taskType.GetProperty("Result");
+                    if (resultProperty == null)
+                    {
+                        throw new Exception("Task<T> does not have a Result property.");
+                    }
+
+                    var taskResult = resultProperty.GetValue(task);
                     return ToZen(taskResult);
                 }
 
