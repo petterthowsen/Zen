@@ -36,6 +36,8 @@ public interface IVisitor
 
     void Visit(Instantiation instantiation);
 
+    void Visit(TypeStmt typeStmt);
+
     // Expressions
     void Visit(Binary binary);
     void Visit(Grouping grouping);

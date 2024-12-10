@@ -31,6 +31,8 @@ public interface IGenericVisitor<T>
     T Visit(FromImportStmt fromImportStmt);
     T Visit(PackageStmt packageStmt);
 
+    T Visit(TypeStmt typeStmt);
+
     // Expressions
     T Visit(Binary binary);
     T Visit(Grouping grouping);

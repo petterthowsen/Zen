@@ -253,46 +253,63 @@ public partial class Interpreter : IGenericVisitorAsync<Task<IEvaluationResult>>
         }
     }
 
-    // private static ZenValue PerformAssignment(Token op, ZenType leftType, ZenValue right)
-    // {
-    //     return PerformAssignment(op, new ZenValue(leftType, null), right);
-    // }
-
-    private static ZenValue PerformAssignment(Token op, ZenValue left, ZenValue right)
+    private static ZenValue PerformAssignment(Token op, ZenType leftType, ZenValue leftValue, ZenValue rightValue)
     {
         ZenValue result;
 
         if (op.Type == TokenType.Assign)
         {
-            // type check
-            if (!TypeChecker.IsCompatible(left.Type, right.Type))
+            // type check against the specified type
+            if (!TypeChecker.IsCompatible(rightValue.Type, leftType))
             {
-                throw Error($"Cannot assign value of type '{right.Type}' to target of type '{left.Type}'", op.Location, ErrorType.TypeError);
+                throw Error($"Cannot assign value of type '{rightValue.Type}' to target of type '{leftType}'", op.Location, ErrorType.TypeError);
             }
-            result = right;
+            result = rightValue;
         }
         else
         {
-            if (!left.IsNumber())
+            if (!leftValue.IsNumber())
             {
-                throw Error($"Cannot use operator `{op.Type}` on non-numeric value `{left}`", op.Location);
+                throw Error($"Cannot use operator `{op.Type}` on non-numeric value `{leftValue}`", op.Location);
             }
-            else if (!right.IsNumber())
+            else if (!rightValue.IsNumber())
             {
-                throw Error($"Cannot use operator `{op.Type}` on non-numeric value `{right}`", op.Location);
-            }
-
-            if (!TypeChecker.IsCompatible(source: right.Type, target: left.Type))
-            {
-                throw Error($"Cannot use operator `{op.Type}` on values of different types `{left.Type}` and `{right.Type}`", op.Location, ErrorType.TypeError);
+                throw Error($"Cannot use operator `{op.Type}` on non-numeric value `{rightValue}`", op.Location);
             }
 
-            ZenType returnType = DetermineResultType(op.Type, left.Type, right.Type);
+            if (!TypeChecker.IsCompatible(rightValue.Type, leftType))
+            {
+                throw Error($"Cannot use operator `{op.Type}` on values of different types `{leftType}` and `{rightValue.Type}`", op.Location, ErrorType.TypeError);
+            }
 
-            result = PerformArithmetic(op.Type, returnType, left.Underlying, right.Underlying);
+            ZenType returnType = DetermineResultType(op.Type, leftType, rightValue.Type);
+
+            result = PerformArithmetic(op.Type, returnType, leftValue.Underlying, rightValue.Underlying);
         }
 
         return result;
+    }
+
+    // Overload for variable assignments
+    private static ZenValue PerformAssignment(Token op, Variable variable, ZenValue rightValue)
+    {
+        // For simple assignment, we don't need the current value
+        if (op.Type == TokenType.Assign)
+        {
+            if (!TypeChecker.IsCompatible(rightValue.Type, variable.Type))
+            {
+                throw Error($"Cannot assign value of type '{rightValue.Type}' to variable of type '{variable.Type}'", op.Location, ErrorType.TypeError);
+            }
+            return rightValue;
+        }
+
+        return PerformAssignment(op, variable.Type, variable.Value, rightValue);
+    }
+
+    // Overload for value assignments (like properties)
+    private static ZenValue PerformAssignment(Token op, ZenValue leftValue, ZenValue rightValue)
+    {
+        return PerformAssignment(op, leftValue.Type, leftValue, rightValue);
     }
 
     public static bool IsEqual(dynamic? a, dynamic? b)
@@ -300,6 +317,6 @@ public partial class Interpreter : IGenericVisitorAsync<Task<IEvaluationResult>>
         if (a is null && b is null) return true;
         if (a is null) return false;
 
-        return a.Equals(b);
+            return a.Equals(b);
     }
 }

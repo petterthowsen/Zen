@@ -123,7 +123,7 @@ print "You have " + coins
 #
 
 # Under the hood, they are generics:
-class Array<T> implements BracketGet<int, T> and BracketSet<int, T> and Iterable<T> {}
+class Array<T> implements BracketGet<T:Type> and BracketSet<T:Type> and Iterable<T:Type> {}
 
 
 #---------------#
@@ -132,10 +132,10 @@ class Array<T> implements BracketGet<int, T> and BracketSet<int, T> and Iterable
 # Arrays are a sequental lists of things.
 
 # this declares an array of 3 floats and assigns the elements 3.5, 1.2, 4.0 to it.
-var position : Array<float, 3> = [3.5, 1.2, 4.0]
+var position : Array<float> = [3.5, 1.2, 4.0]
 
 # when you declare and assign an array in one statement, you can infer the type.
-var position = [3.0, 2.0, -1.0] # inferred as Array<float, 3>
+var position = [3.0, 2.0, -1.0] # inferred as Array<float>
 
 # To get the length of the array, just access the Length property:
 print position.Length # = 3
@@ -145,7 +145,7 @@ print position.Length # = 3
 #---------------#
 # Collections: Maps
 #---------------#
-# While arrays are useful to store ordered lists of items, maps can associate keys or "names" to many items.
+# While arrays are useful to store ordered lists of items, maps can associate keys to many items.
 
 # to declare a map of string to any for example:
 var config : Map<string, any>
@@ -224,7 +224,7 @@ var result = httpRequest()
 result.statusCode # 404
 result.body # "not found"
 
-# You can also use the destructuring syntax to unpack the tuple into local variables:
+# You can also use the destructuring operator (<=) to unpack the tuple into local variables:
 var statusCode, body <= httpRequest()
 print statusCode  # 404
 print body        # "not found"
@@ -301,7 +301,7 @@ var weather : Map<string, int> = {
 }
 
 for place, degrees in weather {
-    print("It's " + string(degrees) + " in " + place)
+    print "It's " + degrees + " in " + place
 }
 
 # "for in" loops can optionally have one or more conditions right in the for statement for simplicity
@@ -401,9 +401,7 @@ people = [
     }
 ]
 
-peopleOver20 = people.filter(func(person:Person) {
-    return person{"age"} > 20
-})
+peopleOver20 = people.filter((p) -> p["age"] > 20)
 
 # However, since filtering collections is something one does very often, Zen has a filter mechanism as a language feature.
 peopleOver20 = people where person{"age"} > 20
@@ -532,9 +530,9 @@ var double = { x -> x * 2 }
 print(double(5))  # Outputs 10
 
 # Lambdas can capture variables from their surrounding scope:
-func make_counter(start: int): func(): int {
+func make_counter(start: int): Func {
     var count = start
-    return { -> count += 1 }  # Lambda captures `count` as a closure
+    return { count += 1 }  # Lambda captures `count` as a closure
 }
 
 var counter = make_counter(10)
@@ -552,7 +550,7 @@ var complex_op = { x, y ->
 print(complex_op(2, 3))  # Outputs 16
 
 # Lambdas can also be assigned to function types:
-var op: func(int, int): int = { a, b -> a + b }
+var op: Func: int = { a, b -> a + b }
 print(op(3, 4))  # Outputs 7
 
 
@@ -588,26 +586,26 @@ class Person {
     age: int
 
     # Primary constructor: core initialization logic is here
-    func init(name: string, age: int) {
+    Person(name: string, age: int) {
         this.name = name.capitalized()
         this.age = age
     }
 
     # Auxiliary constructor 1: uses default age, calls primary constructor
-    func init(name: string) {
-        this.init(name, 0)  # Default age of 0
+    Person(name: string) {
+        this.Person(name, 0)  # Default age of 0
     }
 
     # Auxiliary constructor 2: uses default name and age, calls auxiliary constructor 1
-    func init() {
-        this.init("Unknown")  # Default name of "Unknown" and age of 0
+    Person() {
+        this.Person("Unknown")  # Default name of "Unknown" and age of 0
     }
 }
 
 # Using the constructors
-var person1 = Person("Alice", 30)   # Calls primary constructor
-var person2 = Person("Bob")         # Calls auxiliary constructor 1
-var person3 = Person()              # Calls auxiliary constructor 2
+var person1 = new Person("Alice", 30)   # Calls primary constructor
+var person2 = new Person("Bob")         # Calls auxiliary constructor 1
+var person3 = new Person()              # Calls auxiliary constructor 2
 
 
 

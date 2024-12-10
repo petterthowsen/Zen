@@ -6,8 +6,7 @@ public class VariableResult : IEvaluationResult {
     public required Variable Variable { get; init; }
     
     public ZenType Type => Variable.Type;
-    public ZenValue Value => Variable.GetZenValue();
-    public ZenObject Object => Variable.GetZenObject() ! ;
+    public ZenValue Value => Variable.Value;
     public bool IsTruthy() => Variable.IsTruthy();
     public bool IsCallable() => Variable.IsCallable();
 

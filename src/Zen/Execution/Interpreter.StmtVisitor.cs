@@ -114,6 +114,49 @@ public partial class Interpreter
         throw new NotImplementedException();
     }
 
+    public async Task<IEvaluationResult> VisitAsync(TypeStmt typeStmt)
+    {
+        CurrentNode = typeStmt;
+
+        string name = typeStmt.Identifier.Name;
+
+        // Check if the type is already defined
+        if (Environment.Exists(name))
+        {
+            throw Error($"Type '{name}' is already defined", typeStmt.Identifier.Location, Common.ErrorType.RedefinitionError);
+        }
+
+        // Convert each identifier to a ZenType
+        List<ZenType> types = [];
+        foreach (var typeIdentifier in typeStmt.Types)
+        {
+            var typeResult = await Evaluate(typeIdentifier);
+            ZenValue typeVal = typeResult.Value;
+
+            if (typeVal.Type == ZenType.Type)
+            {
+                types.Add(typeVal.Underlying);
+            }else if (typeVal.Type == ZenType.Class) {
+                ZenClass clazz = typeVal.Underlying!;
+                types.Add(clazz.Type);
+            }else if (typeVal.Type == ZenType.Interface) {
+                ZenInterface iface = typeVal.Underlying!;
+                types.Add(iface.Type);
+            }else {
+                throw Error($"Type identifier must be a primitive type, class or interface, not {typeVal.Type}", typeIdentifier.Location, Common.ErrorType.TypeError);
+            }
+        }
+
+        // Create the union type
+        var unionType = ZenType.Union(name, [.. types]);
+
+        // Store the type in the environment as a constant
+        Environment.Define(true, name, ZenType.Type, false);
+        Environment.Assign(name, new ZenValue(ZenType.Type, unionType));
+
+        return VoidResult.Instance;
+    }
+
     public async Task<IEvaluationResult> VisitAsync(ExpressionStmt expressionStmt)
     {
         CurrentNode = expressionStmt;
@@ -209,8 +252,8 @@ public partial class Interpreter
                 assignment.Identifier.Location, Common.ErrorType.RuntimeError);
         }
 
-        // perform the assignment operation
-        ZenValue newValue = PerformAssignment(assignment.Operator, (ZenValue) leftVariable.Value!, right.Value);
+        // perform the assignment operation using the variable overload
+        ZenValue newValue = PerformAssignment(assignment.Operator, leftVariable, right.Value);
 
         // update the variable
         leftVariable.Assign(newValue);

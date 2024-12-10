@@ -17,6 +17,19 @@ public class TypeChecker {
             return true;
         }
 
+        // Handle union types
+        if (target.IsUnion) {
+            Logger.Instance.Debug($"Target is union type: {target}");
+            // Source must be compatible with at least one of the union's types
+            return target.Parameters.Any(t => IsCompatible(source, t));
+        }
+
+        if (source.IsUnion) {
+            Logger.Instance.Debug($"Source is union type: {source}");
+            // All types in the source union must be compatible with the target
+            return source.Parameters.All(t => IsCompatible(t, target));
+        }
+
         // Handle generic type parameters
         if (target.IsGeneric) {
             Logger.Instance.Debug($"Target is generic parameter {target.Name}");

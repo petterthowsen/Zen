@@ -854,6 +854,20 @@ public class ParserTests {
     }
 
     [Fact]
+    public void TestTypeStmt() {
+        ProgramNode program = Parse("type number = int or float");
+        Assert.Single(program.Statements);
+        Assert.IsType<TypeStmt>(program.Statements[0]);
+
+        TypeStmt typeStmt = (TypeStmt)program.Statements[0];
+        Assert.Equal("number", typeStmt.Identifier.Name);
+        Assert.Equal(2, typeStmt.Types.Length);
+
+        Assert.Equal("int", typeStmt.Types[0].Name);
+        Assert.Equal("float", typeStmt.Types[1].Name);
+    }
+
+    [Fact]
     public void TestPackageDeclaration() {
         ProgramNode program = Parse("package foo");
         Assert.Single(program.Statements);

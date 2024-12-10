@@ -74,6 +74,34 @@ public partial class Parser
 		return new FromImportStmt(token, path.ToArray(), [..symbols]);
 	}
 
+	private TypeStmt TypeStatement() {
+		// "type" keyword token
+		Token token = Previous;
+		AtleastOne(TokenType.Whitespace);
+
+		// Parse the type name identifier
+		Identifier name = Identifier();
+		MaybeSome(TokenType.Whitespace);
+
+		// Expect =
+		Consume(TokenType.Assign, "Expected '=' after type name");
+		MaybeSome(TokenType.Whitespace);
+
+		// Parse the first type in the union
+		var types = new List<Identifier>();
+		types.Add(Identifier());
+		MaybeSome(TokenType.Whitespace);
+
+		// Parse additional types in the union separated by 'or'
+		while (MatchKeyword("or")) {
+			MaybeSome(TokenType.Whitespace);
+			types.Add(Identifier());
+			MaybeSome(TokenType.Whitespace);
+		}
+
+		return new TypeStmt(token, name, [..types]);
+	}
+
 	private VarStmt VarStatement(Token? startingToken = null) {
 		Token token = startingToken ?? Previous;
 

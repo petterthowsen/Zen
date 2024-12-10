@@ -675,6 +675,13 @@ public async Task<IEvaluationResult> VisitAsync(Grouping grouping)
     {
         CurrentNode = typeCheck;
 
+        // syntax is
+        // expr is type
+        //
+        // where expr is an expression and type is a type hint
+        //
+        // we need to check if expr can be assigned to type
+
         IEvaluationResult exprResult = await Evaluate(typeCheck.Expression);
         ZenType sourceType = exprResult.Type;
 
@@ -690,7 +697,7 @@ public async Task<IEvaluationResult> VisitAsync(Grouping grouping)
         ZenType targetType = targetTypeResult.Type;
 
         // Now perform the assignability check in the correct direction:
-        return (ValueResult) targetType.IsAssignableFrom(sourceType);
+        return (ValueResult) sourceType.IsAssignableFrom(targetType);
     }
         
     public async Task<IEvaluationResult> VisitAsync(TypeCast typeCast)

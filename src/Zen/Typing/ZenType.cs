@@ -6,10 +6,11 @@ namespace Zen.Typing;
 /// Represents a kind of type.
 /// </summary>
 public enum ZenTypeKind {
-    Primitive,       // For primitive types like int, string, null etc.
-    Class,           // For classes
-    Interface,       // For interfaces
-    GenericParameter // For placeholders like 'T'
+    Primitive,          // For primitive types like int, string, null etc.
+    Class,              // For classes
+    Interface,          // For interfaces
+    GenericParameter,   // For placeholders like 'T'
+    Union               // For union types like 'int or float'
 }
 
 public class ZenType {
@@ -54,6 +55,7 @@ public class ZenType {
     public bool IsPromise => this == Promise || (IsParametric && Name == "Promise");
     public bool IsTask => this == Task || (IsParametric && Name == "Task");
     public bool IsClass => Kind == ZenTypeKind.Class || Kind == ZenTypeKind.Interface;
+    public bool IsUnion => Kind == ZenTypeKind.Union;
 
     /// <summary>
     /// Returns true if this type or any of its parameters is generic and hence unresolved.
@@ -92,6 +94,11 @@ public class ZenType {
 
     // Generic parameter placeholder
     public static ZenType GenericParameter(string name) => new(name);
+
+    // Create a union type from a list of types
+    public static ZenType Union(string name, params ZenType[] types) {
+        return new ZenType(ZenTypeKind.Union, name, null, types);
+    }
 
     // Create a non-generic class type
     public static ZenType FromClass(IZenClass clazz) {
@@ -171,6 +178,23 @@ public class ZenType {
             return true;
         }
 
+        // If this is a union type
+        if (IsUnion) {
+            if (other.IsUnion) {
+                // All members of 'other' must be assignable to at least one member of 'this'
+                return other.Parameters.All(o => this.Parameters.Any(t => t.IsAssignableFrom(o)));
+            } else {
+                // 'other' is a single type; it must be assignable to at least one member of 'this'
+                return this.Parameters.Any(t => t.IsAssignableFrom(other));
+            }
+        }
+
+        // If 'other' is a union type and 'this' is not
+        if (other.IsUnion) {
+            // All members of 'other' must be assignable to 'this'
+            return other.Parameters.All(o => this.IsAssignableFrom(o));
+        }
+
         // Check parametric types
         if (IsParametric && other.IsParametric) {
             if (Name != other.Name || Parameters.Length != other.Parameters.Length) {
@@ -190,7 +214,9 @@ public class ZenType {
 
     public override string ToString() {
         string result;
-        if (IsParametric) {
+        if (IsUnion) {
+            result = string.Join(" or ", Parameters.Select(p => p.ToString()));
+        } else if (IsParametric) {
             string paramString = string.Join(", ", Parameters.Select(p => p.ToString()));
             result = $"{Name}<{paramString}>";
         } else {
@@ -229,6 +255,10 @@ public class ZenType {
         // For generic parameter
         if (Kind == ZenTypeKind.GenericParameter)
             return Name == other.Name; // parameter name matches
+
+        // For union types, order doesn't matter
+        if (Kind == ZenTypeKind.Union)
+            return Parameters.OrderBy(p => p.ToString()).SequenceEqual(other.Parameters.OrderBy(p => p.ToString()));
 
         // For class/interface:
         if (Clazz != other.Clazz) return false;

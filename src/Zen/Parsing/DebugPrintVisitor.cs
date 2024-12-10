@@ -544,4 +544,15 @@ public class DebugPrintVisitor : IVisitor {
 
         _sb.Indent--;
     }
+
+    public void Visit(TypeStmt typeStmt)
+    {
+        _sb.Add(typeStmt.ToString());
+        _sb.Indent++;
+
+        _sb.Add("Identifier: " + typeStmt.Identifier.ToString());
+        _sb.Add("Types: " + string.Join(", ", typeStmt.Types.Select(t => t.ToString())));    
+
+        _sb.Indent--;
+    }
 }

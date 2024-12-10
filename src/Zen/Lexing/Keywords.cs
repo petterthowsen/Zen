@@ -23,6 +23,9 @@ public enum Keywords
     // Logical Operators
     And, Or, Not,
 
+    // Type declaration (union types)
+    Type,
+
     // Function & Class Keywords
     Func, Async, Await,
 

@@ -84,18 +84,11 @@ public class Environment {
 
     public dynamic? GetValue(string name) {
         Variable variable = GetVariable(name);
-        if (variable.IsObject) {
-            return variable.ObjectReference;
-        }else {
-            return variable.Value;
-        }
+
+        return variable.Value;
     }
 
     public void Assign(string name, ZenValue value) {
-        Variables[name].Assign(value);
-    }
-
-    public void Assign(string name, ZenObject value) {
         Variables[name].Assign(value);
     }
 

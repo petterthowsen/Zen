@@ -11,15 +11,6 @@ using Zen.Parsing.AST.Statements;
 /// </summary>
 public partial class Parser
 {
-
-	// public enum ParsingContext {
-	// 	Default,
-	// 	Class,
-	// 	Function,
-	// }
-
-	// private ParsingContext Context = ParsingContext.Default;
-
 	private List<Token> Tokens = [];
 
 	public readonly List<Error> Errors = [];
@@ -79,6 +70,7 @@ public partial class Parser
 		if (MatchKeyword("import")) return ImportStatement();
 		if (MatchKeyword("from")) return FromImportStatement();
 		if (MatchKeyword("package")) return PackageStatement();
+		if (MatchKeyword("type")) return TypeStatement();
 		return ExpressionStatement();
 	}
 
@@ -111,6 +103,7 @@ public partial class Parser
 					case "when":
 					case "echo":
 					case "return":
+					case "type":
 						return;
 				}
 			}

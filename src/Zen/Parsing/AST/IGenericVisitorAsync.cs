@@ -33,6 +33,8 @@ public interface IGenericVisitorAsync<T>
     T VisitAsync(FromImportStmt fromImportStmt);
     T VisitAsync(PackageStmt packageStmt);
 
+    T VisitAsync(TypeStmt typeStmt);
+
     // Expressions
     T VisitAsync(Binary binary);
     T VisitAsync(Grouping grouping);

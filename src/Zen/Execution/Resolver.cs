@@ -611,4 +611,20 @@ public class Resolver : IVisitor
     {
         // handled by the Importer
     }
+
+    /// <summary>
+    /// Declares a union type and resolves its member types.
+    /// </summary>
+    /// <param name="typeStmt"></param>
+    public void Visit(TypeStmt typeStmt)
+    {
+        Declare(typeStmt.Identifier.Name, typeStmt.Location);
+        Define(typeStmt.Identifier.Name);
+
+        // Resolve the type expression
+        foreach (Identifier type in typeStmt.Types)
+        {
+            Resolve(type);
+        }
+    }
 }
