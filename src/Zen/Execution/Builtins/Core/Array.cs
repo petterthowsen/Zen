@@ -154,8 +154,6 @@ public class Array : IBuiltinsProvider
         ));
 
         // Remove First
-        
-        // Remove First
         ArrayClass.Methods.Add(ZenFunction.NewHostMethod("RemoveFirst", ZenType.GenericParameter("T"),
             // arguments
             [],
@@ -309,6 +307,24 @@ public class Array : IBuiltinsProvider
                 subArray.Data["list"] = subList;
                 subArray.SetProperty("Length", new ZenValue(ZenType.Integer, subList.Count));
                 return new ZenValue(subArray.Type, subArray);
+            }
+        ));
+
+        // ToString
+        ArrayClass.Methods.Add(ZenFunction.NewHostMethod("ToString", ZenType.String,
+            // arguments
+            [],
+            (ZenObject obj, ZenValue[] args) => {
+                var list = obj.Data["list"]!;
+                var str = "[";
+                for (int i = 0; i < list.Count; i++) {
+                    str += list[i].Stringify();
+                    if (i < list.Count - 1) {
+                        str += ", ";
+                    }
+                }
+                str += "]";
+                return new ZenValue(ZenType.String, str);
             }
         ));
 

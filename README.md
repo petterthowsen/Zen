@@ -321,7 +321,7 @@ Zen provides an extensible builtin system through the `IBuiltinsProvider` interf
 - - [x] Type casting using parenthesis
 - - [x] Type comparison using 'is'
 - - [] Byte type, to make Interop with C# easier
-- - [] Union types, like type number = int|float
+- - [x] Union types, like type number = int|float
 - [x] Classes
 - - [] Static members (methods & properties)
 - - [x] Interfaces

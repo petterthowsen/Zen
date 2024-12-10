@@ -116,23 +116,21 @@ public class ArrayTests : TestRunner
         await RestartInterpreter();
         await Execute(@"
             var arr = new Array<int>()
-            arr.push(1)
-            arr.push(2)
-            arr.push(3)
+            arr.Append(1)
+            arr.Append(2)
+            arr.Append(3)
         ");
         var result = await Execute("print arr.ToString()", true);
         Assert.Equal("[1, 2, 3]", result);
     }
 
     [Fact]
-    public void TestArrayBoundsChecking()
+    public async void TestArrayBoundsChecking()
     {
-        throw new NotImplementedException("This method freezes the runtime...");
-
-        // RestartInterpreter();
-        // await Execute("var arr = new Array<any>()");
-        // var result = Assert.Throws<RuntimeError>(() => await Execute("arr[0]"));
-        // Assert.Contains("Array index out of bounds", result.Message);
+        await RestartInterpreter();
+        await Execute("var arr = new Array<any>()");
+        var result = await Assert.ThrowsAsync<RuntimeError>(async () => await Execute("arr[0]"));
+        Assert.Contains("Array index out of bounds", result.Message);
     }
 
     [Fact]
