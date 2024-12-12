@@ -168,19 +168,9 @@ public class Interop : IBuiltinsProvider
                 // Check if the task is a generic Task<T>
                 if (taskType.IsGenericType && taskType.GetGenericTypeDefinition() == typeof(Task<>))
                 {
-<<<<<<< HEAD
-                    // Access the Result property via reflection
-                    var resultProperty = taskType.GetProperty("Result");
-                    if (resultProperty == null)
-                    {
-                        throw new Exception("Task<T> does not have a Result property.");
-                    }
 
-                    var taskResult = resultProperty.GetValue(task);
-=======
                     // Use GetAwaiter().GetResult() to safely retrieve the result
                     var taskResult = task.GetType().GetProperty("Result")!.GetValue(task);
->>>>>>> aidev
                     return ToZen(taskResult);
                 }
 
