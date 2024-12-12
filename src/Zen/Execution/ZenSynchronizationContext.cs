@@ -67,7 +67,7 @@ public class ZenSynchronizationContext : SynchronizationContext
     /// If Stop() is called, the loop exits.
     /// </summary>
     public void RunOnCurrentThread()
-    {
+    {        
         _isRunning = true;
 
         while (_isRunning)

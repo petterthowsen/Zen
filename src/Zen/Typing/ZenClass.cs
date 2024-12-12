@@ -59,6 +59,8 @@ public class ZenClass : IZenClass {
 
     public ZenClass(string name, List<ZenFunction> methods) : this(name, methods, [], []) {}
 
+    public ZenClass(string name, List<IZenClass.Parameter> parameters) : this(name, [], [], parameters) {}
+
     public Dictionary<string, ZenType> ResolveTypeParameters(Dictionary<string, ZenValue> paramValues) {
         var substitutions = new Dictionary<string, ZenType>();
         

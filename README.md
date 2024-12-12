@@ -1,14 +1,13 @@
 ```js
-                     _____                
-                     / _  /  ___  _ __   
-                     \// /  / _ \| '_ \    
-                     / //\|  __/| | | |   
-                     /____/ \___||_| |_|   
+              _____                
+             / _  /  ___  _ __   
+             \// /  / _ \| '_ \    
+              / //\|  __/| | | |   
+             /____/ \___||_| |_|   
 
-          "Programming should promote feelings of Zen."
+        "Write Less, Do More, Safely."
+
 ```
-
-Programming should promote feelings of Zen.
 
 # About Zen
 

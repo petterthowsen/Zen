@@ -513,15 +513,15 @@ public partial class Parser
             List<Expr> arguments = [];
             if (Match(TokenType.OpenParen))
             {
-                MaybeSome(TokenType.Whitespace);
+                MaybeSome(TokenType.Whitespace, TokenType.Newline);
 
                 if (!Check(TokenType.CloseParen))
                 {
                     do
                     {
-                        MaybeSome(TokenType.Whitespace);
+                        MaybeSome(TokenType.Whitespace, TokenType.Newline);
                         arguments.Add(Expression());
-                        MaybeSome(TokenType.Whitespace);
+                        MaybeSome(TokenType.Whitespace, TokenType.Newline);
                     } while (Match(TokenType.Comma));
                 }
 
@@ -544,7 +544,7 @@ public partial class Parser
 				expr = FinishCall(expr);
 			}
 			else if (Match(TokenType.Dot)) {
-				// allow identifiers and keywords to be used as property names
+				// get expression (get a object field/property)
 				
 				if (Match(TokenType.Identifier, TokenType.Keyword)) {
 					Token name = Previous;
@@ -554,6 +554,7 @@ public partial class Parser
 				}
 			}
 			else if (Match(TokenType.OpenBracket)) {
+				// bracket get
 				MaybeSome(TokenType.Whitespace);
 				Expr element = Expression();
 				MaybeSome(TokenType.Whitespace);
@@ -576,14 +577,14 @@ public partial class Parser
 		if ( ! Check(TokenType.CloseParen)) {
 
 			do {
-				MaybeSome(TokenType.Whitespace);
+				MaybeSome(TokenType.Whitespace, TokenType.Newline);
 				arguments.Add(Expression());
-				MaybeSome(TokenType.Whitespace);
+				MaybeSome(TokenType.Whitespace, TokenType.Newline);
 
 			} while (Match(TokenType.Comma));
 		}
 
-		MaybeSome(TokenType.Whitespace);
+		MaybeSome(TokenType.Whitespace, TokenType.Newline);
 		
 		Token paren = Consume(TokenType.CloseParen, "Expectd ')' after function arguments");
 

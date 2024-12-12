@@ -20,7 +20,7 @@ public class Interop : IBuiltinsProvider
             ZenType.Any, // Returns any
             new List<ZenFunction.Argument>
             {
-                new("target", ZenType.String),
+                new("target", ZenType.Any), // todo: use type union of string|DotNetObject
                 new("method", ZenType.String),
             },
             CallDotNet,
@@ -33,11 +33,24 @@ public class Interop : IBuiltinsProvider
             ZenType.Task, // Returns any
             new List<ZenFunction.Argument>
             {
-                new("target", ZenType.String),
+                new("target", ZenType.Any),
                 new("method", ZenType.String),
             },
             CallDotNetAsync,
             variadic: true
+        );
+
+        // Get a property on a .NET object
+        interpreter.RegisterHostFunction(
+            "GetDotNetField",
+            ZenType.Any, // Returns any
+            new List<ZenFunction.Argument>
+            {
+                new("target", ZenType.String),
+                new("property", ZenType.String),
+            },
+            GetDotNetField,
+            variadic: false
         );
 
 
@@ -49,6 +62,28 @@ public class Interop : IBuiltinsProvider
             ProxyClasses[dotnetClass] = new ZenClassProxy(dotnetClass);
         }
         return ProxyClasses[dotnetClass];
+    }
+
+    private static ZenValue GetDotNetField(ZenValue[] args) {
+        if (args.Length < 2)
+            throw new ArgumentException("GetDotNet requires at least two arguments: target and property name.");
+
+        // Convert arguments to .NET-compatible values
+        dynamic?[] dotNetArgs = args.Select(ToDotNet).ToArray();
+        
+        dynamic target = dotNetArgs[0]!;
+        
+        // get the property value
+        FieldInfo propertyInfo = ResolveField(dotNetArgs);
+
+        object? value;
+        if (target is string) {
+            value = propertyInfo.GetValue(null);
+        }else {
+            value = propertyInfo.GetValue(target);
+        }
+
+        return ToZen(value);
     }
 
     private static ZenValue CallDotNet(ZenValue[] args)
@@ -133,6 +168,7 @@ public class Interop : IBuiltinsProvider
                 // Check if the task is a generic Task<T>
                 if (taskType.IsGenericType && taskType.GetGenericTypeDefinition() == typeof(Task<>))
                 {
+<<<<<<< HEAD
                     // Access the Result property via reflection
                     var resultProperty = taskType.GetProperty("Result");
                     if (resultProperty == null)
@@ -141,6 +177,10 @@ public class Interop : IBuiltinsProvider
                     }
 
                     var taskResult = resultProperty.GetValue(task);
+=======
+                    // Use GetAwaiter().GetResult() to safely retrieve the result
+                    var taskResult = task.GetType().GetProperty("Result")!.GetValue(task);
+>>>>>>> aidev
                     return ToZen(taskResult);
                 }
 
@@ -179,11 +219,60 @@ public class Interop : IBuiltinsProvider
         return ZenValue.Null;
     }
 
+    private static FieldInfo ResolveField(dynamic?[] dotNetArgs)
+    {
+        // The target: either a string (type name) or an object
+        object? target = dotNetArgs[0];
+
+        // If the target is a string, resolve it to a Type
+        if (target is string targetName)
+        {
+            Logger.Instance.Debug($"Resolving type: {targetName}...");
+
+            // Attempt to resolve the type directly
+            target = Type.GetType(targetName);
+
+            if (target == null)
+            {
+                Logger.Instance.Debug($"Type '{targetName}' not found directly. Searching loaded assemblies...");
+
+                // Search all loaded assemblies
+                target = AppDomain.CurrentDomain.GetAssemblies()
+                    .SelectMany(a => a.GetTypes())
+                    .FirstOrDefault(t => t.FullName == targetName || t.Name == targetName);
+
+                // Attempt to load missing assembly if still not found
+                if (target == null)
+                {
+                    throw new ArgumentException($"Type '{targetName}' not found in loaded assemblies or system libraries.");
+                }
+            }
+        }
+
+        // Ensure the target is a Type object
+        if (target is not Type t)
+        {
+            throw new ArgumentException("The target must be a Type or a string representing a type name.");
+        }
+
+        // Get the field name
+        var fieldName = dotNetArgs[1];
+
+        // Get the field value
+        return t.GetField(fieldName, BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy);
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="dotNetArgs"></param>
+    /// <returns>MethodInfo or ConstructorInfo</returns>
+    /// <exception cref="ArgumentException"></exception>
     private static dynamic ResolveMethod(dynamic?[] dotNetArgs) 
     {
         // The target: either a string (type name) or an object
         object? target = dotNetArgs[0];
-        if (target is not string && target is not Type && target is not null)
+        if (target is not string && target != null)
         {
             Logger.Instance.Debug($"Using instance of type {target.GetType()} as target.");
         }
@@ -238,15 +327,28 @@ public class Interop : IBuiltinsProvider
         {
             Logger.Instance.Debug($"Creating new instance of {targetType.FullName}...");
 
-            try
-            {
+            try {
                 // Find the constructor matching the argument types
                 var constructors = targetType.GetConstructors();
-                var constructor = constructors.FirstOrDefault(ctor =>
-                {
+                var constructor = constructors.FirstOrDefault(ctor => {
                     var parameters = ctor.GetParameters();
-                    return parameters.Length == methodArgs.Length &&
-                        parameters.Select(p => p.ParameterType).SequenceEqual(methodArgs.Select(a => a?.GetType() ?? typeof(object)));
+                    if (parameters.Length != methodArgs.Length)
+                        return false;
+
+                    for (int i = 0; i < parameters.Length; i++)
+                    {
+                        var paramType = parameters[i].ParameterType;
+                        var argType = methodArgs[i]?.GetType();
+
+                        // If argument is null, any reference type parameter is valid
+                        if (methodArgs[i] == null && !paramType.IsValueType)
+                            continue;
+
+                        // Check if parameter type is assignable from argument type
+                        if (argType != null && !paramType.IsAssignableFrom(argType))
+                            return false;
+                    }
+                    return true;
                 });
 
                 if (constructor == null)
@@ -256,9 +358,6 @@ public class Interop : IBuiltinsProvider
                 }
 
                 return constructor;
-                // // Invoke the constructor
-                // var instance = constructor.Invoke(methodArgs);
-                // return ToZen(instance);
             }
             catch (Exception ex)
             {
@@ -288,18 +387,18 @@ public class Interop : IBuiltinsProvider
         }
 
         // First try to find an exact type match
-        MethodInfo? bestMatch = methods.FirstOrDefault(method =>
-        {
+        MethodInfo? bestMatch = methods.FirstOrDefault(method => {
             var parameters = method.GetParameters();
+
             for (int i = 0; i < parameters.Length; i++)
             {
                 var paramType = parameters[i].ParameterType;
                 var argType = methodArgs[i]?.GetType();
-                
+
                 // If argument is null, any reference type parameter is valid
                 if (methodArgs[i] == null && !paramType.IsValueType)
                     continue;
-                
+
                 // Check for exact type match
                 if (argType != paramType)
                     return false;
@@ -408,7 +507,7 @@ public class Interop : IBuiltinsProvider
         if (value is Type type)
         {
             ZenType zenType = ToZenType(type);
-            return new ZenValue(ZenType.Type, zenType);
+            return new ZenValue(ZenType.DotNetType, zenType);
         }else {
             return ToZenValue(value);
         }
@@ -490,13 +589,9 @@ public class Interop : IBuiltinsProvider
             {
             return ZenType.Float64;
         }
-        else if (!type.IsPrimitive) // Treat all non-primitive types as Object
-        {
-            return ZenType.DotNetObject;
-        }
         else
         {
-            return ZenType.Null;
+            return ZenType.MakeDotNetType(type.FullName!);
         }
     }
 
@@ -520,7 +615,7 @@ public class Interop : IBuiltinsProvider
         }else if (type == ZenType.Object || type == ZenType.DotNetObject || type == ZenType.Class) {
             return typeof(object);
         }else if (type == ZenType.Type) {
-            return typeof(ZenType);
+            return Type.GetType(type.Name);
         }else {
             return null;
         }
@@ -536,6 +631,12 @@ public class Interop : IBuiltinsProvider
         }else if (value.Type == ZenType.Object) {
             var obj = value.Underlying as ZenObject;
             return obj;
+        }else if (value.Type == ZenType.Type) {
+            ZenType type = value.Underlying!;
+            return ToDotNet(type);
+        }else if (value.Type == ZenType.DotNetType) {
+            ZenType type = value.Underlying!;
+            return Type.GetType(type.Name);
         }
 
         return value.Underlying;

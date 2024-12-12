@@ -10,7 +10,8 @@ public enum ZenTypeKind {
     Class,              // For classes
     Interface,          // For interfaces
     GenericParameter,   // For placeholders like 'T'
-    Union               // For union types like 'int or float'
+    Union,              // For union types like 'int or float'
+    DotNet,             // For .NET types
 }
 
 public class ZenType {
@@ -35,6 +36,7 @@ public class ZenType {
     public static readonly ZenType Class = new(ZenTypeKind.Primitive, "class");
     public static readonly ZenType Interface = new(ZenTypeKind.Primitive, "interface");
     public static readonly ZenType BoundMethod = new(ZenTypeKind.Primitive, "BoundMethod");
+    public static readonly ZenType Method = new(ZenTypeKind.Primitive, "Method");
     public static readonly ZenType Promise = new(ZenTypeKind.Primitive, "Promise", null, [new(ZenTypeKind.GenericParameter, "T")]);
     public static readonly ZenType Task = new(ZenTypeKind.Primitive, "Task", null, [new(ZenTypeKind.GenericParameter, "T")]);
     public static readonly ZenType Keyword = new(ZenTypeKind.Primitive, "Keyword");
@@ -91,6 +93,9 @@ public class ZenType {
         Clazz = clazz;
         Parameters = parameters;
     }
+
+    // DotNet type
+    public static ZenType MakeDotNetType(string name) => new ZenType(ZenTypeKind.DotNet, name);
 
     // Generic parameter placeholder
     public static ZenType GenericParameter(string name) => new(name);

@@ -179,6 +179,26 @@ public class ClassTests : TestRunner
         Assert.Equal(7, xValue.Underlying);
     }
 
+    
+    [Fact]
+    public async void TestStaticMethod()
+    {
+        await RestartInterpreter();
+
+        string? result = await Execute(@"
+            class Foo {
+                static Bar(): int {
+                    return 1
+                }
+            }
+
+            print Foo.Bar()
+        ", true);
+
+
+        Assert.Equal("1", result);
+    }
+
     [Fact]
     public async void TestInterface()
     {

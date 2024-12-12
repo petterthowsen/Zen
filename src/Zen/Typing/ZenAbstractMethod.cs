@@ -5,6 +5,7 @@ namespace Zen.Typing;
 public class ZenAbstractMethod
 {
     public bool Async = false;
+    public bool Static = false;
 
     public ZenClass.Visibility Visibility;
     public string Name;
@@ -14,13 +15,14 @@ public class ZenAbstractMethod
 
     public int Arity => Arguments.Count;
 
-    public ZenAbstractMethod(bool async, string name, ZenClass.Visibility visibility, ZenType returnType, List<ZenFunction.Argument> arguments)
+    public ZenAbstractMethod(bool async, bool @static, string name, ZenClass.Visibility visibility, ZenType returnType, List<ZenFunction.Argument> arguments)
     {
         Name = name;
         Visibility = visibility;
         ReturnType = returnType;
         Arguments = arguments;
         Async = async;
+        Static = @static;
     }
 
     public override string ToString()

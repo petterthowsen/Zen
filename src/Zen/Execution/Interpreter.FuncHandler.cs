@@ -66,6 +66,10 @@ public partial class Interpreter
                 Logger.Instance.Debug($"Calling {function}");
                 return await CallUserFunction(function.Async, function.Closure, function.UserCode!, function.Arguments, function.ReturnType, arguments);
             
+            case ZenFunction.TYPE.UserMethod:
+                Logger.Instance.Debug($"Calling {function}");
+                return await CallUserFunction(function.Async, function.Closure, function.UserCode!, function.Arguments, function.ReturnType, arguments);
+
             case ZenFunction.TYPE.HostFunction:
                 Logger.Instance.Debug($"Calling {function}");
                 return CallHostFunction(function, arguments);

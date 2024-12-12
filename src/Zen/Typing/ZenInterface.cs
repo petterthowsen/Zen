@@ -15,6 +15,8 @@ public class ZenInterface : IZenClass
         Type = ZenType.FromClass(this);
     }
 
+    public ZenInterface(string name, List<IZenClass.Parameter> parameters) : this(name, new List<ZenAbstractMethod>(), parameters) { }
+
     /// <summary>
     /// Returns true if this type can be assigned a value of the given type
     /// </summary>

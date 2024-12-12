@@ -9,7 +9,7 @@ public class ZenClassProxy : ZenClass
     private readonly Dictionary<string, ZenFunction> _methodCache = new();
     private readonly Dictionary<(string name, string argTypes), ZenFunction> _overloadedMethodCache = new();
 
-    public ZenClassProxy(Type dotnetClass) : base(dotnetClass.Name, [], [], [])
+    public ZenClassProxy(Type dotnetClass) : base(dotnetClass.FullName, [], [], [])
     {
         Target = dotnetClass;
     }

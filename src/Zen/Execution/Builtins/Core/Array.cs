@@ -18,9 +18,9 @@ public class Array : IBuiltinsProvider
         env.Define(true, "Array", ZenType.Class, false);
         env.Assign("Array", new ZenValue(ZenType.Class, ArrayClass));
 
-        Module bracketAccessModule = await interp.GetModule("System/Collections/BracketAccess");
-        Module iterableModule = await interp.GetModule("System/Collections/Iterable");
-        Module arrayEnumeratorModule = await interp.GetModule("System/Collections/ArrayEnumerator");
+        Module bracketAccessModule = await interp.GetModule("Zen/Collections/BracketAccess");
+        Module iterableModule = await interp.GetModule("Zen/Collections/Iterable");
+        Module arrayEnumeratorModule = await interp.GetModule("Zen/Collections/ArrayEnumerator");
 
         ZenInterface bracketGet = bracketAccessModule.environment.GetValue("BracketGet")!.Underlying;
         ZenInterface bracketSet = bracketAccessModule.environment.GetValue("BracketSet")!.Underlying;

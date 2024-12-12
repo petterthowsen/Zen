@@ -39,7 +39,7 @@ public readonly struct ZenValue(ZenType type, dynamic? underlying = null)
     }
 
     public readonly bool IsCallable() {
-        return Type == ZenType.Function || Type == ZenType.BoundMethod;
+        return Type == ZenType.Function || Type == ZenType.BoundMethod || Type == ZenType.Method;
     }
     
     public readonly bool IsHostFunction() {

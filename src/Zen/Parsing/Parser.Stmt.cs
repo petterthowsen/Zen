@@ -601,8 +601,8 @@ public partial class Parser
 		return new ImplementsExpr(identifier, [..parameters]);
 	}
 
-	private static readonly string[] methodModifiers = ["async", "public", "protected", "private", "abstract", "override", "final"];
-	private static readonly string[] propertyModifiers = ["public", "protected", "private"];
+	private static readonly string[] methodModifiers = ["async", "static", "public", "private", "abstract", "override", "final"];
+	private static readonly string[] propertyModifiers = ["static", "public", "private"];
 
 	private bool CheckMethodDeclaration() {
 		int index = _index;

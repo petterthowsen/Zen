@@ -401,6 +401,15 @@ public async Task<IEvaluationResult> VisitAsync(Grouping grouping)
                 return new PrimitiveMethodResult(result.Value, method, args);
             }
         }
+        // static method?
+        else if (result.Type == ZenType.Class) {
+            ZenClass clazz = result.Value.Underlying!;
+
+            method = clazz.GetOwnMethod(get.Identifier.Value, argValues);
+            if (method != null && method.IsStatic) {
+                return (ValueResult) new ZenValue(ZenType.Method, method);
+            }
+        }
         
         throw Error($"Cannot find method '{get.Identifier.Value}' on '{result.Type}' with argument types '{string.Join<ZenValue>(", ", argValues)}'", get.Identifier.Location, Common.ErrorType.TypeError);
     }

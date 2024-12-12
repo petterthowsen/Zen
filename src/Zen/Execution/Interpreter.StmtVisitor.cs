@@ -467,6 +467,22 @@ public partial class Interpreter
         try {
             Environment = new Environment(Environment, "interface");
 
+            // parameters
+            List<IZenClass.Parameter> genericParameters = [];
+
+            foreach (ParameterDeclaration parameter in interfaceStmt.Parameters) {
+                ZenValue? defaultValue = null;
+                if (parameter.DefaultValue != null) {
+                    defaultValue = (await Evaluate(parameter.DefaultValue!)).Value;
+                }
+
+                IZenClass.Parameter param = new(parameter.Name, (await Evaluate(parameter)).Type, defaultValue);
+                genericParameters.Add(param);
+            }
+
+            ZenInterface @interface = new ZenInterface(interfaceStmt.Identifier.Value, genericParameters);
+            previousEnvironment.Assign(interfaceStmt.Identifier.Value, new ZenValue(ZenType.Interface, @interface));
+
             // create the methods
             List<ZenAbstractMethod> methods = [];
 
@@ -474,6 +490,13 @@ public partial class Interpreter
             {
                 string name = methodStmt.Identifier.Value;
                 ZenClass.Visibility visibility = ZenClass.Visibility.Public;
+
+                if (methodStmt.Modifiers.Any(m => m.Value == "private")) {
+                    visibility = ZenClass.Visibility.Private;
+                }
+
+                bool @static = methodStmt.Modifiers.Any(m => m.Value == "static");
+
                 ZenType returnType;
 
                 if (methodStmt.ReturnType.IsGeneric) {
@@ -492,24 +515,15 @@ public partial class Interpreter
                     parameters.Add(funcParam.Parameter);
                 }
 
-                ZenAbstractMethod method = new(methodStmt.Async, name, visibility, returnType, parameters);
+
+                ZenAbstractMethod method = new(methodStmt.Async, @static, name, visibility, returnType, parameters);
+                
                 methods.Add(method);
             }
 
-            // parameters
-            List<IZenClass.Parameter> genericParameters = [];
+            @interface.Methods = methods;
 
-            foreach (ParameterDeclaration parameter in interfaceStmt.Parameters) {
-                ZenValue? defaultValue = null;
-                if (parameter.DefaultValue != null) {
-                    defaultValue = (await Evaluate(parameter.DefaultValue!)).Value;
-                }
-
-                IZenClass.Parameter param = new(parameter.Name, (await Evaluate(parameter)).Type, defaultValue);
-                genericParameters.Add(param);
-            }
-
-            return new ZenInterface(interfaceStmt.Identifier.Value, methods, genericParameters);
+            return @interface;
         } finally {
             Environment = previousEnvironment;
         }
@@ -523,6 +537,24 @@ public partial class Interpreter
         try {
             Environment = new Environment(Environment, "class");
             
+            // parameters
+            List<IZenClass.Parameter> genericParameters = [];
+
+            foreach (ParameterDeclaration parameter in classStmt.Parameters) {
+                CurrentNode = parameter;
+
+                ZenValue? defaultValue = null;
+                if (parameter.DefaultValue != null) {
+                    defaultValue = (await Evaluate(parameter.DefaultValue!)).Value;
+                }
+
+                IZenClass.Parameter param = new(parameter.Name, (await Evaluate(parameter)).Type, defaultValue);
+                genericParameters.Add(param);
+            }
+
+            ZenClass clazz = new ZenClass(classStmt.Identifier.Value, genericParameters);
+            previousEnvironment.Assign(classStmt.Identifier.Value, new ZenValue(ZenType.Class, clazz));
+
             // create the Properties
             List<ZenClass.Property> properties = [];
 
@@ -588,6 +620,8 @@ public partial class Interpreter
                 properties.Add(new ZenClass.Property(property.Identifier.Value, type, defaultValue, visibility));
             }
 
+            clazz.Properties = properties.ToDictionary(p => p.Name);
+
             // create the methods
             List<ZenFunction> methods = [];
 
@@ -596,7 +630,12 @@ public partial class Interpreter
                 CurrentNode = methodStmt;
 
                 string name = methodStmt.Identifier.Value;
-                ZenClass.Visibility visibility = ZenClass.Visibility.Public;
+                ZenClass.Visibility visibility = ZenClass.Visibility.Private;
+
+                if (methodStmt.HasModifier("public")) {
+                    visibility = ZenClass.Visibility.Public;
+                }
+
                 ZenType returnType;
 
                 if (methodStmt.ReturnType.IsGeneric) {
@@ -623,25 +662,15 @@ public partial class Interpreter
                 }
 
                 ZenFunction method = ZenFunction.NewUserMethod(name, returnType, parameters, methodStmt.Block, Environment, methodStmt.Async);
+
+                if (methodStmt.HasModifier("static")) {
+                    method.IsStatic = true;
+                }
+
                 methods.Add(method);
             }
 
-            // parameters
-            List<IZenClass.Parameter> genericParameters = [];
-
-            foreach (ParameterDeclaration parameter in classStmt.Parameters) {
-                CurrentNode = parameter;
-
-                ZenValue? defaultValue = null;
-                if (parameter.DefaultValue != null) {
-                    defaultValue = (await Evaluate(parameter.DefaultValue!)).Value;
-                }
-
-                IZenClass.Parameter param = new(parameter.Name, (await Evaluate(parameter)).Type, defaultValue);
-                genericParameters.Add(param);
-            }
-
-            ZenClass clazz = new ZenClass(classStmt.Identifier.Value, methods, properties, genericParameters);
+            clazz.Methods = methods;
 
             // extends?
             if (classStmt.Extends != null) {
