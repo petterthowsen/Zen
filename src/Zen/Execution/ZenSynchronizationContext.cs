@@ -77,7 +77,6 @@ public class ZenSynchronizationContext : SynchronizationContext
             {
                 var error = _lastError;
                 _lastError = null;
-                Logger.Instance.Error($"EVENT LOOP THREW ERROR {error}");
                 Stop();
                 throw error;
             }

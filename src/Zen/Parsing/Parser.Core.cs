@@ -67,6 +67,8 @@ public partial class Parser
 		if (MatchKeyword("class")) return ClassStatement();
 		if (MatchKeyword("interface")) return InterfaceStatement();
 		if (MatchKeyword("return")) return ReturnStatement();
+		if (MatchKeyword("throw")) return ThrowStatement();
+		if (MatchKeyword("try")) return TryStatement();
 		if (MatchKeyword("import")) return ImportStatement();
 		if (MatchKeyword("from")) return FromImportStatement();
 		if (MatchKeyword("package")) return PackageStatement();
@@ -628,7 +630,34 @@ public partial class Parser
 			return new Literal(Literal.LiteralKind.String, Previous.Value, Previous);
 		}
 
-		if (Match(TokenType.OpenParen))
+		if (Match(TokenType.OpenBracket))
+		{
+			Token token = Previous;
+
+			MaybeSome(TokenType.Whitespace, TokenType.Newline);
+
+			// Parse elements inside the array
+			List<Expr> elements = [];
+			if (!Check(TokenType.CloseBracket))  // Handle empty arrays
+			{
+				do
+				{
+					MaybeSome(TokenType.Whitespace, TokenType.Newline);
+
+					// allow trailing comma
+					if (Check(TokenType.CloseBracket))
+						break;
+
+					elements.Add(Expression());  // Parse each element
+					MaybeSome(TokenType.Whitespace, TokenType.Newline);
+				} while (Match(TokenType.Comma));  // Allow comma-separated values
+			}
+
+			Consume(TokenType.CloseBracket, "Expected ']' after array elements.");  // Ensure array closes
+
+			return new ArrayLiteral(token, elements);  // Return an ArrayLiteral node
+		}
+		else if (Match(TokenType.OpenParen))
 		{
 			MaybeSome(TokenType.Whitespace);
 			Expr expr = Expression();

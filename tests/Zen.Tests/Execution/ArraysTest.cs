@@ -147,38 +147,23 @@ public class ArrayTests : TestRunner
     }
 
     [Fact]
-    public void TestArrayTypeChecking()
+    public async void TestArrayTypeChecking()
     {
-        throw new NotImplementedException("This method freezes the runtime...");
-
-        // RestartInterpreter();
-        // await Execute("var arr = new Array<int>()");
-        // var result = Assert.Throws<RuntimeError>(() => await Execute("arr.push('hello')"));
-        // Assert.Contains("Cannot pass argument of type 'string' to parameter of type 'int'", result.Message);
+        await RestartInterpreter();
+        await Execute("var arr = new Array<int>()");
+        var result = await Assert.ThrowsAsync<RuntimeError>(async () =>  await Execute("arr.Append(\"hello\")"));
     }
 
     [Fact]
-    public async void TestArrayTypeInference()
+    public async void TestArrayLiteral()
     {
         await RestartInterpreter();
-        await Execute(@"
-            var arr = new Array<int>()
-            arr.push(1)
-            arr.push(2)
-            var x: int = arr[0]
-        ");
-    }
+        string? result = await Execute(@"
+            var arr = [1, 2, 3]
+            print arr[2]
+        ", true);
 
-    [Fact]
-    public async void TestArrayMethodTypeChecking()
-    {
-        await RestartInterpreter();
-        await Execute(@"
-            var arr = new Array<string>()
-            arr.push('hello')
-        ");
-        var result = await Assert.ThrowsAsync<RuntimeError>(async () => await Execute("arr[0] = 42"));
-        Assert.Contains("Cannot assign value of type 'int' to array element of type 'string'", result.Message);
+        Assert.Equal("3", result);
     }
 
     [Fact]

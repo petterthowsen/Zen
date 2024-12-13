@@ -936,4 +936,45 @@ public class ParserTests {
         Literal literal = (Literal) bracketSet.ValueExpression;
         Assert.Equal(10, literal.Value.Underlying);
     }
+
+    
+    [Fact]
+    public void TestArrayLiteral() {
+        ProgramNode program = Parse("[1,2,3]");
+        Assert.Single(program.Statements);
+        Assert.IsType<ExpressionStmt>(program.Statements[0]);
+
+        ExpressionStmt exprStmt = (ExpressionStmt)program.Statements[0];
+        ArrayLiteral arrayLiteral = Assert.IsType<ArrayLiteral>(exprStmt.Expression);
+
+        Assert.Equal(3, arrayLiteral.Items.Count);
+
+        Assert.IsType<Literal>(arrayLiteral.Items[0]);
+        Literal literal0 = (Literal)arrayLiteral.Items[0];
+        Assert.Equal(1, literal0.Value.Underlying);
+
+        Assert.IsType<Literal>(arrayLiteral.Items[1]);
+        Literal literal1 = (Literal)arrayLiteral.Items[1];
+        Assert.Equal(2, literal1.Value.Underlying);
+
+        Assert.IsType<Literal>(arrayLiteral.Items[2]);
+        Literal literal2 = (Literal)arrayLiteral.Items[2];
+        Assert.Equal(3, literal2.Value.Underlying);
+    }
+
+    
+    [Fact]
+    public void TestTryCatch() {
+        ProgramNode program = Parse("try { } catch ex: Exception { }");
+        Assert.Single(program.Statements);
+        Assert.IsType<TryStmt>(program.Statements[0]);
+
+        TryStmt tryStmt = (TryStmt)program.Statements[0];
+        Assert.Empty(tryStmt.Block.Statements);
+
+        CatchStmt catchStmt = Assert.IsType<CatchStmt>(tryStmt.catchStmts[0]);
+        Assert.Equal("ex", catchStmt.Identifier.Name);
+        Assert.Equal("Exception", catchStmt.TypeHint.Name);
+        Assert.Empty(catchStmt.Block.Statements);
+    }
 }

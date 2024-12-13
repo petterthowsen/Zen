@@ -555,4 +555,61 @@ public class DebugPrintVisitor : IVisitor {
 
         _sb.Indent--;
     }
+
+    public void Visit(ArrayLiteral arrayLiteral)
+    {
+        _sb.Add(arrayLiteral.ToString());
+        _sb.Indent++;
+
+        _sb.Add("Elements:");
+        foreach (var item in arrayLiteral.Items)
+        {
+            _sb.Indent++;
+            item.Accept(this);
+            _sb.Indent--;
+        }
+
+        _sb.Indent--;
+    }
+
+    public void Visit(ThrowStmt throwStmt)
+    {
+        _sb.Add(throwStmt.ToString());
+        _sb.Indent++;
+
+        _sb.Add("Expression:");
+        _sb.Indent++;
+        throwStmt.Expression.Accept(this);
+        _sb.Indent--;
+
+        _sb.Indent--;
+    }
+
+    public void Visit(TryStmt tryStmt)
+    {
+        _sb.Add(tryStmt.ToString());
+        _sb.Indent++;
+
+        _sb.Add("Block:");
+        _sb.Indent++;
+        tryStmt.Block.Accept(this);
+        _sb.Indent--;
+
+        _sb.Indent--;
+    }
+
+    public void Visit(CatchStmt catchStmt)
+    {
+        _sb.Add(catchStmt.ToString());
+        _sb.Indent++;
+
+        _sb.Add("Identifier: " + catchStmt.Identifier.Name);
+
+        _sb.Add("Block:");
+        _sb.Indent++;
+        catchStmt.Block.Accept(this);
+        _sb.Indent--;
+
+        _sb.Indent--;
+    }
 }

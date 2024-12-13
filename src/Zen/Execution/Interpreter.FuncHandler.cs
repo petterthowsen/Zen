@@ -9,6 +9,96 @@ namespace Zen.Execution;
 
 public partial class Interpreter
 {
+    public bool TypeCheckArguments(ZenFunction function, ZenValue[] args)
+    {
+        var i = 0;
+        foreach (var argDef in function.Arguments) {
+            if (i >= args.Length) {
+                if (!argDef.Nullable && argDef.DefaultValue == null) {
+                    return false;
+                }
+            }
+            if (!TypeChecker.IsCompatible(args[i].Type, argDef.Type)) {
+                return false;
+            }
+            i++;
+        }
+
+        return true;
+    }
+
+    public void ValidateFunctionArguments(ZenFunction function, ZenValue[] args) {
+        List<ZenFunction.Argument> missingArgs = new List<ZenFunction.Argument>();
+
+        var i = 0;
+        foreach (var argDef in function.Arguments) {
+            if (i >= args.Length) {
+                if (!argDef.Nullable && argDef.DefaultValue == null) {
+                    missingArgs.Add(argDef);
+                }
+                continue;
+            }
+
+            if (!TypeChecker.IsCompatible(args[i].Type, argDef.Type)) {
+                throw Error($"Argument {i} is expected to be a {argDef.Type}, not a {args[i].Type}!");
+            }
+            i++;
+        }
+
+        if (missingArgs.Count > 0) {
+            throw Error($"Missing arguments for function {function.Name}: {string.Join(", ", missingArgs.Select(a => a.Name))}");
+        }
+    }
+
+    public ZenValue[] PrepareFunctionArguments(ZenFunction function, ZenValue[] callArgs) {
+        
+        List<ZenValue> prepared = new List<ZenValue>();
+        int i = 0;
+
+        // Iterate through the function's defined arguments
+        for (; i < function.Arguments.Count; i++)
+        {
+            if (i < callArgs.Length)
+            {
+                // Argument is provided in callArgs; perform type conversion
+                var argDef = function.Arguments[i];
+                prepared.Add(TypeConverter.Convert(callArgs[i], argDef.Type, argDef.Nullable));
+            }
+            else
+            {
+                // Argument is missing in callArgs
+                var argDef = function.Arguments[i];
+                if (!argDef.Nullable && argDef.DefaultValue == null)
+                {
+                    throw new ArgumentException($"Missing required argument '{argDef.Name}' for function '{function.Name}'.");
+                }
+
+                // Use default value if provided; otherwise, use null
+                prepared.Add(argDef.DefaultValue != null 
+                    ? (ZenValue)argDef.DefaultValue 
+                    : ZenValue.Null); // Assuming ZenValue has a Null representation
+            }
+        }
+
+        // Handle variadic arguments if the function supports them
+        if (callArgs.Length > function.Arguments.Count)
+        {
+            if (function.Variadic)
+            {
+                for (; i < callArgs.Length; i++)
+                {
+                    prepared.Add(callArgs[i]);
+                }
+            }
+            else
+            {
+                throw new ArgumentException($"Function '{function.Name}' does not accept {callArgs.Length - function.Arguments.Count} additional argument(s).");
+            }
+        }
+
+        return prepared.ToArray();
+    }
+
     /// <summary>
     /// Call a method on an object
     /// </summary>
@@ -25,6 +115,8 @@ public partial class Interpreter
             throw Error($"{obj.Class} has no method {methodName} with return type {returnType} and argument types {string.Join<ZenValue>(", ", args)}!");
         }
 
+        //ValidateFunctionArguments(method, args); this is already done in CallFunction
+
         BoundMethod boundMethod = method.Bind(obj);
         
         IEvaluationResult result = await CallFunction(boundMethod, args);
@@ -39,10 +131,14 @@ public partial class Interpreter
     /// Can also handle ZenMethodProxy functions.
     /// </summary>
     public async Task<IEvaluationResult> CallFunction(BoundMethod bound, ZenValue[] arguments) {
+        ValidateFunctionArguments(bound.Method, arguments);
+        arguments = PrepareFunctionArguments(bound.Method, arguments);
+
         if (bound.Method.IsUser) {
             // if the bound method is a user method, call the user function
             // bound methods have 'this' assigned in their environment.
             Logger.Instance.Debug($"Calling method {bound}");
+
             return await CallUserFunction(bound.Method.Async, bound.Environment, bound.Method.UserCode!, bound.Arguments, bound.Method.ReturnType, arguments);
         }else {
             // It may be a regular host method or a proxy method for a .NET method
@@ -56,11 +152,21 @@ public partial class Interpreter
         }
     }
 
+    public IEvaluationResult CallFunctionSync(BoundMethod bound, ZenValue[] arguments)
+    {
+        if (bound.Method.Async) throw Error("CallFunctionSync() cannot call an async function.", null, Common.ErrorType.RuntimeError);
+        
+        return CallFunction(bound, arguments).GetAwaiter().GetResult();
+    }
+
     /// <summary>
     /// Utility method to call a user function or host function
     /// </summary>
     public async Task<IEvaluationResult> CallFunction(ZenFunction function, ZenValue[] arguments)
     {
+        ValidateFunctionArguments(function, arguments);
+        arguments = PrepareFunctionArguments(function, arguments);
+
         switch (function.Type) {
             case ZenFunction.TYPE.UserFunction:
                 Logger.Instance.Debug($"Calling {function}");
@@ -133,14 +239,9 @@ public partial class Interpreter
         if (function.Async) {
             if (function.AsyncHostMethod == null) throw Error($"Missing AsyncHostMethod on ZenFunction!", null, Common.ErrorType.RuntimeError);
             
-            // how do we handle this?
-            // we need to pass it the ZenObject instance, and we need to return an awaitable.
-
             // Execute the async host function. It returns Task<ZenValue>
-            var task = function.AsyncHostMethod(instance, arguments);
-
-            // Return a ZenValue of type Task
-            return new ValueResult { Value = new ZenValue(ZenType.Task, task) };
+            var task = RunOnEventLoop(() => function.AsyncHostMethod(instance, arguments));
+            return (ValueResult) task;
         }else {
 
             if (function.IsStatic) {
@@ -148,6 +249,8 @@ public partial class Interpreter
                 return (ValueResult) function.StaticHostMethod(arguments);
             }
             
+            if (function.HostMethod == null) throw Error($"Missing HostMethod on ZenFunction!", null, Common.ErrorType.RuntimeError);
+
             return (ValueResult) function.HostMethod(instance, arguments);
         }
     }
@@ -168,17 +271,12 @@ public partial class Interpreter
             {
                 Environment.Define(false, arguments[i].Name, arguments[i].Type, arguments[i].Nullable);
 
-                ZenValue argValue = argValues[i];
-
-                // Type check
-                Logger.Instance.Debug($"Function argument {i} expects {arguments[i].Type}. Checking if compatible with {argValue.Type}");
-                if (!TypeChecker.IsCompatible(argValue.Type, arguments[i].Type))
-                {
-                    throw Error($"{arguments[i].Name} is expected to be a {arguments[i].Type}, not a {argValue.Type}!");
+                ZenValue argValue;
+                if (argValues.Length <= i) {
+                    argValue = (ZenValue) arguments[i].DefaultValue!;
+                }else {
+                    argValue = argValues[i];
                 }
-
-                // Type convert if needed
-                argValue = TypeConverter.Convert(argValue, arguments[i].Type, false);
 
                 // Assign
                 Environment.Assign(arguments[i].Name, argValue);
@@ -205,7 +303,8 @@ public partial class Interpreter
             }
             else
             {
-                return returnException.Result.Value;
+                // Type convert if needed
+                return TypeConverter.Convert(returnException.Result.Value, returnType, false);
             }
         }
         finally
@@ -257,13 +356,7 @@ public partial class Interpreter
             tcs.SetResult(result);
         }
         catch (Exception ex) {
-            if (ex is RuntimeError runtimeError) {
-                tcs.SetException(runtimeError);
-            }
-            else {
-                var error = Error(ex.Message, CurrentNode?.Location, ErrorType.RuntimeError, ex);
-                tcs.SetException(error);
-            }
+            tcs.SetException(ex);
         }
     }
 

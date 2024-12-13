@@ -865,4 +865,67 @@ public partial class Parser
 
 		return new ReturnStmt(token, expr?? null);
 	}
+
+	protected ThrowStmt ThrowStatement() {
+		// "throw" keyword token
+		Token token = Previous;
+		AtleastOne(TokenType.Whitespace);
+
+		// expression
+		Expr expr = Expression();
+
+		return new ThrowStmt(token, expr);
+	}
+
+	protected TryStmt TryStatement() {
+		// "try" keyword token
+		Token token = Previous;
+		MaybeSome(TokenType.Whitespace, TokenType.Newline);
+
+		// block
+		if (!Match(TokenType.OpenBrace)) {
+			throw Error("Expected '{' after 'try' keyword", ErrorType.SyntaxError);
+		}
+		
+		Block block = Block();
+		Consume(TokenType.CloseBrace, "Expected '}' after block");
+
+		MaybeSome(TokenType.Whitespace, TokenType.Newline);
+
+		// "catch" blocks...
+		List<CatchStmt> catchBlocks = [];
+		while (MatchKeyword("catch")) {
+			Token catchToken = Previous;
+			MaybeSome(TokenType.Whitespace, TokenType.Newline);
+
+			// identifier
+			Identifier identifier = Identifier();
+			MaybeSome(TokenType.Whitespace);
+
+			// typehint?
+			TypeHint? typeHint = null;
+			if (Match(TokenType.Colon)) {
+				MaybeSome(TokenType.Whitespace);
+				typeHint = TypeHint();
+			}
+
+			MaybeSome(TokenType.Whitespace, TokenType.Newline);
+
+			// block
+			if ( ! Match(TokenType.OpenBrace)) {
+				throw Error("Expected '{' after 'catch' keyword", ErrorType.SyntaxError);
+			}
+
+			Block catchBlock = Block();
+			Consume(TokenType.CloseBrace, "Expected '}' after catch block");
+
+			catchBlocks.Add(new CatchStmt(catchToken, identifier, typeHint, catchBlock));
+
+			MaybeSome(TokenType.Whitespace, TokenType.Newline);
+		}
+
+		return new TryStmt(token, block, [..catchBlocks]);
+	}
+
+
 }

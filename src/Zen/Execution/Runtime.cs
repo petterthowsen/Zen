@@ -4,6 +4,7 @@ using Zen.Parsing.AST;
 using Zen.Common;
 using Zen.Execution.Import;
 using Zen.Execution.Import.Providing;
+using Zen.Typing;
 
 namespace Zen.Execution;
 
@@ -51,12 +52,30 @@ public class Runtime
 
     public async Task RegisterCoreBuiltins()
     {
-        // Register core builtins
-        await Builtins.Core.ModuleContainer.RegisterBuiltins(Interpreter);
-        await Builtins.Core.Typing.RegisterBuiltins(Interpreter);
-        await Builtins.Core.Interop.RegisterBuiltins(Interpreter);
-        await Builtins.Core.Array.RegisterBuiltins(Interpreter);
-        await Builtins.Core.Time.RegisterBuiltins(Interpreter);
+        // Initialize core builtins
+        await Builtins.Core.Typing.Initialize(Interpreter);
+        await Builtins.Core.String.Initialize(Interpreter);
+        await Builtins.Core.ModuleContainer.Initialize(Interpreter);
+        await Builtins.Core.Interop.Initialize(Interpreter);
+        await Builtins.Core.Array.Initialize(Interpreter);
+        await Builtins.Core.Time.Initialize(Interpreter);
+
+        await Builtins.Core.Typing.Register(Interpreter);
+        await Builtins.Core.String.Register(Interpreter);
+        await Builtins.Core.ModuleContainer.Register(Interpreter);
+        await Builtins.Core.Interop.Register(Interpreter);
+        await Builtins.Core.Array.Register(Interpreter);
+        await Builtins.Core.Time.Register(Interpreter);
+        
+        // Globalize the Map class.
+        ZenClass mapClass = (await Interpreter.FetchSymbol("Zen/Collections/Map", "Map")).Underlying!;
+        Interpreter.globalEnvironment.Define(true, "Map", ZenType.Class, false);
+        Interpreter.globalEnvironment.Assign("Map", new ZenValue(ZenType.Class, mapClass));
+
+        // Globalize the Exception class
+        ZenClass exceptionClass = (await Interpreter.FetchSymbol("Zen/Exception", "Exception")).Underlying!;
+        Interpreter.globalEnvironment.Define(true, "Exception", ZenType.Class, false);
+        Interpreter.globalEnvironment.Assign("Exception", new ZenValue(ZenType.Class, exceptionClass));
 
         await Task.CompletedTask;
     }

@@ -19,14 +19,18 @@ public interface IGenericVisitorAsync<T>
     T VisitAsync(ExpressionStmt expressionStmt);
     T VisitAsync(PrintStmt printStmt);
     T VisitAsync(FuncStmt funcStmt);
+
     T VisitAsync(ReturnStmt returnStmt);
+    T VisitAsync(ThrowStmt throwStmt);
+    T VisitAsync(TryStmt tryStmt);
+    T VisitAsync(CatchStmt catchStmt);
+
     T VisitAsync(ClassStmt classStmt);
     T VisitAsync(InterfaceStmt interfaceStmt);
     T VisitAsync(AbstractMethodStmt abstractMethodStmt);
     T VisitAsync(PropertyStmt propertyStmt);
     T VisitAsync(MethodStmt methodStmt);
     T VisitAsync(ImplementsExpr implementsExpr);
-    T VisitAsync(ThrowStmt @throwStmt);
 
     T VisitAsync(Instantiation instantiation);
     T VisitAsync(ImportStmt importStmt);
@@ -55,4 +59,6 @@ public interface IGenericVisitorAsync<T>
     T VisitAsync(Await await);
     T VisitAsync(BracketGet bracketGet);
     T VisitAsync(BracketSet bracketSet);
+
+    T VisitAsync(ArrayLiteral arrayLiteral);
 }

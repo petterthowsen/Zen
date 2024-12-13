@@ -372,11 +372,11 @@ public class Resolver : IVisitor
         }
 
         //Logger.Instance.Debug($"[RESOLVER] Beginning class scope for {classStmt.Identifier.Value}");
-        scopes.Peek().Add("this", true);
 
         // Make class parameters available in method scopes
         foreach (var param in classStmt.Parameters) {
-            scopes.Peek().Add(param.Name, true);
+            Declare(param.Name, param.Location);
+            Define(param.Name);
         }
 
         foreach (MethodStmt method in classStmt.Methods) {
@@ -398,11 +398,42 @@ public class Resolver : IVisitor
         // resolve return and function type hints 
         Resolve(funcStmt.ReturnType);
 
+        BeginScope();
+        //Logger.Instance.Debug($"[RESOLVER] Beginning function scope for {funcStmt.Identifier.Value}, type: {type}");
+
+        if (type == FunctionType.METHOD || type == FunctionType.CONSTRUCTOR) {
+            // The class parameters are already in the parent scope (from Visit(ClassStmt))
+            // We need to copy them into the method's scope
+            var classScope = scopes.Skip(1).First();  // Parent scope is the class scope
+            foreach (var param in classScope.Where(p => p.Key != "this")) {
+                scopes.Peek().Add(param.Key, true);
+            }
+            Declare("this", funcStmt.Identifier.Location);
+            Define("this");
+        }
+
         foreach (var parameter in funcStmt.Parameters) {
+            Declare(parameter.Identifier);
+            Define(parameter.Identifier);
+            
             if (parameter.TypeHint != null) {
                 Resolve(parameter.TypeHint);
             }
         }
+        
+        Resolve(funcStmt.Block.Statements);
+        
+        //Logger.Instance.Debug($"[RESOLVER] Ending function scope for {funcStmt.Identifier.Value}");
+        EndScope();
+        currentFunction = enclosingFunction;
+    }
+
+    protected void ResolveAbstractMethod(AbstractMethodStmt funcStmt, FunctionType type) {
+        FunctionType enclosingFunction = currentFunction;
+        currentFunction = type;
+
+        // return type
+        Resolve(funcStmt.ReturnType);
 
         BeginScope();
         //Logger.Instance.Debug($"[RESOLVER] Beginning function scope for {funcStmt.Identifier.Value}, type: {type}");
@@ -420,38 +451,10 @@ public class Resolver : IVisitor
         foreach (var parameter in funcStmt.Parameters) {
             Declare(parameter.Identifier);
             Define(parameter.Identifier);
-        }
-        
-        Resolve(funcStmt.Block.Statements);
-        
-        //Logger.Instance.Debug($"[RESOLVER] Ending function scope for {funcStmt.Identifier.Value}");
-        EndScope();
-        currentFunction = enclosingFunction;
-    }
 
-      protected void ResolveAbstractMethod(AbstractMethodStmt funcStmt, FunctionType type) {
-        FunctionType enclosingFunction = currentFunction;
-        currentFunction = type;
-
-        // return type
-        Resolve(funcStmt.ReturnType);
-
-        BeginScope();
-        //Logger.Instance.Debug($"[RESOLVER] Beginning function scope for {funcStmt.Identifier.Value}, type: {type}");
-
-        // If this is a method, make class parameters available in its scope
-        if (type == FunctionType.METHOD || type == FunctionType.CONSTRUCTOR) {
-            // The class parameters are already in the parent scope (from Visit(ClassStmt))
-            // We need to copy them into the method's scope
-            // var classScope = scopes.Skip(1).First();  // Parent scope is the class scope
-            // foreach (var param in classScope.Where(p => p.Key != "this")) {
-            //     scopes.Peek().Add(param.Key, true);
-            // }
-        }
-
-        foreach (var parameter in funcStmt.Parameters) {
-            Declare(parameter.Identifier);
-            Define(parameter.Identifier);
+            if (parameter.TypeHint != null) {
+                Resolve(parameter.TypeHint);
+            }
         }
 
         //Logger.Instance.Debug($"[RESOLVER] Ending function scope for {funcStmt.Identifier.Value}");
@@ -473,11 +476,14 @@ public class Resolver : IVisitor
         Define(interfaceStmt.Identifier);
 
         BeginScope();
-        scopes.Peek().Add("this", true);
+
+        Declare("this", interfaceStmt.Identifier.Location);
+        Define("this");
 
         // Make class parameters available in method scopes
         foreach (var param in interfaceStmt.Parameters) {
-            scopes.Peek().Add(param.Name, true);
+            Declare(param.Name, param.Location);
+            Define(param.Name);
         }
 
         //abstract methods don't have bodies, so no need for this here.
@@ -511,6 +517,9 @@ public class Resolver : IVisitor
     public void Visit(Instantiation instantiation)
     {
         Resolve(instantiation.Call);
+        foreach(var param in instantiation.Parameters) {
+            Resolve(param);
+        }
     }
 
     public void Visit(Get get)
@@ -633,5 +642,44 @@ public class Resolver : IVisitor
         {
             Resolve(type);
         }
+    }
+
+    public void Visit(ArrayLiteral arrayLiteral)
+    {
+        foreach (Expr expr in arrayLiteral.Items)
+        {
+            Resolve(expr);
+        }
+    }
+
+    public void Visit(ThrowStmt throwStmt)
+    {
+        Resolve(throwStmt.Expression);
+    }
+
+    public void Visit(TryStmt tryStmt)
+    {
+        Resolve(tryStmt.Block);
+
+        foreach (CatchStmt catchStmt in tryStmt.catchStmts)
+        {
+            Visit(catchStmt);
+        }
+    }
+
+    public void Visit(CatchStmt catchStmt)
+    {
+        BeginScope();
+
+        Declare(catchStmt.Identifier.Name, catchStmt.Location);
+        Define(catchStmt.Identifier.Name);
+        
+        if (catchStmt.TypeHint != null) {
+            Resolve(catchStmt.TypeHint);
+        }
+
+        Resolve(catchStmt.Block.Statements);
+
+        EndScope();
     }
 }

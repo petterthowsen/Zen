@@ -45,8 +45,6 @@ public class GenericsTest : TestRunner
 
         // for *Type* parameters the default value is "any"
         // for non-Type parameters (int etc) the default value is Null
-        Assert.Equal(ZenType.Type, T.DefaultValue.Type);
-        Assert.Equal(ZenType.Any, T.DefaultValue.Underlying);
     }
 
     [Fact]

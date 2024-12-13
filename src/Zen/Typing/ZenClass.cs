@@ -79,10 +79,10 @@ public class ZenClass : IZenClass {
     public void ValidateParameters(Dictionary<string, ZenValue> paramValues) {
         foreach (IZenClass.Parameter param in Parameters) {
             if (!paramValues.ContainsKey(param.Name)) {
-                if (param.DefaultValue.IsNull()) {
+                if (param.DefaultValue == null) {
                     throw Interpreter.Error($"No value provided for parameter '{param.Name}' and it has no default value");
                 }
-                paramValues[param.Name] = param.DefaultValue;
+                paramValues[param.Name] = (ZenValue) param.DefaultValue;
             }
             else {
                 var paramValue = paramValues[param.Name];
@@ -195,7 +195,7 @@ public class ZenClass : IZenClass {
         if (constructor != null) {
             var boundMethod = constructor!.Bind(instance);
             Logger.Instance.Debug($"Calling constructor with arguments: {string.Join(", ", boundMethod.Arguments.Select(p => $"{p.Name}: {p.Type}"))}");
-            interpreter.CallFunction(boundMethod, args);
+            interpreter.CallFunctionSync(boundMethod, args);
         }
 
         // verify non-nullable properties are set
@@ -220,6 +220,7 @@ public class ZenClass : IZenClass {
 
     public virtual ZenFunction? GetOwnMethod(string name, ZenValue[] argValues, ZenType? returnType = null) {
         var argTypes = argValues.Select(x => x.Type).ToArray();
+
         foreach (var m in Methods) {
             if (m.Name != name) continue;
 
@@ -227,14 +228,22 @@ public class ZenClass : IZenClass {
                 continue;
             }
 
-            if (m.Arguments.Count != argTypes.Length) {
+            if (argValues.Length > m.Arguments.Count) {
                 continue;
             }
 
             bool matching = true;
-            for (int i = 0; i < argTypes.Length; i++) {
+            for (int i = 0; i < m.Arguments.Count; i++) {
+                var argDef = m.Arguments[i];
+                
+                if (i >= argValues.Length) {
+                    if (!argDef.Nullable && argDef.DefaultValue == null) {
+                        return null;
+                    }
+                    continue;
+                }
 
-                if (false == TypeChecker.IsCompatible(argTypes[i], m.Arguments[i].Type)) {
+                if (false == TypeChecker.IsCompatible(argTypes[i], argDef.Type)) {
                     matching = false;
                     break;
                 }

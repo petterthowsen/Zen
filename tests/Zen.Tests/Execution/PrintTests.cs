@@ -10,7 +10,7 @@ public class PrintTests : TestRunner
 
     [Fact]
     public async void TestPrint() {
-        RestartInterpreter();
+        await RestartInterpreter();
 
         string? result = await Execute("print \"hello world\"", true);
         Assert.Equal("hello world", result);
@@ -18,7 +18,7 @@ public class PrintTests : TestRunner
     
     [Fact]
     public async void TestPrintNewline() {
-        RestartInterpreter();
+        await RestartInterpreter();
         
         string? result = await Execute("print \"hello\\nworld\"", true);
         Assert.Equal("hello\nworld", result);

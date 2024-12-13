@@ -9,7 +9,7 @@ public interface IZenClass
     public struct Parameter {
         public string Name;
         public ZenType Type;
-        public ZenValue DefaultValue;
+        public ZenValue? DefaultValue = null;
 
         public bool IsTypeParameter => Type == ZenType.Type;
         public bool IsValueParameter => !IsTypeParameter;
@@ -23,10 +23,10 @@ public interface IZenClass
             }
             else if (IsTypeParameter) {
                 // For type parameters, default to ZenType.Any
-                DefaultValue = new ZenValue(ZenType.Type, ZenType.Any);
+                //DefaultValue = new ZenValue(ZenType.Type, ZenType.Any);
             }
             else {
-                DefaultValue = ZenValue.Null;
+                
             }
         }
 

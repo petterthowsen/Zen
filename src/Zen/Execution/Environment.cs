@@ -75,6 +75,9 @@ public class Environment {
     }
 
     public Variable GetVariable(string name) {
+        if (name == "K") {
+            var nothing = "Y";
+        }
         if (Variables.ContainsKey(name)) {
             return Variables[name];
         }

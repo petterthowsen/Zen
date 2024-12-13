@@ -85,6 +85,9 @@ public readonly struct ZenValue(ZenType type, dynamic? underlying = null)
             }else {
                 return "false";
             }
+        }else if (Type == ZenType.String) 
+        {
+            return $"{Underlying}";
         }else {
             return Underlying!.ToString();
         }

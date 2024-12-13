@@ -108,4 +108,35 @@ public class FunctionTests : TestRunner
 
         Assert.Equal("1", result);
     }
+
+    [Fact]
+    public async void TestFunctionsWithDefaultArgument()
+    {
+        await RestartInterpreter();
+
+        string? result = await Execute(@"
+        func hello(name: string = ""john""): string {
+            return name
+        }
+        print hello()
+        ", true);
+
+        Assert.Equal("john", result);
+    }
+
+    
+    [Fact]
+    public async void TestFunctionsWithOneArgumentAndDefault()
+    {
+        await RestartInterpreter();
+
+        string? result = await Execute(@"
+        func hello(name: string, greeting: string = ""hello""): string {
+            return greeting + "" "" + name
+        }
+        print hello(""john"")
+        ", true);
+
+        Assert.Equal("hello john", result);
+    }
 }

@@ -1,4 +1,5 @@
 using Zen.Common;
+using Zen.Execution.Builtins.Core;
 using Zen.Execution.EvaluationResult;
 using Zen.Parsing.AST;
 using Zen.Parsing.AST.Expressions;
@@ -10,7 +11,7 @@ public partial class Interpreter
 {
     private async Task<IEvaluationResult> Evaluate(Expr expr)
     {
-        return await expr.AcceptAsync(this)!;
+        return await expr.AcceptAsync(this);
     }
 
     public async Task<IEvaluationResult> VisitAsync(Binary binary)
@@ -136,6 +137,54 @@ public async Task<IEvaluationResult> VisitAsync(Grouping grouping)
         return (ValueResult)literal.Value;
     }
 
+    public async Task<IEvaluationResult> EvaluateArrayLiteral(ArrayLiteral arrayLiteral, ZenType? defaultTypeParam)
+    {
+        // evaluate each item
+        List<ZenValue> itemValues = [];
+        
+        // store types that occur in the array literal
+        List<ZenType> itemTypes = [];
+
+        foreach (var item in arrayLiteral.Items)
+        {
+            IEvaluationResult itemResult = await Evaluate(item);
+            
+            // must be a non-void value
+            if (itemResult is VoidResult) {
+                throw Error("Array items cannot be void", item.Location);
+            }
+
+            // add the value
+            itemValues.Add(itemResult.Value);
+
+            // add the type to itemTypes if not already present
+            if (!itemTypes.Contains(itemResult.Value.Type)) {
+                itemTypes.Add(itemResult.Value.Type);
+            }
+        }
+
+        // infer the type of the array
+        // if there is more than one type, use Any
+        // otherwise, use the type encountered.
+        ZenType typeParam;
+        if (itemTypes.Count == 1) {
+            typeParam = itemTypes[0];
+        }else if (itemTypes.Count > 1) {
+            typeParam = ZenType.Any;
+        }else {
+            typeParam = defaultTypeParam ?? ZenType.Any;
+        }
+
+        return (ValueResult) Builtins.Core.Array.CreateInstance(this, [..itemValues], typeParam);
+    }
+
+    public async Task<IEvaluationResult> VisitAsync(ArrayLiteral arrayLiteral)
+    {
+        CurrentNode = arrayLiteral;
+
+        return await EvaluateArrayLiteral(arrayLiteral, null);
+    }
+
     public async Task<IEvaluationResult> VisitAsync(Identifier identifier)
     {
         CurrentNode = identifier;
@@ -168,6 +217,15 @@ public async Task<IEvaluationResult> VisitAsync(Grouping grouping)
 
             return (ValueResult) instance.GetProperty(get.Identifier.Value);
         }
+        else if (result.Type == ZenType.String) {
+
+            ZenFunction getPropertyFunc = Builtins.Core.String.StringClass.GetOwnMethod("_GetProperty")!;
+
+            return await CallFunction(getPropertyFunc, [
+                new(ZenType.String, result.Value.Underlying!),
+                new(ZenType.String, get.Identifier.Value)]
+            );
+        }
         else
         {
             throw Error($"Cannot get property of type '{result.Type}'", get.Identifier.Location, Common.ErrorType.TypeError);
@@ -190,12 +248,18 @@ public async Task<IEvaluationResult> VisitAsync(Grouping grouping)
                 throw Error($"Undefined property '{propertyName}' on object of type '{instance.Type}'", set.Identifier.Location, Common.ErrorType.UndefinedProperty);
             }
 
-            // evaluate the value expression
-            IEvaluationResult valueExpression = await Evaluate(set.ValueExpression);
-
             // Get the property's type and value's type for comparison
             ZenValue propertyValue = instance.GetProperty(propertyName);
-            
+
+            // evaluate the value expression
+            IEvaluationResult valueExpression;
+            if (set.ValueExpression is ArrayLiteral arrayLiteralExpr) {
+                ZenType arrayTypeParam = propertyValue.Type.Parameters[0];
+                valueExpression = await EvaluateArrayLiteral(arrayLiteralExpr, arrayTypeParam);
+            }else {
+                valueExpression = await Evaluate(set.ValueExpression);
+            }
+
             // Check type compatibility including type parameters
             if (!TypeChecker.IsCompatible(valueExpression.Value.Type, propertyValue.Type))
             {
@@ -395,7 +459,7 @@ public async Task<IEvaluationResult> VisitAsync(Grouping grouping)
             argsWithObj.Insert(0, result.Value);
             var args = argsWithObj.ToArray();
 
-            method = Builtins.Core.String.ZenString.GetOwnMethod(get.Identifier.Value, args);
+            method = Builtins.Core.String.StringClass.GetOwnMethod(get.Identifier.Value, args);
             
             if (method != null && method.IsStatic) {
                 return new PrimitiveMethodResult(result.Value, method, args);
@@ -442,31 +506,14 @@ public async Task<IEvaluationResult> VisitAsync(Grouping grouping)
             ZenFunction method = pmr.Method;
             ZenValue[] args = pmr.Arguments;
 
-            // check number of arguments is at most equal to the number of parameters
-            if (method.Variadic == false && args.Length > method.Arguments.Count)
-            {
-                throw Error($"Too many arguments for function {method}", call.Location, Common.ErrorType.RuntimeError);
-            }
-
             return await CallFunction(method, args);
         }
         else if (callee.Value.Underlying is ZenFunction function) {
-            // check number of arguments is at least equal to the number of non-nullable parameters
-            if (argValues.Length < function.Arguments.Count(p => !p.Nullable))
-            {
-                throw Error($"Not enough arguments for function", null, Common.ErrorType.RuntimeError);
-            }
-
-            // check number of arguments is at most equal to the number of parameters
-            if (function.Variadic == false && argValues.Length > function.Arguments.Count)
-            {
-                throw Error($"Too many arguments for function {function}", call.Location, Common.ErrorType.RuntimeError);
-            }
-
             return await CallFunction(function, argValues);
         }
         else if (callee.Value.Underlying is BoundMethod) {
             BoundMethod boundMethod = (BoundMethod)callee.Value.Underlying;
+
             return await CallFunction(boundMethod, argValues);
         }
         else
@@ -493,7 +540,14 @@ public async Task<IEvaluationResult> VisitAsync(Grouping grouping)
             nullable = funcParameter.TypeHint.Nullable;
         }
 
-        ZenFunction.Argument parameter = new(name, type, nullable);
+        // default value?
+        ZenValue? defaultValue = null;
+        if (funcParameter.DefaultValue != null)
+        {
+            defaultValue = (await Evaluate(funcParameter.DefaultValue)).Value;
+        }
+
+        ZenFunction.Argument parameter = new(name, type, nullable, defaultValue);
 
         return (FunctionParameterResult)parameter;
     }
@@ -530,13 +584,13 @@ public async Task<IEvaluationResult> VisitAsync(Grouping grouping)
         
         // If no parameters provided but class has type parameters,
         // use 'any' as default type parameter
-        if (instantiation.Parameters.Count == 0 && clazz.Parameters.Count > 0)
+        if (instantiation.Parameters.Count == 0 && clazz.Parameters.Count == 0)
         {
             Logger.Instance.Debug("No parameters needed.");
         }
         else
         {
-            Logger.Instance.Debug($"Processing {instantiation.Parameters.Count} parameters");
+            Logger.Instance.Debug($"Processing {clazz.Parameters.Count} parameters");
 
             int paramIndex = 0;
             // loop through class parameters
@@ -545,12 +599,12 @@ public async Task<IEvaluationResult> VisitAsync(Grouping grouping)
                 // no more parameters?
                 if (paramIndex >= instantiation.Parameters.Count) {
                     // provides default value ?
-                    if (param.DefaultValue.IsNull()) {
-                        throw Error($"{clazz.Name} expects a '{param.Name}' parameter.!", 
+                    if (param.DefaultValue == null) {
+                        throw Error($"{clazz.Name} expects a {param.Type} parameter '{param.Name}' like `new {clazz.Name}<{param.Type}>()` ?", 
                             instantiation.Location);
                     }
 
-                    ZenValue val = param.DefaultValue;
+                    ZenValue val = (ZenValue) param.DefaultValue;
                     paramValues[param.Name] = val;
                 }else {
                     // evaluate the parameter
@@ -599,9 +653,9 @@ public async Task<IEvaluationResult> VisitAsync(Grouping grouping)
                 if (!paramValues.ContainsKey(param.Name))
                 {
                     Logger.Instance.Debug($"Missing parameter {param.Name}");
-                    if (param.DefaultValue.IsNull() == false)
+                    if (param.DefaultValue != null)
                     {
-                        paramValues[param.Name] = param.DefaultValue;
+                        paramValues[param.Name] = (ZenValue) param.DefaultValue;
                         Logger.Instance.Debug($"Using default value for {param.Name}: {param.DefaultValue}");
                     }
                     else

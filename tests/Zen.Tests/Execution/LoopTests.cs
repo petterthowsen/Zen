@@ -10,7 +10,7 @@ public class LoopTests : TestRunner
 
     [Fact]
     public async void TestForLoop() {
-        RestartInterpreter();
+        await RestartInterpreter();
 
         string? result = await Execute("for i = 0; i < 2; i += 1 { print i }", true);
         Assert.Equal("01", result);

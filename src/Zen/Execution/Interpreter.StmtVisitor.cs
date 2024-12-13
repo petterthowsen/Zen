@@ -1,4 +1,5 @@
 using Zen.Common;
+using Zen.Exection;
 using Zen.Execution.EvaluationResult;
 using Zen.Lexing;
 using Zen.Parsing.AST;
@@ -57,7 +58,7 @@ public partial class Interpreter
         {
             await ifStmt.Then.AcceptAsync(this);
         }
-        else if (ifStmt.ElseIfs != null)
+        else if (ifStmt.ElseIfs.Count() > 0)
         {
             foreach (var elseIf in ifStmt.ElseIfs)
             {
@@ -85,9 +86,9 @@ public partial class Interpreter
         ZenValue value = expResult.Value;
 
         string str;
-        if (value.Type == ZenType.Object) {
+        if (value.IsObject()) {
             // custom ToString method
-            str = CallObject(value.Underlying!, "ToString", ZenType.String).Underlying!;
+            str = (await CallObject(value.Underlying!, "ToString", ZenType.String)).Underlying!;
         }else {
             // use the underlying ToString
             str = value.Stringify();
@@ -96,21 +97,21 @@ public partial class Interpreter
         if (GlobalOutputBufferingEnabled)
         {
             GlobalOutputBuffer.Append(str);
-            OutputHandler("appending to GlobalOutputBuffer: " + str);
+            
+            if (OutputHandler != null) {
+                OutputHandler(str);
+            }else {
+                Console.Write(str);
+            }
         }else {
-            Console.Write(str);
+            if (OutputHandler != null) {
+                OutputHandler(str);
+            }else {
+                Console.Write(str);
+            }
         }
-
-        if (OutputHandler != null) {
-            OutputHandler(str);
-        }
-
+        
         return (ValueResult)ZenValue.Void;
-    }
-
-    public async Task<IEvaluationResult> VisitAsync(ThrowStmt throwStmt)
-    {
-        throw new NotImplementedException();
     }
 
     public async Task<IEvaluationResult> VisitAsync(TypeStmt typeStmt)
@@ -326,8 +327,8 @@ public partial class Interpreter
 
         ZenObject target = (ZenObject) targetVal.Underlying!;
 
-        ZenInterface iterableInterface = (await FetchSymbol("System/Collections/Iterable", "Iterable")).Underlying!;
-        ZenInterface enmeratorInterface = (await FetchSymbol("System/Collections/Enumerator", "Enumerator")).Underlying!;
+        ZenInterface iterableInterface = (await FetchSymbol("Zen/Collections/Iterable", "Iterable")).Underlying!;
+        ZenInterface enmeratorInterface = (await FetchSymbol("Zen/Collections/Enumerator", "Enumerator")).Underlying!;
 
         if (target.Class.Implements(iterableInterface) == false) {
             throw Error($"Class '{target.Class.Name}' does not implement '{iterableInterface.Name}'.", forInStmt.Expression.Location, Common.ErrorType.TypeError);
@@ -346,7 +347,7 @@ public partial class Interpreter
             ZenObject enumerator = (await CallObject(target, "GetEnumerator", null)).Underlying!;
 
             // the type of the value is the type of the enumerator
-            ZenType elementType = target.GetParameter("T").Underlying!;
+            ZenType elementType = target.GetParameter("V").Underlying!;
 
             Environment.Define(false, valueIdentifier.Value, elementType, false);
 
@@ -355,10 +356,10 @@ public partial class Interpreter
             }
 
             while ((await CallObject(enumerator, "MoveNext", null)).IsTruthy()) {
-                Environment.Assign(valueIdentifier.Value, (await CallObject(enumerator, "Current", null)));
+                Environment.Assign(valueIdentifier.Value, await CallObject(enumerator, "Current", null));
 
                 if (keyIdentifier != null) {
-                    Environment.Assign(keyIdentifier.Value.Value, enumerator.GetProperty("index"));
+                    Environment.Assign(keyIdentifier.Value.Value, await CallObject(enumerator, "CurrentKey", null));
                 }
 
                 foreach (Stmt statement in forInStmt.Block.Statements) {
@@ -702,18 +703,18 @@ public partial class Interpreter
     public async Task<IEvaluationResult> VisitAsync(PropertyStmt propertyStmt)
     {
         // this isn't used.
-        return (ValueResult)ZenValue.Void;
+        throw new NotImplementedException("This is not used.");
     }
 
     public async Task<IEvaluationResult> VisitAsync(MethodStmt methodStmt)
     {
         // this isn't used.
-        return (ValueResult)ZenValue.Void;
+        throw new NotImplementedException("This is not used.");
     }
     
     public async Task<IEvaluationResult> VisitAsync(AbstractMethodStmt abstractMethodStmt)
     {
         // this isn't used
-        return (ValueResult) ZenValue.Void;
+        throw new NotImplementedException("This is not used.");
     }
 }

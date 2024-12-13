@@ -10,7 +10,7 @@ public class Interop : IBuiltinsProvider
     
     public static readonly Dictionary<Type, ZenClassProxy> ProxyClasses = [];
 
-    public static async Task RegisterBuiltins(Interpreter interpreter)
+    public static async Task Initialize(Interpreter interpreter)
     {
         Interop.interpreter = interpreter;
     
@@ -54,6 +54,11 @@ public class Interop : IBuiltinsProvider
         );
 
 
+        await Task.CompletedTask;
+    }
+
+    public static async Task Register(Interpreter interpreter)
+    {
         await Task.CompletedTask;
     }
 

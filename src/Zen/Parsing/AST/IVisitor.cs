@@ -26,6 +26,10 @@ public interface IVisitor
     
     void Visit(FuncStmt funcStmt);
     void Visit(ReturnStmt returnStmt);
+
+    void Visit(ThrowStmt throwStmt);
+    void Visit(TryStmt tryStmt);
+    void Visit(CatchStmt catchStmt);
     
     void Visit(ClassStmt classStmt);
     void Visit(InterfaceStmt interfaceStmt);
@@ -58,4 +62,5 @@ public interface IVisitor
     void Visit(Await await);
     void Visit(BracketGet bracketGet);
     void Visit(BracketSet bracketSet);
+    void Visit(ArrayLiteral arrayLiteral);
 }

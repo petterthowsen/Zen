@@ -34,7 +34,7 @@ public static class TypeConverter {
             var t when t == ZenType.Float => ConvertToFloat(value),
             var t when t == ZenType.Float64 => ConvertToFloat64(value),
             var t when t == ZenType.String => ConvertToString(value),
-            _ => throw new RuntimeError($"Unsupported conversion from {value.Type} to {targetType}", Common.ErrorType.TypeError, null)
+            _ => throw Interpreter.Error($"Unsupported conversion from {value.Type} to {targetType}")
         };
     }
 

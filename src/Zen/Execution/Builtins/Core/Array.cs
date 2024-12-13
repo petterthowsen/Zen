@@ -5,9 +5,9 @@ namespace Zen.Execution.Builtins.Core;
 
 public class Array : IBuiltinsProvider
 {
-    private static ZenClass? ArrayClass;
+    public static ZenClass? ArrayClass;
 
-    public static async Task RegisterBuiltins(Interpreter interp)
+    public static async Task Initialize(Interpreter interp)
     {
         var env = interp.globalEnvironment;
 
@@ -17,6 +17,13 @@ public class Array : IBuiltinsProvider
 
         env.Define(true, "Array", ZenType.Class, false);
         env.Assign("Array", new ZenValue(ZenType.Class, ArrayClass));
+
+        await Task.CompletedTask;
+    }
+
+    public static async Task Register(Interpreter interp)
+    {
+        var env = interp.globalEnvironment;
 
         Module bracketAccessModule = await interp.GetModule("Zen/Collections/BracketAccess");
         Module iterableModule = await interp.GetModule("Zen/Collections/Iterable");
@@ -28,58 +35,19 @@ public class Array : IBuiltinsProvider
         ZenClass arrayEnumerator = arrayEnumeratorModule.environment.GetValue("ArrayEnumerator")!.Underlying;
 
         //--- Properties ---
-        ArrayClass.Properties.Add("Length", new("Length", ZenType.Integer, new ZenValue(ZenType.Integer, 0), ZenClass.Visibility.Public));
+        ArrayClass!.Properties.Add("Length", new("Length", ZenType.Integer, new ZenValue(ZenType.Integer, 0), ZenClass.Visibility.Public));
 
         // implement interfaces
         ArrayClass.Interfaces.Add(bracketGet);
         ArrayClass.Interfaces.Add(bracketSet);
         ArrayClass.Interfaces.Add(iterable);
         
-        // //-- ArrayEnumerator ---
-        // ArrayEnumerator = new ZenClass("ArrayEnumerator", [], [], [
-        //     new ZenClass.Parameter("T", ZenType.Type)
-        // ]);
-        // ArrayEnumerator.Interfaces.Add(enumerator);
-        // ArrayEnumerator.Properties.Add("array", new ZenClass.Property("array", ArrayClass.Type, ZenValue.Null));
-        // ArrayEnumerator.Properties.Add("index", new ZenClass.Property("index", ZenType.Integer, new ZenValue(ZenType.Integer, 0)));
-
-        // //constructor
-        // ArrayEnumerator.Methods.Add(ZenFunction.NewHostMethod(false, "ArrayEnumerator", ZenClass.Visibility.Public, ZenType.Void,
-        //     // arguments
-        //     [
-        //         // the array
-        //         new("array", ArrayClass.Type, false)
-        //     ],
-        //     (ZenObject obj, ZenValue[] args) => {
-        //         obj.SetProperty("array", args[0]);
-        //         return ZenValue.Void;
-        //     }
-        // ));
-
-        // // MoveNext
-        // ArrayEnumerator.Methods.Add(ZenFunction.NewHostMethod(false, "MoveNext", ZenClass.Visibility.Public, ZenType.Boolean,
-            
-        //     // arguments
-        //     [
-        //     ],
-        //     (ZenObject obj, ZenValue[] args) => {
-        //         ZenObject array = obj.GetProperty("array").Underlying!;
-
-        //         int idx = obj.GetProperty("index").Underlying;
-        //         idx++;
-        //         if 
-
-        //         return idx < list.Count;
-        //     }
-        // ));
-
-
         //--- Methods ---
         // constructor
         ArrayClass.Methods.Add(ZenFunction.NewHostMethod("Array", ZenType.Void, [], (ZenObject obj, ZenValue[] args) => {
             obj.Data["list"] = new List<ZenValue>();
             return ZenValue.Void;
-        }));
+        }, true));
 
         // GetEnumerator
         ArrayClass.Methods.Add(ZenFunction.NewHostMethod("GetEnumerator", iterable.Type,
@@ -275,7 +243,8 @@ public class Array : IBuiltinsProvider
             ],
             (ZenObject obj, ZenValue[] args) => {
                 List<ZenValue> list = obj.Data["list"]!;
-                return new ZenValue(ZenType.Boolean, list.Contains(args[0]));
+                bool contains = list.Contains(args[0]);
+                return new ZenValue(ZenType.Boolean, contains);
             }
         ));
 
@@ -310,6 +279,32 @@ public class Array : IBuiltinsProvider
             }
         ));
 
+        // Join
+        ArrayClass.Methods.Add(ZenFunction.NewHostMethod("Join", ZenType.String,
+            // arguments
+            [
+                new("separator", ZenType.String, false, new ZenValue(ZenType.String, ""))
+            ],
+            (ZenObject obj, ZenValue[] args) => {
+                var sep = args[0].Underlying;
+
+                List<ZenValue> list = obj.Data["list"]!;
+
+                var str = "";
+                for (int i = 0; i < list.Count; i++) {
+                    if (list[i].Type != ZenType.String) {
+                        str += list[i].Stringify();
+                    }else {
+                        str += list[i].Underlying;
+                    }
+                    if (i < list.Count - 1) {
+                        str += sep;
+                    }
+                }
+                return new ZenValue(ZenType.String, str);
+            }
+        ));
+
         // ToString
         ArrayClass.Methods.Add(ZenFunction.NewHostMethod("ToString", ZenType.String,
             // arguments
@@ -330,4 +325,20 @@ public class Array : IBuiltinsProvider
 
         await Task.CompletedTask;
     }
+
+    public static ZenValue CreateInstance(Interpreter interp, ZenValue[] items, ZenType typeParam) {
+        // prepare the parameters
+        Dictionary<string, ZenValue> paramValues = [];
+        paramValues.Add("T", new ZenValue(ZenType.Type, typeParam));
+        
+        // create the instance
+        ZenObject instance = ArrayClass!.CreateInstance(interp, [], paramValues);
+
+        // append the items
+        instance.Data["list"] = new List<ZenValue>(items);
+        instance.SetProperty("Length", new ZenValue(ZenType.Integer, items.Length));
+
+        // wrap it in a ZenValue with the instance's specific type
+        return new ZenValue(instance.Type, instance);
+    } 
 }

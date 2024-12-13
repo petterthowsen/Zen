@@ -72,11 +72,11 @@ public partial class Interpreter {
         return VoidResult.Instance;
     }
 
-    private void ApplyNamespaceImport(Namespace @namespace)
+    private async Task ApplyNamespaceImport(Namespace @namespace)
     {
         foreach (Module module in @namespace.Modules.Values)
         {
-            ApplyModuleImport(module);
+            await ApplyModuleImport(module);
         }
     }
 
@@ -134,7 +134,7 @@ public partial class Interpreter {
         }
     }
 
-    private void ApplyModuleImport(Module module)
+    private async Task ApplyModuleImport(Module module)
     {
         List<string> symbolNames = [];
         foreach (var symbol in module.Symbols)
@@ -142,7 +142,7 @@ public partial class Interpreter {
             symbolNames.Add(symbol.Name);
         }
 
-        ApplyModuleImport(module, symbolNames.ToArray());
+        await ApplyModuleImport(module, symbolNames.ToArray());
     }
 
     public async Task<IEvaluationResult> VisitAsync(FromImportStmt fromImport)
@@ -157,7 +157,7 @@ public partial class Interpreter {
         {
             // If it's a module, import the specified symbols from it
             var module = resolution.AsModule().Module;
-            ApplyModuleImport(module, [..symbols]);
+            await ApplyModuleImport(module, [..symbols]);
         }
         else if (resolution.HasModules())
         {
@@ -176,7 +176,7 @@ public partial class Interpreter {
                     // we can import it directly
                     if (module.HasSymbol(symbol))
                     {
-                        ApplyModuleImport(module, new[] { symbol });
+                        await ApplyModuleImport(module, new[] { symbol });
                         continue;
                     }
                 }

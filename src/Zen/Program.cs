@@ -10,7 +10,7 @@ using Zen.Parsing.AST;
 
 public class Program
 {
-    public static void Main(string[] args)
+    public static async Task Main(string[] args)
     {
 
         Console.WriteLine(typeof(System.Net.HttpListener));
@@ -50,10 +50,10 @@ public class Program
 
         Console.WriteLine(args);
 
-        if (args.Length == 0) {
+        if (args.Length == 0 || args[0] == "") {
             // start REPL
             Console.WriteLine("Starting REPL");
-            REPL();
+            await REPL();
         } else {
             ISourceCode script;
 
@@ -62,6 +62,7 @@ public class Program
             
             // check if it's a .zen file
             if (args[0].EndsWith(".zen")) {
+                Console.WriteLine(args[0]);
                 // check if file exists
                 if ( ! File.Exists(args[0])) {
                     Console.WriteLine("File does not exist");
@@ -75,12 +76,12 @@ public class Program
                 script = new InlineSourceCode(args[0]);
             }
 
-            Execute(script);
+            await Execute(script);
         }
     }
 
 
-    protected static async void Execute(ISourceCode script)
+    protected static async Task Execute(ISourceCode script)
     {
         Console.WriteLine("Executing script " + script);
         Runtime runtime = new();
@@ -89,7 +90,7 @@ public class Program
         await runtime.Execute(script);
     }
 
-    protected static async void REPL() {
+    protected static async Task REPL() {
         Console.WriteLine("Zen REPL v0.1");
         
         Logger.Instance.SetDebug(true);

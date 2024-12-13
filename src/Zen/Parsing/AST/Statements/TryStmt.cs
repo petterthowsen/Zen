@@ -3,13 +3,15 @@ using Zen.Lexing;
 
 namespace Zen.Parsing.AST.Statements;
 
-public class ThrowStmt(Token token, Expr expression) : Stmt
+public class TryStmt(Token token, Block block, CatchStmt[] catchStmts) : Stmt
 {
     public Token Token = token;
-    public Expr Expression = expression;
+    public Block Block = block;
+
+    public CatchStmt[] catchStmts = catchStmts;
 
     public override SourceLocation Location => Token.Location;
-    
+
     public override void Accept(IVisitor visitor)
     {
         visitor.Visit(this);
@@ -27,6 +29,6 @@ public class ThrowStmt(Token token, Expr expression) : Stmt
 
     public override string ToString()
     {
-        return $"ThrowStmt";
+        return "TryStmt";
     }
 }

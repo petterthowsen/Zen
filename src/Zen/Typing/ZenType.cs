@@ -131,24 +131,22 @@ public class ZenType {
         if (Kind != ZenTypeKind.Class && Kind != ZenTypeKind.Interface)
             throw new InvalidOperationException("Cannot make generic type from non-class/interface type");
 
-        if ( ! IsGeneric) return this;
-
-        ZenType t = Copy();
+        if ( ! IsGeneric) return Copy();
 
         if (Clazz!.Parameters.Count == 0 || substitutions.Count != Clazz.Parameters.Count)
-            return this; // nothing to do
+            return Copy(); // nothing to do
 
         // if this type is for example: Array<T>, return Array<U> where U is the substitution for T
         // we support multiple substitutions as well as recursive substitutions
-
         return SubstitutedGenerics(substitutions);
     }
 
     /// <summary>
     /// Returns a copy of this type.
     /// </summary>
-    private ZenType Copy() {
-        return new ZenType(Kind, Name, Clazz, Parameters);
+    public ZenType Copy() {
+        var paramss = Parameters.Select(p => p.Copy()).ToArray();
+        return new ZenType(Kind, Name, Clazz, paramss);
     }
 
     /// <summary>

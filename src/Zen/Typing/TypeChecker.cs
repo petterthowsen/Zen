@@ -4,35 +4,33 @@ namespace Zen.Typing;
 
 public class TypeChecker {
     public static bool IsCompatible(ZenType source, ZenType target) {
-        Logger.Instance.Debug($"Checking type compatibility: source={source}, target={target}");
-        Logger.Instance.Debug($"Source type: {source.GetType()}, Target type: {target.GetType()}");
+        // Logger.Instance.Debug($"Checking type compatibility: source={source}, target={target}");
+        // Logger.Instance.Debug($"Source type: {source.GetType()}, Target type: {target.GetType()}");
 
         // Base cases
         if (target == ZenType.Any) {
-            Logger.Instance.Debug("Target is Any, returning true");
             return true;
         }
         if (source == target) {
-            Logger.Instance.Debug("Source equals target, returning true");
             return true;
         }
 
         // Handle union types
         if (target.IsUnion) {
-            Logger.Instance.Debug($"Target is union type: {target}");
+            // Logger.Instance.Debug($"Target is union type: {target}");
             // Source must be compatible with at least one of the union's types
             return target.Parameters.Any(t => IsCompatible(source, t));
         }
 
         if (source.IsUnion) {
-            Logger.Instance.Debug($"Source is union type: {source}");
+            // Logger.Instance.Debug($"Source is union type: {source}");
             // All types in the source union must be compatible with the target
             return source.Parameters.All(t => IsCompatible(t, target));
         }
 
         // Handle generic type parameters
         if (target.IsGeneric) {
-            Logger.Instance.Debug($"Target is generic parameter {target.Name}");
+            // Logger.Instance.Debug($"Target is generic parameter {target.Name}");
             // When checking against a generic type parameter,
             // we need to ensure the source type satisfies any constraints
             // For now, we just allow any type to be assigned to a generic parameter
@@ -41,34 +39,34 @@ public class TypeChecker {
 
         // Handle numeric promotions
         if (source.IsNumeric && target.IsNumeric) {
-            Logger.Instance.Debug("Checking numeric promotion");
+            // Logger.Instance.Debug("Checking numeric promotion");
             return IsValidNumericPromotion(source, target);
         }
 
         // Handle parametric types (like Container<string>)
         if (source.IsParametric && target.IsParametric) {
-            Logger.Instance.Debug($"Both types are parametric: source={source}, target={target}");
+            // Logger.Instance.Debug($"Both types are parametric: source={source}, target={target}");
             // First check if base types match
             if (source.Name != target.Name) {
-                Logger.Instance.Debug("Base types don't match, returning false");
+                // Logger.Instance.Debug("Base types don't match, returning false");
                 return false;
             }
             
             // Then check if parameters match
             if (source.Parameters.Length != target.Parameters.Length) {
-                Logger.Instance.Debug("Parameter count mismatch, returning false");
+                // Logger.Instance.Debug("Parameter count mismatch, returning false");
                 return false;
             }
 
             // Check each parameter
             for (int i = 0; i < source.Parameters.Length; i++) {
                 if (!IsCompatible(source.Parameters[i], target.Parameters[i])) {
-                    Logger.Instance.Debug($"Parameter {i} is not compatible");
+                    // Logger.Instance.Debug($"Parameter {i} is not compatible");
                     return false;
                 }
             }
             
-            Logger.Instance.Debug("All parameters are compatible");
+            // Logger.Instance.Debug("All parameters are compatible");
             return true;
         }
 
@@ -91,7 +89,7 @@ public class TypeChecker {
         //     }
         // }
 
-        Logger.Instance.Debug("No compatibility rules matched, returning false");
+        // Logger.Instance.Debug("No compatibility rules matched, returning false");
         return false;
     }
 

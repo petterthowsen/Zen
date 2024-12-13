@@ -1,15 +1,16 @@
 using Zen.Common;
 using Zen.Lexing;
 
-namespace Zen.Parsing.AST.Statements;
+namespace Zen.Parsing.AST.Expressions;
 
-public class ThrowStmt(Token token, Expr expression) : Stmt
+public class ArrayLiteral(Token token, List<Expr> items) : Expr
 {
     public Token Token = token;
-    public Expr Expression = expression;
+
+    public List<Expr> Items = items;
 
     public override SourceLocation Location => Token.Location;
-    
+
     public override void Accept(IVisitor visitor)
     {
         visitor.Visit(this);
@@ -27,6 +28,6 @@ public class ThrowStmt(Token token, Expr expression) : Stmt
 
     public override string ToString()
     {
-        return $"ThrowStmt";
+        return "ArrayLiteral";
     }
 }

@@ -18,7 +18,12 @@ public interface IGenericVisitor<T>
     T Visit(ExpressionStmt expressionStmt);
     T Visit(PrintStmt printStmt);
     T Visit(FuncStmt funcStmt);
+    
     T Visit(ReturnStmt returnStmt);
+    T Visit(ThrowStmt throwStmt);
+    T Visit(TryStmt tryStmt);
+    T Visit(CatchStmt catchStmt);
+
     T Visit(ClassStmt classStmt);
     T Visit(InterfaceStmt interfaceStmt);
     T Visit(AbstractMethodStmt abstractMethodStmt);
@@ -53,4 +58,5 @@ public interface IGenericVisitor<T>
     T Visit(Await await);
     T Visit(BracketGet bracketGet);
     T Visit(BracketSet bracketSet);
+    T Visit(ArrayLiteral arrayLiteral);
 }

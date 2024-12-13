@@ -1,0 +1,62 @@
+import System/Http/HttpServer
+
+class Something {
+    # minimal case (private by default)
+    prop:string
+
+    # a single visibility flag applies to both read and write access
+    public prop:int
+
+    # public get, protected set. Mm, yes spaces are better.
+    public protected prop:int
+
+    # getter and setter functions
+    prop:string {
+        public get {
+            return prop + "something"
+        }
+        set {
+            prop = value
+        }
+    }
+
+    # getters and setters on static properties
+    static name:string {
+        public get {
+            return "john"
+        }
+        # without defining a setter, and wihout 'public' before the property declaration,
+        # this makes this effectively a magic property. 
+    }
+
+    public name:string {
+        get { # inherits 'public' from the property declaration
+            return "john"
+        }
+        private set # explicitly marks this as unsettable. making it a magic property.
+    }
+
+    # for complex computed properties, one might want to put this logic elsewhere:
+    public computedValue:float {
+        get = GetComputedValue # we could allow using equals to define the getter method
+        # setter is public
+    }
+
+    GetComputedValue(): float {
+        # we need some way to refer to the value that doesn't recursively invoke the getter
+        # we might use 'value', but that would cause a conflict if we have a property called 'value'
+        # also, if the GetComputedValue() is invoked manually, it wouldn't work. Of course, we could mark this as a setter and force it to be private.
+        # hmmm
+        return value * 2 / 1.1
+    }
+
+    # also, an alternative approach, which is simpler and involves less interpreter magic:
+    # the interpreter must make references to the ComputedValue not invoke the getter when inside the getter for that value.
+    private GetComputedValue(): float {
+        return ComputedValue * 2.0 / 1.0
+    }
+    public ComputedValue: float {
+        get => GetComputedValue()
+    }
+
+}

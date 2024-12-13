@@ -5,7 +5,6 @@ using Zen.Parsing.AST;
 using Zen.Typing;
 using Zen.Execution.EvaluationResult;
 using Zen.Execution.Import;
-using System.Reflection.Metadata.Ecma335;
 
 namespace Zen.Execution;
 
@@ -13,6 +12,9 @@ public partial class Interpreter : IGenericVisitorAsync<Task<IEvaluationResult>>
 {
     public static RuntimeError Error(string message, SourceLocation? location = null, ErrorType errorType = ErrorType.RuntimeError, Exception? innerException = null)
     {
+        if (location == null && Instance != null) {
+            location = Instance.CurrentNode?.Location;
+        }
         return new RuntimeError(message, errorType, location, innerException);
     }
 
@@ -135,6 +137,9 @@ public partial class Interpreter : IGenericVisitorAsync<Task<IEvaluationResult>>
 
     private VariableResult LookUpVariable(string name, Expr expr)
     {
+        if (name == "K") {
+            var nothing = "Y";
+        }
         if (Locals.TryGetValue(expr, out int distance))
         {
             Logger.Instance.Debug($"Found variable {name} at distance {distance}");

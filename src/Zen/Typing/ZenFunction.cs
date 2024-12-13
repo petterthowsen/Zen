@@ -27,7 +27,7 @@ public class ZenFunction : ICallable {
             DefaultValue = ZenValue.Null;
         }
 
-        public Argument(string name, ZenType type, bool nullable, ZenValue defaultValue) : this(name, type) {
+        public Argument(string name, ZenType type, bool nullable, ZenValue? defaultValue) : this(name, type) {
             Nullable = nullable;
             DefaultValue = defaultValue;
         }
@@ -115,8 +115,8 @@ public class ZenFunction : ICallable {
     }
 
     // Create a static host method
-    public static ZenFunction NewStaticHostMethod(string name, ZenType reurnType, List<Argument> arguments, Func<ZenValue[], ZenValue> method, bool variadic = false) {
-        return new ZenFunction(TYPE.HostMethod, false, variadic, reurnType, arguments) {
+    public static ZenFunction NewStaticHostMethod(string name, ZenType returnType, List<Argument> arguments, Func<ZenValue[], ZenValue> method, bool variadic = false) {
+        return new ZenFunction(TYPE.HostMethod, false, variadic, returnType, arguments) {
             Name = name,
             StaticHostMethod = method,
             IsStatic = true

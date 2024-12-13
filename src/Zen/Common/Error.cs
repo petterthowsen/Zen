@@ -14,7 +14,6 @@ public class Error : Exception {
     public Error(string message, ErrorType errorType, SourceLocation? location, Exception? innerException = null) : base(message, innerException) {
         _message = message;
         prefix = "Error";
-        Type = errorType;
         Location = location;
     }
 

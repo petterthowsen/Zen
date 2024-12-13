@@ -23,7 +23,7 @@ public class ZenObject {
 
     public ZenObject(ZenClass clazz) {
         Class = clazz;
-        Type = clazz.Type;  // Initially use the class's type, can be updated later with specific type parameters
+        Type = clazz.Type.Copy();  // Initially use the class's type, can be updated later with specific type parameters
     }
 
     public ZenFunction? GetOwnMethod(string name, ZenValue[] argValues, ZenType? returnType = null) {
@@ -57,7 +57,17 @@ public class ZenObject {
         }
 
         // Fall back to class methods
-        return Class.GetOwnMethod(name, argValues, returnType);
+        // We skip methods that have generic parameters.
+        ZenFunction? method = Class.GetOwnMethod(name, argValues, returnType);
+        if (method != null) {
+            foreach(var argument in method.Arguments) {
+                if (argument.Type.IsGeneric) {
+                    return null;
+                }
+            }
+        }
+
+        return method;
     }
 
 
@@ -88,12 +98,7 @@ public class ZenObject {
         var method = GetOwnMethod(name, argValues, returnType);
         if (method != null) return method;
 
-        // Fall back to class methods
-        if (Class == ZenClass.Master) {
-            return null;
-        }
-
-        return Class.SuperClass.GetMethodHierarchically(name, argValues, returnType);
+        return Class.GetMethodHierarchically(name, argValues, returnType);
     }
 
     public ZenFunction? GetMethodHierarchically(string name)
@@ -112,12 +117,7 @@ public class ZenObject {
         // First check concrete methods
         if (HasOwnMethod(name)) return true;
 
-        // Fall back to class methods
-        if (Class == ZenClass.Master) {
-            return false;
-        }
-
-        return Class.SuperClass.HasMethodHierarchically(name);
+        return Class.HasMethodHierarchically(name);
     }
 
     public bool HasOwnMethod(string name) {
