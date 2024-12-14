@@ -466,12 +466,15 @@ public async Task<IEvaluationResult> VisitAsync(Grouping grouping)
             }
         }
         // static method?
-        else if (result.Type == ZenType.Class) {
-            ZenClass clazz = result.Value.Underlying!;
+        else if (result.Type is ZenType) {
+            ZenType type = result.Value.Underlying!;
+            if (type.IsClass) {
+                ZenClass clazz = (ZenClass) type.Clazz!;
 
-            method = clazz.GetOwnMethod(get.Identifier.Value, argValues);
-            if (method != null && method.IsStatic) {
-                return (ValueResult) new ZenValue(ZenType.Method, method);
+                method = clazz.GetOwnMethod(get.Identifier.Value, argValues);
+                if (method != null && method.IsStatic) {
+                    return (ValueResult) new ZenValue(ZenType.Method, method);
+                }
             }
         }
         
@@ -559,15 +562,20 @@ public async Task<IEvaluationResult> VisitAsync(Grouping grouping)
         Call call = instantiation.Call;
         IEvaluationResult clazzResult = await Evaluate(call.Callee);
 
+        if (clazzResult.Type != ZenType.Type) {
+            throw Error($"Cannot instantiate non-type value '{clazzResult.Type}'", instantiation.Location, Common.ErrorType.TypeError);
+        }
+
+        ZenType clazzType = (ZenType) clazzResult.Value.Underlying!;
+
         // make sure it's a Class type
-        if (clazzResult.Type != ZenType.Class)
+        if (clazzType.Kind != ZenTypeKind.Class)
         {
-            throw Error($"Cannot instantiate non-class type '{clazzResult.Type}'", instantiation.Location, Common.ErrorType.TypeError);
+            throw Error($"Cannot instantiate non-class type '{clazzType}'", instantiation.Location, Common.ErrorType.TypeError);
         }
 
         // get the underlying ZenClass
-        ZenValue value = clazzResult.Value;
-        ZenClass clazz = (ZenClass) value.Underlying!;
+        ZenClass clazz = (ZenClass) clazzType.Clazz!;
 
         Logger.Instance.Debug($"Class parameters: {string.Join(", ", clazz.Parameters.Select(p => $"{p.Name} (Type: {p.Type})"))}");
         Logger.Instance.Debug($"Instantiation parameters: {string.Join(", ", instantiation.Parameters.Select(p => p.ToString()))}");
@@ -614,8 +622,8 @@ public async Task<IEvaluationResult> VisitAsync(Grouping grouping)
                     // For type parameters (like "T" or "T:Type")
                     if (param.IsTypeParameter) {
                         // If it's a TypeResult
-                        if (paramResult is TypeResult typeResult) {
-                            paramValues[param.Name] = typeResult.Value;
+                        if (paramResult.Type == ZenType.Type) {
+                            paramValues[param.Name] = paramResult.Value;
                         }
                         // If it's a variable that holds a type (like 'string')
                         else if (paramResult is VariableResult varResult && varResult.Value.Type == ZenType.Type) {
@@ -724,6 +732,7 @@ public async Task<IEvaluationResult> VisitAsync(Grouping grouping)
             }
 
             // resolve the parameters
+            type = type.Copy();
             for (int i = 0; i < typeHint.Parameters.Length; i++) {
                 TypeHint param = typeHint.Parameters[i];
                 type.Parameters[i] = ResolveTypeHint(param);

@@ -18,8 +18,8 @@ public class ClassTests : TestRunner
         ZenValue Test = Interpreter.Environment.GetValue("Test");
 
         // make sure its a class
-        Assert.Equal(ZenType.Class, Test.Type);
-        Assert.IsType<ZenClass>(Test.Underlying);
+        Assert.IsType<ZenType>(Test.Type);
+        Assert.IsType<ZenClass>(Test.Underlying!.Clazz);
     }
 
     
@@ -36,9 +36,9 @@ public class ClassTests : TestRunner
         // get the class
         ZenValue Test = Interpreter.Environment.GetValue("Test");
         
-        Assert.True(Test.Type == ZenType.Class, "Type should be a ZenType.Class");
+        Assert.True(Test.Type == ZenType.Type, "Type should be a ZenType.Class");
 
-        ZenClass Clazz = Test.Underlying!;
+        ZenClass Clazz = Test.Underlying!.Clazz;
 
         Assert.Equal("Test", Clazz.Name);
 
@@ -132,7 +132,7 @@ public class ClassTests : TestRunner
 
         await Execute(code);
 
-        ZenClass Point = (ZenClass) Interpreter.Environment.GetValue("Point")!.Underlying!;
+        ZenClass Point = Interpreter.Environment.GetClass("Point");
 
         // test properties
         Assert.Equal(2, Point.Properties.Count);
@@ -211,10 +211,13 @@ public class ClassTests : TestRunner
         ");
 
         ZenValue PrintableValue = Interpreter.Environment.GetValue("Printable")!;
-        Assert.Equal(PrintableValue.Type, ZenType.Interface);
+        Assert.Equal(PrintableValue.Type, ZenType.Type);
+        Assert.IsType<ZenType>(PrintableValue.Underlying);
 
-        Assert.IsType<ZenInterface>(PrintableValue.Underlying);
-        ZenInterface printableInterface = (ZenInterface)Interpreter.Environment.GetValue("Printable")!.Underlying!;
+        ZenType PrintableType = PrintableValue.Underlying!;
+
+        Assert.IsType<ZenInterface>(PrintableType.Clazz);
+        ZenInterface printableInterface = Interpreter.Environment.GetInterface("Printable");
         
         Assert.Equal("Printable", printableInterface.Name);
         Assert.Single(printableInterface.Methods);
@@ -238,8 +241,8 @@ public class ClassTests : TestRunner
             }
         ");
 
-        ZenInterface printableInterface = (ZenInterface)Interpreter.Environment.GetValue("Printable")!.Underlying!;
-        ZenClass testClass = (ZenClass)Interpreter.Environment.GetValue("Test")!.Underlying!;
+        ZenInterface printableInterface = Interpreter.Environment.GetInterface("Printable");
+        ZenClass testClass = Interpreter.Environment.GetClass("Test");
         
         Assert.Equal("Test", testClass.Name);
         Assert.Equal("Print", printableInterface.Methods.First().Name);
@@ -262,7 +265,7 @@ public class ClassTests : TestRunner
             Print(thing: T): string
         }");
 
-        ZenInterface printableInterface = (ZenInterface)Interpreter.Environment.GetValue("Printable")!.Underlying!;
+        ZenInterface printableInterface = Interpreter.Environment.GetInterface("Printable");
         Assert.Equal("Printable", printableInterface.Name);
         Assert.Single(printableInterface.Methods);
         Assert.Equal("Print", printableInterface.Methods.First().Name);
@@ -293,8 +296,8 @@ public class ClassTests : TestRunner
         obj.Print(""Hello World"")
         ", true);
 
-        ZenInterface printableInterface = (ZenInterface)Interpreter.Environment.GetValue("Printable")!.Underlying!;
-        ZenClass testClass = (ZenClass)Interpreter.Environment.GetValue("Test")!.Underlying!;
+        ZenInterface printableInterface = Interpreter.Environment.GetInterface("Printable");
+        ZenClass testClass = Interpreter.Environment.GetClass("Test")!;
         
         Assert.Equal("Test", testClass.Name);
         Assert.Equal("Print", printableInterface.Methods.First().Name);

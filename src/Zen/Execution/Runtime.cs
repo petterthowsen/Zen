@@ -68,14 +68,14 @@ public class Runtime
         await Builtins.Core.Time.Register(Interpreter);
         
         // Globalize the Map class.
-        ZenClass mapClass = (await Interpreter.FetchSymbol("Zen/Collections/Map", "Map")).Underlying!;
-        Interpreter.globalEnvironment.Define(true, "Map", ZenType.Class, false);
-        Interpreter.globalEnvironment.Assign("Map", new ZenValue(ZenType.Class, mapClass));
+        ZenType mapType = (await Interpreter.FetchSymbol("Zen/Collections/Map", "Map")).Underlying!;
+        Interpreter.globalEnvironment.Define(true, "Map", ZenType.Type, false);
+        Interpreter.globalEnvironment.Assign("Map", new ZenValue(ZenType.Type, mapType));
 
         // Globalize the Exception class
-        ZenClass exceptionClass = (await Interpreter.FetchSymbol("Zen/Exception", "Exception")).Underlying!;
-        Interpreter.globalEnvironment.Define(true, "Exception", ZenType.Class, false);
-        Interpreter.globalEnvironment.Assign("Exception", new ZenValue(ZenType.Class, exceptionClass));
+        ZenType exceptionType = (await Interpreter.FetchSymbol("Zen/Exception", "Exception")).Underlying!;
+        Interpreter.globalEnvironment.Define(true, "Exception", ZenType.Type, false);
+        Interpreter.globalEnvironment.Assign("Exception", new ZenValue(ZenType.Type, exceptionType));
 
         await Task.CompletedTask;
     }

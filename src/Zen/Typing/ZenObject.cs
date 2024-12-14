@@ -38,7 +38,7 @@ public class ZenObject {
             if (returnType != null && false == TypeChecker.IsCompatible(returnType, m.ReturnType)) {
                 continue;
             }
-
+            //todo: this is wrong for variadics
             if (m.Arguments.Count != argTypes.Length) {
                 continue;
             }
@@ -56,18 +56,7 @@ public class ZenObject {
             }
         }
 
-        // Fall back to class methods
-        // We skip methods that have generic parameters.
-        ZenFunction? method = Class.GetOwnMethod(name, argValues, returnType);
-        if (method != null) {
-            foreach(var argument in method.Arguments) {
-                if (argument.Type.IsGeneric) {
-                    return null;
-                }
-            }
-        }
-
-        return method;
+        return null;
     }
 
 
@@ -98,19 +87,37 @@ public class ZenObject {
         var method = GetOwnMethod(name, argValues, returnType);
         if (method != null) return method;
 
-        return Class.GetMethodHierarchically(name, argValues, returnType);
+        method = Class.GetMethodHierarchically(name);
+        if (method != null) {
+            foreach (var argDef in method.Arguments) {
+                if (argDef.Type.IsGeneric) {
+                    return null;
+                }
+            }
+        }
+        
+
+        return method;
     }
 
     public ZenFunction? GetMethodHierarchically(string name)
     {
+        // first check concrete methods
         var method = GetOwnMethod(name);
         if (method != null) return method;
 
-        if (Class == ZenClass.Master) {
-            return null;
-        }
 
-        return Class.SuperClass.GetMethodHierarchically(name);
+        method = Class.GetMethodHierarchically(name);
+        if (method != null) {
+            foreach (var argDef in method.Arguments) {
+                if (argDef.Type.IsGeneric) {
+                    return null;
+                }
+            }
+        }
+        
+
+        return method;
     }
 
     public bool HasMethodHierarchically(string name) {

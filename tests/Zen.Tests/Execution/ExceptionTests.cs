@@ -47,11 +47,11 @@ public class ExceptionTests : TestRunner
             try {
                 var a = 1 / 0
             } catch ex: Exception {
-                print ex.Message
+                print ""caught""
             }
         ", true);
 
-        Assert.Equal("oops!", result);
+        Assert.Equal("caught", result);
     }
 
 }

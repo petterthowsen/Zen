@@ -15,8 +15,8 @@ public class Array : IBuiltinsProvider
             new IZenClass.Parameter("T", ZenType.Type)
         ]);
 
-        env.Define(true, "Array", ZenType.Class, false);
-        env.Assign("Array", new ZenValue(ZenType.Class, ArrayClass));
+        env.Define(true, "Array", ZenType.Type, false);
+        env.Assign("Array", new ZenValue(ZenType.Type, ArrayClass.Type));
 
         await Task.CompletedTask;
     }
@@ -29,10 +29,10 @@ public class Array : IBuiltinsProvider
         Module iterableModule = await interp.GetModule("Zen/Collections/Iterable");
         Module arrayEnumeratorModule = await interp.GetModule("Zen/Collections/ArrayEnumerator");
 
-        ZenInterface bracketGet = bracketAccessModule.environment.GetValue("BracketGet")!.Underlying;
-        ZenInterface bracketSet = bracketAccessModule.environment.GetValue("BracketSet")!.Underlying;
-        ZenInterface iterable = iterableModule.environment.GetValue("Iterable")!.Underlying;
-        ZenClass arrayEnumerator = arrayEnumeratorModule.environment.GetValue("ArrayEnumerator")!.Underlying;
+        ZenInterface bracketGet = bracketAccessModule.environment.GetValue("BracketGet")!.Underlying.Clazz;
+        ZenInterface bracketSet = bracketAccessModule.environment.GetValue("BracketSet")!.Underlying.Clazz;
+        ZenInterface iterable = iterableModule.environment.GetValue("Iterable")!.Underlying.Clazz;
+        ZenClass arrayEnumerator = arrayEnumeratorModule.environment.GetValue("ArrayEnumerator")!.Underlying.Clazz;
 
         //--- Properties ---
         ArrayClass!.Properties.Add("Length", new("Length", ZenType.Integer, new ZenValue(ZenType.Integer, 0), ZenClass.Visibility.Public));
@@ -54,7 +54,8 @@ public class Array : IBuiltinsProvider
             [],
             (ZenObject self, ZenValue[] args) => {
                 Dictionary<string, ZenValue> paramValues = [];
-                paramValues.Add("T", self.GetParameter("T"));
+                paramValues.Add("K", new ZenValue(ZenType.Type, ZenType.Integer));
+                paramValues.Add("V", self.GetParameter("T"));
 
                 ZenObject enumerator = arrayEnumerator.CreateInstance(Interpreter.Instance, [new ZenValue(self.Type, self)], paramValues);
                 return new ZenValue(iterable.Type, enumerator);

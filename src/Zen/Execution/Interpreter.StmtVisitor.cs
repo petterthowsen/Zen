@@ -327,8 +327,8 @@ public partial class Interpreter
 
         ZenObject target = (ZenObject) targetVal.Underlying!;
 
-        ZenInterface iterableInterface = (await FetchSymbol("Zen/Collections/Iterable", "Iterable")).Underlying!;
-        ZenInterface enmeratorInterface = (await FetchSymbol("Zen/Collections/Enumerator", "Enumerator")).Underlying!;
+        ZenInterface iterableInterface = (await FetchSymbol("Zen/Collections/Iterable", "Iterable")).Underlying!.Clazz!;
+        ZenInterface enmeratorInterface = (await FetchSymbol("Zen/Collections/Enumerator", "Enumerator")).Underlying!.Clazz!;
 
         if (target.Class.Implements(iterableInterface) == false) {
             throw Error($"Class '{target.Class.Name}' does not implement '{iterableInterface.Name}'.", forInStmt.Expression.Location, Common.ErrorType.TypeError);
@@ -434,14 +434,14 @@ public partial class Interpreter
     {
         CurrentNode = classStmt;
 
-        Environment.Define(true, classStmt.Identifier.Value, ZenType.Class, false);
+        Environment.Define(true, classStmt.Identifier.Value, ZenType.Type, false);
 
         ZenClass clazz = await EvaluateClassStatement(classStmt);
 
         // validate the class
         clazz.Validate();
 
-        Environment.Assign(classStmt.Identifier.Value, new ZenValue(ZenType.Class, clazz));
+        Environment.Assign(classStmt.Identifier.Value, new ZenValue(ZenType.Type, clazz.Type));
 
         return (ValueResult)ZenValue.Void;
     }
@@ -450,11 +450,11 @@ public partial class Interpreter
     {
         CurrentNode = interfaceStmt;
 
-        Environment.Define(true, interfaceStmt.Identifier.Value, ZenType.Class, false);
+        Environment.Define(true, interfaceStmt.Identifier.Value, ZenType.Type, false);
 
         ZenInterface @interface = await EvaluateInterfaceStatement(interfaceStmt);
 
-        Environment.Assign(interfaceStmt.Identifier.Value, new ZenValue(ZenType.Interface, @interface));
+        Environment.Assign(interfaceStmt.Identifier.Value, new ZenValue(ZenType.Type, @interface.Type));
 
         return (ValueResult)ZenValue.Void;
     }
@@ -554,7 +554,7 @@ public partial class Interpreter
             }
 
             ZenClass clazz = new ZenClass(classStmt.Identifier.Value, genericParameters);
-            previousEnvironment.Assign(classStmt.Identifier.Value, new ZenValue(ZenType.Class, clazz));
+            previousEnvironment.Assign(classStmt.Identifier.Value, new ZenValue(ZenType.Class, clazz));// ^ this is wrong it hould be ZenType.Type of the custom class type ^^^
 
             // create the Properties
             List<ZenClass.Property> properties = [];
@@ -676,9 +676,16 @@ public partial class Interpreter
             // extends?
             if (classStmt.Extends != null) {
                 ZenValue val = (await Evaluate(classStmt.Extends)).Value;
-                if (val.Type == ZenType.Class) {
-                    clazz.SuperClass = val.Underlying!;
-                }else {
+                bool isClass = false;
+                if (val.Type == ZenType.Type) {
+                    ZenType type = val.Underlying!;
+                    if (type.Kind == ZenTypeKind.Class) {
+                        clazz.SuperClass = (ZenClass) type.Clazz!;
+                        isClass = true;
+                    }    
+                }
+                
+                if ( ! isClass) {
                     throw Error($"Class '{classStmt.Identifier.Value}' cannot extend non-class type '{val.Type}'", classStmt.Extends.Location, Common.ErrorType.SyntaxError);
                 }
             }
@@ -687,11 +694,18 @@ public partial class Interpreter
             foreach (ImplementsExpr implements in classStmt.Implements) {
                 CurrentNode = implements;
                 ZenValue val = (await Evaluate(implements.Identifier)).Value;
-                if (val.Type == ZenType.Interface) {
-                    clazz.Interfaces.Add(val.Underlying!);
-                }else {
-                    throw Error($"Class '{classStmt.Identifier.Value}' cannot implement non-interface type '{val.Type}'", implements.Location, Common.ErrorType.SyntaxError);
+                
+                // must resolve to a Type
+                if (val.Type == ZenType.Type) {
+                    ZenType type = val.Underlying!;
+
+                    if (type.IsInterface) {
+                        clazz.Interfaces.Add((ZenInterface) type.Clazz!);
+                        continue;
+                    }
                 }
+
+                throw Error($"Class '{classStmt.Identifier.Value}' cannot implement non-interface type '{val.Type}'", implements.Location, Common.ErrorType.SyntaxError);
             }
             
             return clazz;

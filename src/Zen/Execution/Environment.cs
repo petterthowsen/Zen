@@ -91,6 +91,26 @@ public class Environment {
         return variable.Value;
     }
 
+    public ZenClass GetClass(string name) {
+        Variable variable = GetVariable(name);
+        if (variable.Type == ZenType.Type) {
+            return (ZenClass)variable.Value.Underlying!.Clazz;
+        }
+
+        throw new Exception($"Variable '{name}' is not a type.");
+    }
+
+    public ZenInterface GetInterface(string name)
+    {
+        Variable variable = GetVariable(name);
+        if (variable.Type == ZenType.Type)
+        {
+            return (ZenInterface)variable.Value.Underlying!.Clazz;
+        }
+
+        throw new Exception($"Variable '{name}' is not a type.");
+    }
+
     public void Assign(string name, ZenValue value) {
         Variables[name].Assign(value);
     }

@@ -57,7 +57,9 @@ public class ZenType {
     public bool IsPromise => this == Promise || (IsParametric && Name == "Promise");
     public bool IsTask => this == Task || (IsParametric && Name == "Task");
     public bool IsClass => Kind == ZenTypeKind.Class || Kind == ZenTypeKind.Interface;
+    public bool IsInterface => Kind == ZenTypeKind.Interface;
     public bool IsUnion => Kind == ZenTypeKind.Union;
+    
 
     /// <summary>
     /// Returns true if this type or any of its parameters is generic and hence unresolved.
@@ -98,7 +100,7 @@ public class ZenType {
     public static ZenType MakeDotNetType(string name) => new ZenType(ZenTypeKind.DotNet, name);
 
     // Generic parameter placeholder
-    public static ZenType GenericParameter(string name) => new(name);
+    public static ZenType GenericParameter(string name) => new(ZenTypeKind.GenericParameter, name);
 
     // Create a union type from a list of types
     public static ZenType Union(string name, params ZenType[] types) {

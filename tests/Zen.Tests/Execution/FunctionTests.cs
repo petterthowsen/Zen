@@ -126,7 +126,7 @@ public class FunctionTests : TestRunner
 
     
     [Fact]
-    public async void TestFunctionsWithOneArgumentAndDefault()
+    public async Task TestFunctionsWithOneArgumentAndDefault()
     {
         await RestartInterpreter();
 
@@ -138,5 +138,17 @@ public class FunctionTests : TestRunner
         ", true);
 
         Assert.Equal("hello john", result);
+    }
+
+    [Fact]
+    public async Task TestReturnAsyncFunc()
+    {
+        await RestartInterpreter();
+
+        Execute(@"
+            func makeCounter() : Func {
+                
+            }
+        ");
     }
 }

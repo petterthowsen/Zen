@@ -29,8 +29,8 @@ public class ModuleContainer : IBuiltinsProvider
             ]
         );
 
-        env.Define(true, "Module", ZenType.Class, false);
-        env.Assign("Module", new ZenValue(ZenType.Class, Clazz));
+        env.Define(true, "Module", ZenType.Type, false);
+        env.Assign("Module", new ZenValue(ZenType.Type, Clazz.Type));
 
         await Task.CompletedTask;
     }

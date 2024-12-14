@@ -22,27 +22,6 @@ public class String : IBuiltinsProvider
                     return new ZenValue(ZenType.String, charArray.ToString());
                 }, false),
 
-                // Split
-                // ZenFunction.NewStaticHostMethod("Split", ZenType.String,
-                    
-                //     // arguments
-                //     [
-                //         new("str", ZenType.String),
-                //         new("separator", ZenType.String, false, new ZenValue(ZenType.String, ""))
-                //     ],
-                //     (ZenValue[] args) => {
-                //         string str = args[0].Underlying!;
-                //         string separator = args[1].Underlying!;
-
-                //         string[] chars = str.Split(separator);
-                //         ZenValue[] charValues = chars.Select(c => new ZenValue(ZenType.String, c)).ToArray();
-
-                //         // create an array of strings
-                //         Array.CreateInstance(Interpreter.Instance, charValues, ZenType.String);
-
-                //         return new ZenValue(ZenType.String, "");
-                // }, false),
-
                 // ToUpper
                 ZenFunction.NewStaticHostMethod("ToUpper", ZenType.String, [new("str", ZenType.String)], (ZenValue[] args) => {
                     string str = args[0].Underlying ?? "";
@@ -82,7 +61,7 @@ public class String : IBuiltinsProvider
         Environment env = interp.globalEnvironment;
         env.Define(true, "String", ZenType.Class, false);
         createClass();
-        env.Assign("String", new ZenValue(ZenType.Class, StringClass));
+        env.Assign("String", new ZenValue(ZenType.Type, StringClass.Type));
         await Task.CompletedTask;
     }
 
@@ -91,8 +70,8 @@ public class String : IBuiltinsProvider
         Environment env = interp.globalEnvironment;
 
         // get array class
-        ZenValue Array = env.GetValue("Array");
-        ZenClass ArrayClass = Array.Underlying!;
+        ZenType ArrayType = env.GetValue("Array")!.Underlying;
+        ZenClass ArrayClass = (ZenClass) ArrayType.Clazz!;
         
         // make the Array<string> type
         Dictionary<string, ZenType> substitutions = [];

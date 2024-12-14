@@ -10,7 +10,7 @@ public partial class Interpreter
 {
 
     protected async Task<ZenObject> CreateZenException(string message) {
-        ZenClass zenExceptionClass = (await FetchSymbol("Zen/Exception", "Exception")).Underlying!;
+        ZenClass zenExceptionClass = (await FetchSymbol("Zen/Exception", "Exception")).Underlying!.Clazz;
         return zenExceptionClass.CreateInstance(this, [new ZenValue(ZenType.String, message)], []);
     }
 

@@ -139,8 +139,8 @@ public class ArrayTests : TestRunner
         await RestartInterpreter();
         await Execute(@"
             var arr = new Array<int>()
-            arr.push(1)
-            arr.push(2)
+            arr.Append(1)
+            arr.Append(2)
         ");
         var result = await Execute("print arr[0]", true);
         Assert.Equal("1", result);
@@ -153,6 +153,7 @@ public class ArrayTests : TestRunner
         await Execute("var arr = new Array<int>()");
         var result = await Assert.ThrowsAsync<RuntimeError>(async () =>  await Execute("arr.Append(\"hello\")"));
     }
+
 
     [Fact]
     public async void TestArrayLiteral()

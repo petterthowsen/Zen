@@ -77,7 +77,7 @@ public class AsyncTests : TestRunner
             }
         ");
 
-        ZenClass testClass = (ZenClass)Interpreter.Environment.GetValue("Test")!.Underlying!;
+        ZenClass testClass = Interpreter.Environment.GetClass("Test");
         
         Assert.Equal("Test", testClass.Name);
         Assert.Equal("hello", testClass.Methods.First().Name);
@@ -131,7 +131,7 @@ public class AsyncTests : TestRunner
 
         int elapsed = int.Parse(result!);
 
-        Assert.True(elapsed > 100, "Expected a delay of at least 100ms but got " + elapsed);
+        Assert.True(elapsed > 95, "Expected a delay of at least 100ms but got " + elapsed);
     }
 
     

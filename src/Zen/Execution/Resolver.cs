@@ -104,7 +104,7 @@ public class Resolver : IVisitor
         Dictionary<String, Boolean> scope = scopes.Peek();
         
         if (scope.ContainsKey(name.Value)) {
-            throw Interpreter.Error("Variable with this name already declared in this scope.", name.Location, ErrorType.RedefinitionError);
+            throw Interpreter.Error($"Variable {name.Value} already declared in this scope.", name.Location, ErrorType.RedefinitionError);
         }
 
         //Logger.Instance.Debug($"[RESOLVER] Declaring variable '{name.Value}' in scope at depth {scopes.Count - 1}");
@@ -117,7 +117,7 @@ public class Resolver : IVisitor
         Dictionary<String, Boolean> scope = scopes.Peek();
         
         if (scope.ContainsKey(name)) {
-            throw Interpreter.Error("Variable with this name already declared in this scope.", location, ErrorType.RedefinitionError);
+            throw Interpreter.Error($"Variable {name} already declared in this scope.", location, ErrorType.RedefinitionError);
         }
 
         //Logger.Instance.Debug($"[RESOLVER] Declaring variable '{name}' in scope at depth {scopes.Count - 1}");
@@ -377,6 +377,20 @@ public class Resolver : IVisitor
         foreach (var param in classStmt.Parameters) {
             Declare(param.Name, param.Location);
             Define(param.Name);
+        }
+
+        // resolve property declarations
+        foreach (PropertyStmt property in classStmt.Properties) {
+            Declare("this." + property.Identifier.Value, property.Location);
+            Define("this." + property.Identifier.Value);
+
+            if (property.Initializer != null) {
+                Resolve(property.Initializer);
+
+                if (property.TypeHint != null) {
+                    Resolve(property.TypeHint);
+                }
+            }
         }
 
         foreach (MethodStmt method in classStmt.Methods) {
