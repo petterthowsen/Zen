@@ -50,7 +50,7 @@ public class Array : IBuiltinsProvider
         }, true));
 
         // GetEnumerator
-        ArrayClass.Methods.Add(ZenFunction.NewHostMethod("GetEnumerator", iterable.Type,
+        ArrayClass.Methods.Add(ZenFunction.NewHostMethod("GetEnumerator", arrayEnumerator.Type,
             [],
             (ZenObject self, ZenValue[] args) => {
                 Dictionary<string, ZenValue> paramValues = [];
@@ -58,7 +58,7 @@ public class Array : IBuiltinsProvider
                 paramValues.Add("V", self.GetParameter("T"));
 
                 ZenObject enumerator = arrayEnumerator.CreateInstance(Interpreter.Instance, [new ZenValue(self.Type, self)], paramValues);
-                return new ZenValue(iterable.Type, enumerator);
+                return new ZenValue(arrayEnumerator.Type, enumerator);
             }
         ));
 

@@ -34,6 +34,22 @@ public class ArrayTests : TestRunner
     }
 
     [Fact]
+    public async Task TestArrayOfFuncs() {
+        await RestartInterpreter();
+        string? result = await Execute(@"
+            var arr:Array<Func> = new Array<Func>()
+            func myFunc() {
+                print ""hello""
+            }
+
+            arr.Append(myFunc)
+            arr[0]()
+        ", true);
+
+        Assert.Equal("hello", result);
+    }
+
+    [Fact]
     public async void TestArrayBracketGet()
     {
         await RestartInterpreter();
@@ -93,6 +109,45 @@ public class ArrayTests : TestRunner
         ", true);
 
         Assert.Equal("key: 0\nvalue: one\nkey: 1\nvalue: two\nkey: 2\nvalue: three\n", result);
+    }
+
+    [Fact]
+    public async void TestEmptyLoop()
+    {
+        await RestartInterpreter();
+        var result = await Execute(@"
+            var arr = new Array<string>()
+            for key, value in arr {
+                print ""key: "" +  key + ""\n""
+                print ""value: "" + value + ""\n""
+            }
+        ", true);
+
+        Assert.Equal("", result);
+    }
+
+    [Fact]
+    public async void TestArrayOfCustomObjects() {
+        await RestartInterpreter();
+        string? result = await Execute(@"
+            class Route {
+                name:string
+                Route(name:string) {
+                    this.name = name
+                }
+            }
+
+            var arr = new Array<Route>()
+            arr.Append(new Route(""one""))
+            arr.Append(new Route(""two""))
+
+            for key, value in arr {
+                print value.name
+            }
+
+        ", true);
+
+        Assert.Equal("one\ntwo\n", result);
     }
 
     [Fact]

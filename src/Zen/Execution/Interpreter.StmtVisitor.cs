@@ -96,18 +96,18 @@ public partial class Interpreter
 
         if (GlobalOutputBufferingEnabled)
         {
-            GlobalOutputBuffer.Append(str);
+            GlobalOutputBuffer.AppendLine(str);
             
             if (OutputHandler != null) {
-                OutputHandler(str);
+                OutputHandler(str + "\n");
             }else {
-                Console.Write(str);
+                Console.WriteLine(str);
             }
         }else {
             if (OutputHandler != null) {
                 OutputHandler(str);
             }else {
-                Console.Write(str);
+                Console.WriteLine(str);
             }
         }
         
@@ -347,7 +347,7 @@ public partial class Interpreter
             ZenObject enumerator = (await CallObject(target, "GetEnumerator", null)).Underlying!;
 
             // the type of the value is the type of the enumerator
-            ZenType elementType = target.GetParameter("V").Underlying!;
+            ZenType elementType = enumerator.GetParameter("V").Underlying!;
 
             Environment.Define(false, valueIdentifier.Value, elementType, false);
 

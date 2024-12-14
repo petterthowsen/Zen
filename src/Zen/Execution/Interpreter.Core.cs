@@ -180,7 +180,7 @@ public partial class Interpreter : IGenericVisitorAsync<Task<IEvaluationResult>>
         {
             return GetNumericPromotionType(left, right);
         }
-        else if ((op == TokenType.Plus) && left == ZenType.String && (right == ZenType.String || right.IsNumeric))
+        else if ((op == TokenType.Plus) && left == ZenType.String && (right == ZenType.String || right.IsNumeric || right.IsPrimitive))
         {
             return ZenType.String;
         }

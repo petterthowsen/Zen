@@ -75,9 +75,6 @@ public class Environment {
     }
 
     public Variable GetVariable(string name) {
-        if (name == "K") {
-            var nothing = "Y";
-        }
         if (Variables.ContainsKey(name)) {
             return Variables[name];
         }
@@ -97,7 +94,7 @@ public class Environment {
             return (ZenClass)variable.Value.Underlying!.Clazz;
         }
 
-        throw new Exception($"Variable '{name}' is not a type.");
+        throw new Exception($"Variable '{name}' is not a Class Type!");
     }
 
     public ZenInterface GetInterface(string name)

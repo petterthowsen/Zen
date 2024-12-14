@@ -28,7 +28,7 @@ public class Runtime
         Lexer = new Lexer();
         Parser = new Parser();
         SyncContext = new ZenSynchronizationContext();
-        
+
         // Set the synchronization context for async operations
         // This ensures that all async operations are executed on the same thread
         // as the event loop, without the need for locks.
@@ -54,6 +54,7 @@ public class Runtime
     {
         // Initialize core builtins
         await Builtins.Core.Typing.Initialize(Interpreter);
+        await Builtins.Core.Async.Initialize(Interpreter);
         await Builtins.Core.String.Initialize(Interpreter);
         await Builtins.Core.ModuleContainer.Initialize(Interpreter);
         await Builtins.Core.Interop.Initialize(Interpreter);
@@ -61,6 +62,7 @@ public class Runtime
         await Builtins.Core.Time.Initialize(Interpreter);
 
         await Builtins.Core.Typing.Register(Interpreter);
+        await Builtins.Core.Async.Register(Interpreter);
         await Builtins.Core.String.Register(Interpreter);
         await Builtins.Core.ModuleContainer.Register(Interpreter);
         await Builtins.Core.Interop.Register(Interpreter);
@@ -76,6 +78,12 @@ public class Runtime
         ZenType exceptionType = (await Interpreter.FetchSymbol("Zen/Exception", "Exception")).Underlying!;
         Interpreter.globalEnvironment.Define(true, "Exception", ZenType.Type, false);
         Interpreter.globalEnvironment.Assign("Exception", new ZenValue(ZenType.Type, exceptionType));
+
+        // Globalize the Promise class ?
+        ZenType promiseType = (await Interpreter.FetchSymbol("Zen/Promise", "Promise")).Underlying!;
+        Interpreter.globalEnvironment.Define(true, "Promise", ZenType.Type, false);
+        Interpreter.globalEnvironment.Assign("Promise", new ZenValue(ZenType.Type, promiseType));
+
 
         await Task.CompletedTask;
     }

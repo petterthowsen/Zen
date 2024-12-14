@@ -102,6 +102,8 @@ public class ZenClass : IZenClass {
     }
 
     public ZenObject CreateInstance(Interpreter interpreter, ZenValue[] args, Dictionary<string, ZenValue> paramValues) {
+        //TODO: call super class's initializer.
+
         Logger.Instance.Debug($"Creating instance of {Name}...");
 
         Logger.Instance.Debug("Using generic parameters:");

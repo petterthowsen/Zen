@@ -1,4 +1,5 @@
 using Xunit.Abstractions;
+using Zen.Common;
 using Zen.Typing;
 
 namespace Zen.Tests.Execution;
@@ -141,13 +142,21 @@ public class FunctionTests : TestRunner
     }
 
     [Fact]
+    public async Task TestFuncWithFuncArgument() {
+        await RestartInterpreter();
+        var script = "/home/pelatho/Documents/work/zen-projects/ZenExpress/Test.zen";
+
+        await Execute(new FileSourceCode(script), false);
+    }
+
+    [Fact]
     public async Task TestReturnAsyncFunc()
     {
         await RestartInterpreter();
 
         Execute(@"
             func makeCounter() : Func {
-                
+
             }
         ");
     }

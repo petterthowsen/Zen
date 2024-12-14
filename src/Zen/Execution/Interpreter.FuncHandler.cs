@@ -1,5 +1,6 @@
 // Interpreter.FuncHandler.cs
 using Zen.Common;
+using Zen.Exection;
 using Zen.Execution.Builtins.Core;
 using Zen.Execution.EvaluationResult;
 using Zen.Parsing.AST;
@@ -169,19 +170,15 @@ public partial class Interpreter
 
         switch (function.Type) {
             case ZenFunction.TYPE.UserFunction:
-                Logger.Instance.Debug($"Calling {function}");
-                return await CallUserFunction(function.Async, function.Closure, function.UserCode!, function.Arguments, function.ReturnType, arguments);
+                return await CallUserFunction(function.Async, function.Closure, function.UserCode!, function.Arguments, function.ReturnType, arguments, function.Name ?? "unknown");
             
             case ZenFunction.TYPE.UserMethod:
-                Logger.Instance.Debug($"Calling {function}");
-                return await CallUserFunction(function.Async, function.Closure, function.UserCode!, function.Arguments, function.ReturnType, arguments);
+                return await CallUserFunction(function.Async, function.Closure, function.UserCode!, function.Arguments, function.ReturnType, arguments, function.Name?? "unknown");
 
             case ZenFunction.TYPE.HostFunction:
-                Logger.Instance.Debug($"Calling {function}");
-                return CallHostFunction(function, arguments);
+                return await CallHostFunction(function, arguments);
             
             case ZenFunction.TYPE.HostMethod:
-                Logger.Instance.Debug($"Calling {function}");
                 return CallHostMethod(null, function, arguments);
                 
         }
@@ -195,7 +192,7 @@ public partial class Interpreter
     /// <param name="function"></param>
     /// <param name="arguments"></param>
     /// <returns></returns>
-    public IEvaluationResult CallHostFunction(ZenFunction function, ZenValue[] arguments)
+    public async Task<IEvaluationResult> CallHostFunction(ZenFunction function, ZenValue[] arguments)
     {
         if (function.IsHost == false) throw Error($"CallHostFunction() Cannot handle non-host functions.", null, Common.ErrorType.RuntimeError);
         if (function.IsMethod) throw Error($"CallHostFunction() Cannot handle methods.", null, Common.ErrorType.RuntimeError);
@@ -209,8 +206,11 @@ public partial class Interpreter
                 throw Error($"Missing AsyncHostFunc on ZenFunction {function.Name}.", null, ErrorType.RuntimeError);
 
             // Execute the async host function. It returns Task<ZenValue>
-            var task = RunOnEventLoop(() => function.AsyncHostFunc(arguments));
-            return (ValueResult) task;
+            // return (ValueResult) RunOnEventLoop(() => function.AsyncHostFunc(arguments));
+            var task = function.AsyncHostFunc(arguments);
+            return (ValueResult) new ZenValue(ZenType.Task, task);
+            //eturn (ValueResult) task;
+            //return VoidResult.Instance;
         }
         else
         {
@@ -230,6 +230,58 @@ public partial class Interpreter
         }
     }
     
+    public async Task<ZenValue> CreatePromiseForTask(Task<ZenValue> task, ZenType returnType, string name = "Promise") {
+        // this is the tcs for the promise
+        // when the task completes, it does not complete the promise.
+        // we complete the promise when the task completes and we've got the result.
+
+        var tcs = new TaskCompletionSource<ZenValue>();
+
+        ZenType PromiseType = (await FetchSymbol("Zen/Promise", "Promise")).Underlying!;
+        ZenClass PromiseClass = (ZenClass) PromiseType.Clazz!;
+        
+        Dictionary<string, ZenValue> paramValues = [];
+        paramValues.Add("T", new ZenValue(ZenType.Type, returnType));
+
+        ZenObject promise = PromiseClass.CreateInstance(this, [
+            new ZenValue(ZenType.Task, tcs.Task)
+        ], paramValues);
+
+        promise.SetProperty("name", new ZenValue(ZenType.String, name));
+
+        SyncContext.TrackContinuation();
+
+        _ = task.ContinueWith(async t =>
+        {
+            try {
+                if (t.IsFaulted)
+                {
+                    Exception ex = t.Exception;
+                    if (ex.InnerException != null) ex = ex.InnerException;
+
+                    ZenException zenEx = await ConvertToZenException(ex);
+                    await CallObject(promise, "Fail", ZenType.Void, [
+                        zenEx.Exception
+                    ]);
+
+                    tcs.SetException(ex);
+                }else {
+                    await CallObject(promise, "Resolve", ZenType.Void, [
+                        t.Result
+                    ]);
+
+                    tcs.SetResult(t.Result);
+                }
+            } catch (Exception ex) {
+                SyncContext.Fail(ex);
+            } finally {
+                SyncContext.CompleteContinuation();
+            }
+        });
+
+        return new ZenValue(promise.Type, promise);
+    }
+
     public IEvaluationResult CallHostMethod(ZenObject instance, ZenFunction function, ZenValue[] arguments) {
         if (function.IsHost == false) throw Error($"CallHostMethod() Cannot handle non-host methods.", null, Common.ErrorType.RuntimeError);
         if (function.IsMethod == false) throw Error($"CallHostMethod() Cannot handle non-methods.", null, Common.ErrorType.RuntimeError);
@@ -239,9 +291,8 @@ public partial class Interpreter
         if (function.Async) {
             if (function.AsyncHostMethod == null) throw Error($"Missing AsyncHostMethod on ZenFunction!", null, Common.ErrorType.RuntimeError);
             
-            // Execute the async host function. It returns Task<ZenValue>
-            var task = RunOnEventLoop(() => function.AsyncHostMethod(instance, arguments));
-            return (ValueResult) task;
+            var task = function.AsyncHostMethod(instance, arguments);
+            return (ValueResult) new ZenValue(ZenType.Task, task);
         }else {
 
             if (function.IsStatic) {
@@ -252,6 +303,34 @@ public partial class Interpreter
             if (function.HostMethod == null) throw Error($"Missing HostMethod on ZenFunction!", null, Common.ErrorType.RuntimeError);
 
             return (ValueResult) function.HostMethod(instance, arguments);
+        }
+    }
+
+
+    /// <summary>
+    /// Main low-level method for calling a user function.
+    /// Calls the given ZenFunction (function or method). Handles both sync/async, validates argument and return types.
+    /// </summary>
+    private async Task<IEvaluationResult> CallUserFunction(bool async, Environment? closure, Block block, List<ZenFunction.Argument> arguments, ZenType returnType, ZenValue[] argValues, string name = "name")
+    {
+        Func<Task<ZenValue>> func = () => ExecuteUserFunction(closure, block, arguments, returnType, argValues);
+        
+        // If this is an async function
+        if (async)
+        {
+            ZenValue zenTask = RunOnEventLoop(func);
+
+            ZenValue promiseVal = await CreatePromiseForTask(zenTask.Underlying, returnType, name);
+
+            return (ValueResult) promiseVal;
+        }
+        else
+        {
+            ZenValue result = await ExecuteUserFunction(closure, block, arguments, returnType, argValues);
+            return (ValueResult) result;
+            // var task = func();
+            // await task;
+            // return (ValueResult) task.Result;
         }
     }
 
@@ -313,27 +392,24 @@ public partial class Interpreter
         }
     }
 
-    /// <summary>
-    /// Run a task on the event loop as a Zen Task. Handles exceptions.
-    /// </summary>
-    /// <param name="task"></param>
-    /// <returns>a ZenValue of type ZenType.Task, the underlying value is the task itself.</returns>
-    public ZenValue RunOnEventLoop(Func<Task<ZenValue>> taskFunc) {
+    public ZenValue RunOnEventLoop(Func<Task<ZenValue>> task) {
         var tcs = new TaskCompletionSource<ZenValue>();
 
         SendOrPostCallback callback = state => {
             // Start the async task without making the callback itself async
-            _ = ExecuteCallbackAsync(taskFunc, tcs);
+            _ = ExecuteCallbackAsync(task, tcs);
         };
 
         // Post the callback to the synchronization context
         SyncContext.Post(callback, null);
 
-        // Handle global environment continuations if necessary
-        if (Environment == globalEnvironment) {
-            SyncContext.TrackContinuation();
 
-            tcs.Task.ContinueWith(t => {
+        // Handle global environment continuations if necessary
+        SyncContext.TrackContinuation();
+
+        tcs.Task.ContinueWith(t => {
+            try {
+
                 if (t.IsFaulted) {
                     Exception? ex = t.Exception?.InnerException;
                     if (ex != null) {
@@ -341,46 +417,70 @@ public partial class Interpreter
                         SyncContext.Fail(ex);
                     }
                 }
+            } finally {
                 SyncContext.CompleteContinuation();
-            });
-        }
+            }
+        });
 
-        ZenValue zenTask = new ZenValue(ZenType.Task, tcs.Task);
-        return zenTask;
+        return new ZenValue(ZenType.Task, tcs.Task);
     }
 
     private async Task ExecuteCallbackAsync(Func<Task<ZenValue>> taskFunc, TaskCompletionSource<ZenValue> tcs) {
         try {
-            var task = taskFunc();
-            var result = await task;
+            var result = await taskFunc();
             tcs.SetResult(result);
         }
         catch (Exception ex) {
             tcs.SetException(ex);
+            throw;
         }
     }
 
     /// <summary>
-    /// Main low-level method for calling a user function.
-    /// Calls the given ZenFunction (function or method). Handles both sync/async, validates argument and return types.
+    /// Run a task on the event loop as a Zen Task. Handles exceptions.
     /// </summary>
-    private async Task<IEvaluationResult> CallUserFunction(bool async, Environment? closure, Block block, List<ZenFunction.Argument> arguments, ZenType returnType, ZenValue[] argValues)
-    {
-        Func<Task<ZenValue>> func = () => ExecuteUserFunction(closure, block, arguments, returnType, argValues);
-        
-        // If this is an async function
-        if (async)
-        {
-            ZenValue zenTask = RunOnEventLoop(func);
+    /// <param name="task"></param>
+    /// <returns>a ZenValue of type ZenType.Task, the underlying value is the task itself.</returns>
+    // public ZenValue RunOnEventLoop(Func<Task<ZenValue>> taskFunc) {
+    //     var tcs = new TaskCompletionSource<ZenValue>();
 
-            // Return the task
-            return (ValueResult) zenTask;
-        }
-        else
-        {
-            var task = func();
-            await task;
-            return (ValueResult) task.Result;
-        }
-    }
+    //     SendOrPostCallback callback = state => {
+    //         // Start the async task without making the callback itself async
+    //         _ = ExecuteCallbackAsync(taskFunc, tcs);
+    //     };
+
+    //     // Post the callback to the synchronization context
+    //     SyncContext.Post(callback, null);
+
+    //     // Handle global environment continuations if necessary
+    //     if (Environment == globalEnvironment) {
+    //         SyncContext.TrackContinuation();
+
+    //         tcs.Task.ContinueWith(t => {
+    //             if (t.IsFaulted) {
+    //                 Exception? ex = t.Exception?.InnerException;
+    //                 if (ex != null) {
+    //                     Logger.Instance.Error($"Top-level async function failed. Calling SyncContext.Fail with the exception {ex.Message}");
+    //                     SyncContext.Fail(ex);
+    //                 }
+    //             }
+    //             SyncContext.CompleteContinuation();
+    //         });
+    //     }
+
+    //     ZenValue zenTask = new ZenValue(ZenType.Task, tcs.Task);
+    //     return zenTask;
+    // }
+
+    // private async Task ExecuteCallbackAsync(Func<Task<ZenValue>> taskFunc, TaskCompletionSource<ZenValue> tcs) {
+    //     try {
+    //         var task = taskFunc();
+    //         var result = await task;
+    //         tcs.SetResult(result);
+    //     }
+    //     catch (Exception ex) {
+    //         tcs.SetException(ex);
+    //     }
+    // }
+
 }

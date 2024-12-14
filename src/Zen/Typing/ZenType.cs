@@ -173,8 +173,13 @@ public class ZenType {
         return newType;
     }
 
-    // Returns true if this type can be assigned a value of the given type
-    //TODO: move this to the TypeChecker
+    /// <summary>
+    /// Deprecated.
+    /// 
+    /// Returns true if this type can be assigned a value of the given type
+    /// </summary>
+    /// <param name="other"></param>
+    /// <returns></returns>
     public bool IsAssignableFrom(ZenType other) {
         if (other == this) return true;
 

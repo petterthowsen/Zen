@@ -72,26 +72,16 @@ public class ZenSynchronizationContext : SynchronizationContext
 
         while (_isRunning)
         {
-            // Check for errors
             if (_lastError != null)
             {
-                var error = _lastError;
-                _lastError = null;
-                Stop();
-                throw error;
+                Logger.Instance.Error($"Exception in event loop: {_lastError.Message}");
+                throw _lastError;
             }
-
+            
             if (_queue.TryTake(out var workItem))
             {
-                try 
-                {
-                    var (callback, state) = workItem;
-                    callback(state);
-                }
-                catch (Exception e)
-                {
-                    Fail(e);
-                }
+                var (callback, state) = workItem;
+                callback(state);
             }
             else if (_pendingContinuations == 0)
             {
@@ -123,7 +113,6 @@ public class ZenSynchronizationContext : SynchronizationContext
     /// <param name="e"></param>
     public void Fail(Exception e)
     {
-        Logger.Instance.Error($"Fail() called. setting _lastError = e");
         _lastError = e;
     }
 }

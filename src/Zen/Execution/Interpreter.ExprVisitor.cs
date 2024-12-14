@@ -392,17 +392,28 @@ public async Task<IEvaluationResult> VisitAsync(Grouping grouping)
     {
         CurrentNode = awaitNode;
 
-        Logger.Instance.Debug($"AWAIT {awaitNode} with expression: {awaitNode.Expression}...");
+        Logger.Instance.Debug($"await {awaitNode} with expression: {awaitNode.Expression}...");
 
         ZenValue value = (await Evaluate(awaitNode.Expression)).Value;
-        Logger.Instance.Debug($"value: {value}");
+
+        ZenType PromiseType = globalEnvironment.GetClass("Promise").Type;
 
         // we can only await ZenType.Task objects
-        if (!value.Type.IsTask)
+        if (value.Type.IsTask == false && TypeChecker.IsCompatible(value.Type, PromiseType) == false)
             throw Error($"Cannot await non-task value of type {value.Type}", awaitNode.Location);
 
         // get the task
-        Task<ZenValue> task = value.Underlying!;
+        Task<ZenValue> task;
+
+        if (value.Type.IsTask) {
+            task = value.Underlying!;
+        }else {
+            // promise
+            ZenObject promiseObject = value.Underlying!;
+            ZenValue promiseZenTask = promiseObject.GetProperty("Task");
+            task = promiseZenTask.Underlying!;
+        }
+
         Logger.Instance.Debug($"awaiting task: {task}");
         try {
             ZenValue result = await task;

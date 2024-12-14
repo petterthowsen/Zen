@@ -41,8 +41,8 @@ public partial class Interpreter
 
     public async Task<IEvaluationResult> VisitAsync(ThrowStmt throwStmt)
     {
-        ZenValue zenException = Environment.GetValue("Exception");
-        ZenType zenExceptionType = zenException.Underlying!.Type;
+        ZenClass zenException = Environment.GetClass("Exception");
+        ZenType zenExceptionType = zenException.Type;
         
 
         IEvaluationResult exprResult = await Evaluate(throwStmt.Expression);
