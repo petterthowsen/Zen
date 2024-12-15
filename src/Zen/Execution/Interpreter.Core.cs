@@ -64,12 +64,30 @@ public partial class Interpreter : IGenericVisitorAsync<Task<IEvaluationResult>>
         return await node.AcceptAsync(this);
     }
 
+    public async Task<IEvaluationResult> Execute(Module module, bool mainScript = false)
+    {
+        if (module.AST != null) {
+
+            // assign module-related constants
+            var zen_this_file = ".";
+            if (module.Source is FileSourceCode fileSource) {
+                zen_this_file = fileSource.FilePath;
+            }
+
+            globalEnvironment.Assign("ZEN_THIS_FILE", new ZenValue(ZenType.String, zen_this_file));
+
+            return await Execute(module.AST);
+        }else {
+            throw new Exception("Module has not been parsed!");
+        }
+    }
+
     /// <summary>
     /// Interpret a program as a main script and run the event loop.
     /// </summary>
     /// <param name="programNode"></param>
     /// <returns></returns>
-    public async Task<IEvaluationResult> Execute(ProgramNode programNode)
+    private async Task<IEvaluationResult> Execute(ProgramNode programNode)
     {
         await VisitAsync(programNode);
 

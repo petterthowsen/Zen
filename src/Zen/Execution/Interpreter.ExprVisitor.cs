@@ -415,29 +415,10 @@ public async Task<IEvaluationResult> VisitAsync(Grouping grouping)
         }
 
         Logger.Instance.Debug($"awaiting task: {task}");
-        try {
-            ZenValue result = await task;
+    
+        ZenValue result = await task;
 
-            Logger.Instance.Debug($"Awaiting task complete with result: {result}");
-
-            return (ValueResult) result; // Return the final result, not another Task
-        } catch (Exception ex) {
-            // If it's our RuntimeError, rethrow it directly
-            if (ex is RuntimeError runtimeError)
-            {
-                throw runtimeError;
-            }
-            // If it's an AggregateException (which wraps task exceptions), unwrap it
-            else if (ex is AggregateException aggEx && aggEx.InnerExceptions.Count == 1)
-            {
-                if (aggEx.InnerException is RuntimeError innerRuntimeError)
-                {
-                    throw innerRuntimeError;
-                }
-            }
-            // Otherwise wrap it in a RuntimeError
-            throw Error($"Task failed: {ex.Message}", awaitNode.Location, ErrorType.RuntimeError, ex);
-        }
+        return (ValueResult) result; // Return the final result, not another Task
     }
 
     public async Task<IEvaluationResult> EvaluateGetMethod(Get get, ZenValue[] argValues)

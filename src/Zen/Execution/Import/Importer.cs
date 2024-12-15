@@ -27,6 +27,10 @@ public class Importer
     // Cache of resolved modules to prevent duplicate processing
     private Dictionary<string, Module> _moduleCache = [];
 
+    private static string[] ModuleLocals = [
+        "ZEN_THIS_FILE",
+    ];
+
     public Importer(Interpreter interpreter, Resolver resolver)
     {
         _interpreter = interpreter;
@@ -234,7 +238,7 @@ public class Importer
             var oldEnv = _interpreter.Environment;
             try {
                 _interpreter.Environment = module.environment;
-                _resolver.Resolve(module.AST, global);
+                _resolver.Resolve(module.AST, global: global, ModuleLocals);
             } finally {
                 _interpreter.Environment = oldEnv;
             }
@@ -290,7 +294,6 @@ public class Importer
         }
 
         // Execute the module's code in its environment
-        // We pass false to awaitEvents, since that should only be done at the main script being executed.
         Logger.Instance.Debug($"Executing module: {module.FullPath}...");
 
         // module.environment may be == to interpreter.environment
@@ -299,7 +302,7 @@ public class Importer
         var oldEnv = _interpreter.Environment;
         try {
             _interpreter.Environment = module.environment;
-            await _interpreter.Interpret(module.AST);
+            await _interpreter.Execute(module, mainScript: false);
         } finally {
             _interpreter.Environment = oldEnv;
         }

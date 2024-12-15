@@ -58,7 +58,7 @@ if subtitle is string {     # < this will check the type of the value - not the 
 }
 
 # you can get the type of something using the built in 'typeof' function:
-if typeof(subtitle) == string { # this is equivalent to the above. the 'is' is just syntactic sugar.
+if typeof(subtitle) == string { # this is equivalent to the above. the 'is' is just a bit more convenient sugar.
     print "subtitle is a string type"
 }
 

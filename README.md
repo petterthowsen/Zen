@@ -23,11 +23,11 @@ The goal of zen is to be a simple language that
 - Neither overly opinionated nor full of magic
 - Rich standard library suitable for Web Servers & Web Apps, as well as desktop apps.
 
-This implementation is a tree-walk interpreter and it is therefore relatively slow compared to other approaches (in some cases hundreds of times slower than, for example, the javascript V8 Engine, especially recursive functions.)
+This implementation is a tree-walk interpreter and it is therefore relatively slow compared to more optimized runtimes (bytecode or especially native machine code.)
 
 For compute-heavy or real-time-dependent projects, Zen is not suitable. For other use cases, it's totally fine - computers are fast enough these days.
 
-For example, calling this recursive fib function to get the tenth fibonacci number:
+For Comparison, here's a fib function in zen:
 
 ```zen
 func fib(n:int) : int {
@@ -40,7 +40,8 @@ func fib(n:int) : int {
 }
 ```
 
-Causes fib to be called a total of 11306 times and takes about 663 milliseconds on my mid-range laptop.
+Calling this, results in a total of 13529 recursive calls and takes about 644ms on my laptop.
+Conversely, a similar script in Node JS takes about 6ms. So, It's about a hundred times slower.
 
 ## Installing
 
@@ -63,6 +64,13 @@ dotnet run --project src/Zen
 # alternatively, you can pass a file
 ./zen.sh myZenFile.zen
 ```
+
+## Building binaries
+use `dotnet publish -c Release -r <runtime-identifier> --self-contained` to build binaries.
+Replace runtime-identifier with one of these:
+- win-x64
+- linux-x64
+- osx-x64
 
 ## Testing
 

@@ -75,7 +75,9 @@ public class ZenSynchronizationContext : SynchronizationContext
             if (_lastError != null)
             {
                 Logger.Instance.Error($"Exception in event loop: {_lastError.Message}");
-                throw _lastError;
+
+                // Otherwise wrap it in a RuntimeError
+                throw Interpreter.Error($"Unhandled Exception: {_lastError.Message}", Interpreter.Instance.CurrentNode!.Location, ErrorType.RuntimeError, _lastError);
             }
             
             if (_queue.TryTake(out var workItem))

@@ -1,4 +1,4 @@
-const FIB_NUM = 10
+const FIB_NUM = 20
 
 var total_n = 0
 

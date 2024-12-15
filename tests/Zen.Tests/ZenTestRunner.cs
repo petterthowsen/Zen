@@ -56,7 +56,7 @@ public class TestRunner
         Runtime.Interpreter.GlobalOutputBuffer.Clear();
         Runtime.Interpreter.OutputHandler = Output.WriteLine;
         await Runtime!.Execute(source);
-        return Runtime.Interpreter.GlobalOutputBuffer.ToString();
+        return Runtime.Interpreter.GlobalOutputBuffer.ToString().TrimEnd("\n".ToCharArray());
     }
 
     protected async Task<string?> Execute(string source, bool outputBuffering = false) => await Execute(new InlineSourceCode(source), outputBuffering);

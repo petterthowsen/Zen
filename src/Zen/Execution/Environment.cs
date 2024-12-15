@@ -17,7 +17,7 @@ public class Environment {
     public Environment(Environment? parent = null, string name = "env") {
         Parent = parent;
         Name = name;
-        Logger.Instance.Debug($"Created environment {Name}");
+        Logger.Instance.Debug($"[ENV] Created environment {Name}");
     }
 
     /// <summary>
@@ -78,7 +78,11 @@ public class Environment {
         if (Variables.ContainsKey(name)) {
             return Variables[name];
         }
-        
+    
+        if (Parent == null) {
+            Logger.Instance.Debug($"[ENV] Variable '{name}' not found in environment '{this.Name}'");
+        }
+
         return Parent!.GetVariable(name);
     }
 

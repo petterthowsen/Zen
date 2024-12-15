@@ -142,14 +142,6 @@ public class FunctionTests : TestRunner
     }
 
     [Fact]
-    public async Task TestFuncWithFuncArgument() {
-        await RestartInterpreter();
-        var script = "/home/pelatho/Documents/work/zen-projects/ZenExpress/Test.zen";
-
-        await Execute(new FileSourceCode(script), false);
-    }
-
-    [Fact]
     public async Task TestReturnAsyncFunc()
     {
         await RestartInterpreter();

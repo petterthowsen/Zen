@@ -45,13 +45,22 @@ public class Resolver : IVisitor
         return err;
     }
 
-    public void Resolve(ProgramNode program, bool global = false) {
+    public void Resolve(ProgramNode program, bool global = false, string[]? locals = null) {
         Reset();
 
         Logger.Instance.Debug("RESOLVING PROGRAM: " + program.Location);
 
         if (global == false) {
             BeginScope();
+        }
+        
+        // declare and define the local constants for this program ?
+        // this is used to allow the constants ZEN_THIS_FILE to be unique per module.
+        if (locals != null) {
+            foreach (var local in locals) {
+                Declare(local);
+                Define(local);
+            }
         }
 
         foreach (var statement in program.Statements) {
@@ -111,7 +120,7 @@ public class Resolver : IVisitor
         scope.Add(name.Value, false);
     }
 
-    private void Declare(string name, SourceLocation? location) {
+    private void Declare(string name, SourceLocation? location = null) {
         if (scopes.Count == 0) return;
 
         Dictionary<String, Boolean> scope = scopes.Peek();
@@ -160,7 +169,7 @@ public class Resolver : IVisitor
             //Logger.Instance.Debug($"[RESOLVER] Scope {i}: {vars}");
             if (scopesList[i].ContainsKey(name)) {
                 var distance = i; // Correct distance calculation
-                //Logger.Instance.Debug($"[RESOLVER] Found '{name}' in scope {i}, distance: {distance}");
+                Logger.Instance.Debug($"[RESOLVER] Found '{name}' in scope {i}, distance: {distance}");
                 interpreter.Resolve(expr, distance);
                 return;
             }
@@ -238,19 +247,20 @@ public class Resolver : IVisitor
 
     public void Visit(ForInStmt forInStmt)
     {
-        BeginScope();
-
-        if (forInStmt.KeyIdentifier != null) {
-            Declare((Token) forInStmt.KeyIdentifier);
-            Define((Token) forInStmt.KeyIdentifier);
-        }
-
-        Declare(forInStmt.ValueIdentifier);
-        Define(forInStmt.ValueIdentifier);
-
+        // resolve the expression
         Resolve(forInStmt.Expression);
-        Resolve(forInStmt.Block.Statements);
+        
+        // begin a new scope which will hold the temporary loop variables
+        BeginScope();
+            Declare(forInStmt.ValueIdentifier);
+            Define(forInStmt.ValueIdentifier);
 
+            if (forInStmt.KeyIdentifier != null) {
+                Declare((Token) forInStmt.KeyIdentifier);
+                Define((Token) forInStmt.KeyIdentifier);
+            }
+            
+            Resolve(forInStmt.Block.Statements);
         EndScope();
     }
 

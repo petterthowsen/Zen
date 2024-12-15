@@ -48,6 +48,14 @@ public class Runtime
         ModuleHelper = new ModuleHelper(Interpreter);
 
         Interpreter.Importer = Importer;
+
+        // define global runtime constants
+        Interpreter.globalEnvironment.Define(true, "ZEN_THIS_FILE", ZenType.String, false);
+        Interpreter.globalEnvironment.Define(true, "ZEN_SCRIPT_FILE", ZenType.String, false);
+        Interpreter.globalEnvironment.Define(true, "ZEN_SCRIPT_DIR", ZenType.String, false);
+        Interpreter.globalEnvironment.Define(true, "ZEN_RUNTIME_VERSION", ZenType.String, false);
+
+        Interpreter.globalEnvironment.Assign("ZEN_RUNTIME_VERSION", new ZenValue(ZenType.String, "0.1.0"));
     }
 
     public async Task RegisterCoreBuiltins()
@@ -83,7 +91,6 @@ public class Runtime
         ZenType promiseType = (await Interpreter.FetchSymbol("Zen/Promise", "Promise")).Underlying!;
         Interpreter.globalEnvironment.Define(true, "Promise", ZenType.Type, false);
         Interpreter.globalEnvironment.Assign("Promise", new ZenValue(ZenType.Type, promiseType));
-
 
         await Task.CompletedTask;
     }
@@ -131,6 +138,21 @@ public class Runtime
         var mainProvider = new MainScriptModuleProvider(mainModule, packageName);
         Importer.RegisterProvider(mainProvider);
 
+        // assign the global runtime constants
+        var cwd = Directory.GetCurrentDirectory();
+        string? ZEN_SCRIPT_FILE = null;
+        string ZEN_SCRIPT_DIR = null;
+        
+        if (source is FileSourceCode fileSourceCode)
+        {
+            ZEN_SCRIPT_FILE = Path.GetFullPath(fileSourceCode.FilePath);
+            ZEN_SCRIPT_DIR = Path.GetDirectoryName(ZEN_SCRIPT_FILE)!;
+        }
+
+        Interpreter.globalEnvironment.Assign("ZEN_SCRIPT_FILE", new ZenValue(ZenType.String, ZEN_SCRIPT_FILE));
+        Interpreter.globalEnvironment.Assign("ZEN_SCRIPT_DIR", new ZenValue(ZenType.String, ZEN_SCRIPT_DIR));
+        Interpreter.globalEnvironment.Assign("ZEN_THIS_FILE", new ZenValue(ZenType.String, ZEN_SCRIPT_FILE));
+        
         try
         {
             // Parse the module
@@ -150,16 +172,14 @@ public class Runtime
 
             // Execute the module and run the event loop on the current thread
             // this will block until the event loop is finished.
-            await Interpreter.Execute(mainModule.AST);
+            await Interpreter.Execute(mainModule, mainScript: true);
             
             string output = Interpreter.GlobalOutputBuffer.ToString();
             return output;
         }
-        catch (Exception)
+        finally
         {
-            // Clean up the provider on error
             Importer.Providers.Remove(mainProvider);
-            throw;
         }
     }
 
